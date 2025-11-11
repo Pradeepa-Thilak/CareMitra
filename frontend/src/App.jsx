@@ -7,10 +7,12 @@ import Cart from './pages/Cart';
 import LabTests from './pages/LabTests';
 import Login from './pages/Login';
 import Signup from './pages/Register';
+import firebase from './utils/firebase';
+
 
 function App() {
+  console.log("Firebase", firebase.apps.length>0);
   return (
-    
       <div className="min-h-screen bg-gray-100">
         <Header />
         <main>
