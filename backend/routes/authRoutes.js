@@ -544,23 +544,36 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const admin = require('firebase-admin');
 const User = require('../models/User');
+require('dotenv').config();
+const path = require('path');
 
 const router = express.Router();
 
-// Initialize Firebase Admin
+// ============================================
+// ✅ Initialize Firebase Admin Securely
+// ============================================
 let firebaseInitialized = false;
 try {
-  const serviceAccount = require('../firebase-service-account.json');
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
-  });
-  firebaseInitialized = true;
-  console.log('✅ Firebase Admin initialized successfully');
+  const serviceAccountPath = process.env.FIREBASE_CREDENTIALS_PATH;
+
+  if (serviceAccountPath) {
+    const serviceAccount = require(path.resolve(serviceAccountPath));
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
+    });
+    firebaseInitialized = true;
+    console.log('✅ Firebase Admin initialized successfully');
+  } else {
+    console.error('❌ Firebase config path missing in .env');
+  }
 } catch (error) {
   console.error('❌ Firebase initialization error:', error.message);
 }
 
+// ============================================
+// ✅ Temporary Session Store (for testing)
+// ============================================
 // Store session info for email collection (NO OTP storage)
 const sessionStore = new Map();
 
