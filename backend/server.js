@@ -29,7 +29,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use("/api/categories", categories);
 app.use("/api/products", products);
 app.use("/api/brands", brands);
-app.use("/api/auth", authRoutes); // 🔐 OTP Auth system
+// app.use("/api/auth", authRoutes); // 🔐 OTP Auth system
 
 // ===== HEALTH CHECK =====
 app.get("/api/health", (req, res) => {
