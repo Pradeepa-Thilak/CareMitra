@@ -1,60 +1,72 @@
-import React, { createContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useState, useEffect } from "react";
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
 
-  // Initialize auth state from localStorage
-  useEffect(() => {
-    const storedToken = localStorage.getItem('authToken');
-    const storedUser = localStorage.getItem('user');
-    
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-      setIsAuthenticated(true);
+  // ✅ Safe JSON parse
+  const safeParse = (value) => {
+    try {
+      return value && value !== "undefined" ? JSON.parse(value) : null;
+    } catch {
+      return null;
     }
-    setLoading(false);
-  }, []);
-
-  const login = useCallback((userData, authToken) => {
-    setUser(userData);
-    setToken(authToken);
-    setIsAuthenticated(true);
-    localStorage.setItem('authToken', authToken);
-    localStorage.setItem('user', JSON.stringify(userData));
-  }, []);
-
-  const logout = useCallback(() => {
-    setUser(null);
-    setToken(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-  }, []);
-
-  const updateUser = useCallback((updatedData) => {
-    const newUser = { ...user, ...updatedData };
-    setUser(newUser);
-    localStorage.setItem('user', JSON.stringify(newUser));
-  }, [user]);
-
-  const value = {
-    user,
-    isAuthenticated,
-    loading,
-    token,
-    login,
-    logout,
-    updateUser,
   };
 
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    const storedToken = localStorage.getItem("authToken");
+
+    const parsedUser = safeParse(storedUser);
+    if (parsedUser && storedToken) {
+      setUser(parsedUser);
+      setToken(storedToken);
+    } else {
+      // Clear invalid or corrupted data
+      localStorage.removeItem("user");
+      localStorage.removeItem("authToken");
+    }
+  }, []);
+
+  const login = (userData, authToken) => {
+    setUser(userData);
+    setToken(authToken);
+    setRole(userData.role);
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("authToken", authToken);
+  };
+
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem("user");
+    localStorage.removeItem("authToken");
+  };
+
+  const [role, setRole] = useState(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    const storedToken = localStorage.getItem("authToken");
+
+    const parsedUser = safeParse(storedUser);
+    if (parsedUser && storedToken) {
+      setUser(parsedUser);
+      setToken(storedToken);
+      setRole(parsedUser.role); // ✅ store role from user object
+    } else {
+      localStorage.removeItem("user");
+      localStorage.removeItem("authToken");
+    }
+  }, []);
+
+  
+
+
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ user, token, role, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

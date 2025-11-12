@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Heart, ShoppingCart, Star } from 'lucide-react';
-import { useCart } from '../hooks/useCart';
+import { useCart } from '../../hooks/useCart';
 
 const ProductCard = ({ product, onViewDetails }) => {
   const [isWishlisted, setIsWishlisted] = useState(false);
