@@ -3,21 +3,26 @@ const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const bodyParser = require("body-parser");
-const connectDB = require("./config/database");
+require("dotenv").config();
+
+const connectDB = require("./config/database"); // unified DB connector
 const errorHandler = require("./middleware/errorHandler");
 
-// Route files
+// ===== ROUTE FILES =====
+const authRoutes = require("./routes/authRoutes");
+const patientRoutes = require("./routes/patientRoutes");
+const doctorRoutes = require("./routes/doctorRoutes");
 const categories = require("./routes/categories");
 const products = require("./routes/products");
 const brands = require("./routes/brands");
-const authRoutes = require("./routes/authRoutes"); // OTP auth routes
 
-// Load environment variables
+// ===== LOAD ENVIRONMENT VARIABLES =====
 dotenv.config();
 
-// Connect to MongoDB
+// ===== CONNECT TO DATABASE =====
 connectDB();
 
+// ===== INITIALIZE APP =====
 const app = express();
 
 // ===== MIDDLEWARE =====
@@ -26,44 +31,29 @@ app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: false }));
 
 // ===== API ROUTES =====
-app.use("/api/categories", categories);
+app.use("/api/auth", authRoutes); // 🔐 OTP Auth system
+app.use("/api/patient", patientRoutes); // 🧍‍♀️ Patient module
+app.use("/api/doctor", doctorRoutes);   // 👨‍⚕️ Doctor module
+app.use("/api/categories", categories); // 🏷️ Extra modules (optional)
 app.use("/api/products", products);
 app.use("/api/brands", brands);
-// app.use("/api/auth", authRoutes); // 🔐 OTP Auth system
 
 // ===== HEALTH CHECK =====
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "Tata 1mg Healthcare API is running",
+    message: "Healthcare System API is running ✅",
     timestamp: new Date().toISOString(),
-  });
-});
-
-//==== home page ====
-app.get('/', (req, res) => {
-  res.json({ 
-    success: true, 
-    message: 'Server is running! 🚀',
-    timestamp: new Date().toISOString(),
-    endpoints: [
-      'POST /api/auth/signup/send-otp',
-      'POST /api/auth/signup/verify-mobile', 
-      'POST /api/auth/signup/complete',
-      'POST /api/auth/login/send-otp',
-      'POST /api/auth/login/verify'
-    ]
   });
 });
 
 // ===== 404 HANDLER =====
-app.use((req, res) => {
+app.use("*", (req, res) => {
   res.status(404).json({
     success: false,
     message: "Route not found",
   });
 });
-
 
 // ===== CENTRALIZED ERROR HANDLER =====
 app.use(errorHandler);
