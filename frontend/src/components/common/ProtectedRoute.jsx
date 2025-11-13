@@ -13,17 +13,17 @@ const ProtectedRoute = ({ children, role }) => {
   const { token, role: userRole } = useContext(AuthContext);
   const location = useLocation();
 
-  // 🚫 If not logged in, redirect to login page
+  //  If not logged in, redirect to login page
   if (!token) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // 🚫 If a specific role is required but doesn’t match
+  //  If a specific role is required but doesn’t match
   if (role && userRole !== role) {
     return <Navigate to="/" replace />;
   }
 
-  // ✅ Access granted
+  //  Access granted
   return children;
 };
 

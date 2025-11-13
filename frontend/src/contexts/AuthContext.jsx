@@ -5,28 +5,17 @@ export const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
-
-  // ✅ Safe JSON parse
-  const safeParse = (value) => {
-    try {
-      return value && value !== "undefined" ? JSON.parse(value) : null;
-    } catch {
-      return null;
-    }
-  };
+  const [role, setRole] = useState(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     const storedToken = localStorage.getItem("authToken");
 
-    const parsedUser = safeParse(storedUser);
-    if (parsedUser && storedToken) {
+    if (storedUser && storedToken) {
+      const parsedUser = JSON.parse(storedUser);
       setUser(parsedUser);
       setToken(storedToken);
-    } else {
-      // Clear invalid or corrupted data
-      localStorage.removeItem("user");
-      localStorage.removeItem("authToken");
+      setRole(parsedUser.role);
     }
   }, []);
 
@@ -34,6 +23,7 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
     setToken(authToken);
     setRole(userData.role);
+
     localStorage.setItem("user", JSON.stringify(userData));
     localStorage.setItem("authToken", authToken);
   };
@@ -41,29 +31,9 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("authToken");
+    setRole(null);
+    localStorage.clear();
   };
-
-  const [role, setRole] = useState(null);
-
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("authToken");
-
-    const parsedUser = safeParse(storedUser);
-    if (parsedUser && storedToken) {
-      setUser(parsedUser);
-      setToken(storedToken);
-      setRole(parsedUser.role); // ✅ store role from user object
-    } else {
-      localStorage.removeItem("user");
-      localStorage.removeItem("authToken");
-    }
-  }, []);
-
-  
-
 
   return (
     <AuthContext.Provider value={{ user, token, role, login, logout }}>

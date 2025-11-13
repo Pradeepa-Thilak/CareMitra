@@ -96,7 +96,7 @@ const handleConfirmAppointment = (appointmentDetails) => {
             to = "/appointment"
             className="bg-sky-600 text-white px-5 py-2 rounded-lg hover:bg-sky-700 transition flex items-center gap-2"
             >
-            <CalendarDays size={18} /> Book Appointment
+            <CalendarDays size={18} /> My Appointment
         </Link>
 
           <button

@@ -15,75 +15,54 @@ const Signup = ({ closeModal, setMethod }) => {
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
 
-  // 🔹 Stage 1 - Send OTP (mock)
+  // 🔹 Stage 1 - Send OTP 
   const handleSendOtp = async (e) => {
     e.preventDefault();
-    setInvalid(false);
-    setMessage("");
-
-    if (!email.includes("@")) {
-      setInvalid(true);
-      setMessage("Please enter a valid email");
-      return;
+    try {
+      const res = await authAPI.sendSignupOtp(email);
+      toast.success("OTP sent to email!");
+      setStage(2);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to send OTP");
     }
-
-    // 🧠 Generate a random 6-digit OTP for mock mode
-    const mockOtp = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // 🧾 Log OTP to console (for developer visibility)
-    console.log(`✅ Mock OTP for ${email}: ${mockOtp}`);
-
-    // Save the OTP so verification can compare it later
-    setOtp(mockOtp);
-
-    // 🎉 Show toast message
-    toast.success("Mock OTP sent! (Check console for OTP)");
-
-    // Move to OTP verification stage
-    setStage(2);
   };
 
-  // 🔹 Stage 2 - Verify OTP (mock)
-  const handleVerifyOtp = (e) => {
+
+  // 🔹 Stage 2 - Verify OTP 
+  const handleVerifyOtp = async (e) => {
     e.preventDefault();
-
-    // Compare typed OTP with stored one
-    if (otp.trim().length !== 6) {
-      setInvalid(true);
-      setMessage("Please enter the 6-digit OTP.");
-      return;
+    try {
+      await authAPI.verifyOtp(email, otp);
+      toast.success("OTP verified!");
+      setStage(3);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Invalid OTP");
     }
-
-    toast.success("OTP verified successfully!");
-    setStage(3);
   };
+
 
   // 🔹 Stage 3 - Complete Signup
-  const handleCompleteSignup = (e) => {
+  const handleCompleteSignup = async (e) => {
     e.preventDefault();
+    try {
+      const res = await authAPI.completeSignup({
+        email,
+        name: formData.name,
+        role: formData.role,
+      });
 
-    if (!formData.name || !formData.role) {
-      setInvalid(true);
-      setMessage("All fields are required");
-      return;
+      const { token, user } = res.data;
+
+      login(user, token);
+      toast.success("Signup successful!");
+
+      if (user.role === "patient") navigate("/patient/dashboard");
+      else navigate("/doctor/dashboard");
+
+      closeModal?.();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Signup failed");
     }
-
-    // 🧠 Mock successful signup
-    const userData = {
-      name: formData.name,
-      email,
-      role: formData.role,
-    };
-
-    login(userData, "mock-token-123");
-
-    toast.success("Signup successful!");
-    closeModal?.();
-
-    // ✅ Redirect by role
-    if (formData.role === "patient") navigate("/patient/dashboard");
-    else if (formData.role === "doctor") navigate("/doctor/dashboard");
-    else navigate("/");
   };
 
   return (

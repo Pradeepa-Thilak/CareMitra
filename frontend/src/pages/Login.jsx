@@ -15,72 +15,38 @@ const Login = ({ closeModal, setMethod }) => {
   const { login } = useContext(AuthContext);
 
   // Step 1: Send OTP (mock)
-  const handleSendOtp = async (e) => {
-      e.preventDefault();
-      setInvalid(false);
-      setMessage("");
-  
-      if (!email.includes("@")) {
-        setInvalid(true);
-        setMessage("Please enter a valid email");
-        return;
-      }
-  
-      // 🧠 Generate a random 6-digit OTP for mock mode
-      const mockOtp = Math.floor(100000 + Math.random() * 900000).toString();
-  
-      // 🧾 Log OTP to console (for developer visibility)
-      console.log(`✅ Mock OTP for ${email}: ${mockOtp}`);
-  
-      // Save the OTP so verification can compare it later
-      setOtp(mockOtp);
-  
-      // 🎉 Show toast message
-      toast.success("Mock OTP sent! (Check console for OTP)");
-  
-      // Move to OTP verification stage
+ const handleSendOtp = async (e) => {
+    e.preventDefault();
+    try {
+      await authAPI.sendLoginOtp(email);
+      toast.success("OTP sent!");
       setStage(2);
-    };
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to send OTP");
+    }
+  };
+
   // Step 2: Verify OTP (mock)
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
 
-    if (otp.length !== 6) {
-      setInvalid(true);
-      setMessage("Please enter a 6-digit OTP.");
-      return;
-    }
-
-    setLoading(true);
     try {
-      // 🧠 Mock login (frontend only)
-      const mockRole =
-        email.includes("doc") || email.includes("dr") ? "doctor" : "patient";
+      const res = await authAPI.verifyOtp(email, otp);
 
-      const userData = {
-        email,
-        name: email.split("@")[0],
-        role: mockRole,
-      };
+      const { user, token } = res.data;
 
-      // ✅ Save in AuthContext
-      login(userData, "mock-token-123");
-
+      login(user, token);
       toast.success("Login successful!");
 
-      // ✅ Redirect based on role
-      if (mockRole === "patient") navigate("/patient/dashboard");
-      else if (mockRole === "doctor") navigate("/doctor/dashboard");
-      else navigate("/");
+      if (user.role === "patient") navigate("/patient/dashboard");
+      else navigate("/doctor/dashboard");
 
       closeModal?.();
     } catch (err) {
-      console.error(err);
-      toast.error("Login failed, try again.");
-    } finally {
-      setLoading(false);
+      toast.error(err.response?.data?.message || "Invalid OTP");
     }
   };
+
 
   return (
     <>

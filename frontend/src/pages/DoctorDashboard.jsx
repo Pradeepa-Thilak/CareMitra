@@ -96,7 +96,7 @@ const DoctorDashboard = () => {
         <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 flex items-center gap-4">
           <CalendarDays className="text-sky-600" size={30} />
           <div>
-            <p className="text-sm text-gray-500">Today’s Appointments</p>
+            <p className="text-sm text-gray-500">My Appointments</p>
             <h3 className="text-2xl font-semibold">{todayAppointments.length}</h3>
           </div>
         </div>
@@ -117,7 +117,7 @@ const DoctorDashboard = () => {
         </h2>
 
         {todayAppointments.length === 0 ? (
-          <p className="text-gray-600 text-sm">No appointments for today.</p>
+          <p className="text-gray-600 text-sm">No appointments .</p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {todayAppointments.map((appt) => (
