@@ -1,30 +1,42 @@
 const express = require('express');
 const router = express.Router();
 const {
-  sendOTP,
+  sendOTPSignup,
+  sendOTPLogin,
   verifyOTP,
   completeSignup,
-  login
+  getCurrentUser
 } = require('../controllers/authController');
+const auth = require('../middleware/auth');
 
-// @desc    Send OTP for signup/login
-// @route   POST /api/auth/send-otp
-// @access  Public
-router.post('/send-otp', sendOTP);
+console.log('🔧 Auth routes loading...');
 
-// @desc    Verify OTP
-// @route   POST /api/auth/verify-otp
-// @access  Public
+// Public routes
+router.post('/send-otp/signup', sendOTPSignup);
+router.post('/send-otp/login', sendOTPLogin);
 router.post('/verify-otp', verifyOTP);
+router.post('/complete-signup', completeSignup);
 
-// @desc    Complete signup with name and role
-// @route   POST /api/auth/signup
-// @access  Public
-router.post('/signup', completeSignup);
+// Protected route
+router.get('/me', auth, getCurrentUser);
 
-// @desc    Login existing user
-// @route   POST /api/auth/login
-// @access  Public
-router.post('/login', login);
+// Debug route to test if auth routes work
+router.get('/test', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'Auth routes are working!',
+    availableEndpoints: [
+      'POST /send-otp/signup',
+      'POST /send-otp/login', 
+      'POST /verify-otp',
+      'POST /complete-signup',
+      'GET /me'
+    ]
+  });
+});
+
+console.log('✅ Auth routes loaded:', router.stack.map(layer => {
+  return `${Object.keys(layer.route?.methods || {})[0]?.toUpperCase()} ${layer.route?.path}`;
+}));
 
 module.exports = router;

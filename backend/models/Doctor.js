@@ -5,8 +5,8 @@ const doctorSchema = new mongoose.Schema({
     type: String, 
     required: true, 
     unique: true,
-    lowercase: true,
-    trim: true
+    lowercase: true, 
+    trim: true 
   },
   name: { 
     type: String, 
@@ -30,13 +30,28 @@ const doctorSchema = new mongoose.Schema({
   otpExpires: { 
     type: Date 
   }
-}, {
-  timestamps: true
+}, { 
+  timestamps: true 
 });
 
-// Index for better performance
-doctorSchema.index({ email: 1 });
+// OTP expiration index
 doctorSchema.index({ otpExpires: 1 }, { expireAfterSeconds: 0 });
-doctorSchema.index({ specialist: 1 });
+
+// Add OTP methods to Doctor model too
+doctorSchema.methods.generateOTP = function() {
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  this.otp = otp;
+  this.otpExpires = Date.now() + 5 * 60 * 1000;
+  return otp;
+};
+
+doctorSchema.methods.verifyOTP = function(enteredOTP) {
+  return this.otp === enteredOTP && this.otpExpires > Date.now();
+};
+
+doctorSchema.methods.clearOTP = function() {
+  this.otp = undefined;
+  this.otpExpires = undefined;
+};
 
 module.exports = mongoose.model('Doctor', doctorSchema);
