@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext"; // ✅ corrected import path
 import { toast } from "react-hot-toast";
 import SignupForm from "../components/forms/SignupForm";
+import {authAPI} from "../utils/api";
 
 const Signup = ({ closeModal, setMethod }) => {
   const [stage, setStage] = useState(1);
