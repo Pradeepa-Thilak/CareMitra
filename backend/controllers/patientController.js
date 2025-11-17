@@ -1,147 +1,200 @@
 const Patient = require('../models/Patient');
 const Doctor = require('../models/Doctor');
+const User = require("../models/User");
 
-// Get patient profile
-const getProfile = async (req, res) => {
+const viewProfile = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const patient = await Patient.findById(id).populate('doctors', 'name email specialist');
-
-    if (!patient) {
-      return res.status(404).json({
-        success: false,
-        message: 'Patient not found'
+    const { userId, role } = req.user;
+    
+    console.log(`🔍 Looking for profile: ${userId} (${role})`);
+    
+    let profile = null;
+    let source = '';
+    
+    
+    profile = await User.findById(userId).select("-otp -otpExpires");
+    if (profile) {
+      source = 'User';
+      console.log(`✅ Profile found in User collection: ${profile.email}`);
+    } else {
+      
+      const Model = role === "doctor" ? Doctor : Patient;
+      profile = await Model.findById(userId).select("-otp -otpExpires");
+      if (profile) {
+        source = role === "doctor" ? 'Doctor' : 'Patient';
+        console.log(`✅ Profile found in ${source} collection: ${profile.email}`);
+      }
+    }
+    
+    if (!profile) {
+      console.log(`❌ Profile not found in any collection for userId: ${userId}`);
+      return res.status(404).json({ 
+        success: false, 
+        message: "User profile not found" 
       });
     }
-
-    res.status(200).json({
-      success: true,
-      data: patient
+    
+    res.json({ 
+      success: true, 
+      data: profile,
+      source: source
     });
-
-  } catch (error) {
-    console.error('Get patient profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+  } catch (err) {
+    console.error('❌ viewProfile error:', err.message);
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
-};
+}
 
-// Edit patient profile
+
 const editProfile = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { name } = req.body;
+    const { userId, role } = req.user;
+    const { name, specialist } = req.body;
 
-    if (!name) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name is required'
-      });
+    if (!name && !specialist) {
+      return res.status(400).json({ success: false, message: "No data provided for update" });
     }
 
-    const patient = await Patient.findByIdAndUpdate(
-      id,
-      { name },
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (specialist && role === "doctor") updateData.specialist = specialist;
+
+    
+    const updatedUser = await User.findByIdAndUpdate(
+      userId, 
+      updateData, 
       { new: true, runValidators: true }
-    ).populate('doctors', 'name email specialist');
+    ).select("-otp -otpExpires");
 
-    if (!patient) {
-      return res.status(404).json({
-        success: false,
-        message: 'Patient not found'
-      });
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Profile updated successfully',
-      data: patient
-    });
-
-  } catch (error) {
-    console.error('Edit patient profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-};
-
-// Add doctor to patient
-const addDoctor = async (req, res) => {
-  try {
-    const { patientId, doctorId } = req.body;
-
-    if (!patientId || !doctorId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Patient ID and Doctor ID are required'
-      });
+   
+    let updatedProfile = null;
+    if (role === "patient") {
+      updatedProfile = await Patient.findByIdAndUpdate(
+        userId,
+        { name },
+        { new: true, upsert: true } 
+      );
+    } else if (role === "doctor") {
+      updatedProfile = await Doctor.findByIdAndUpdate(
+        userId,
+        { name, specialist },
+        { new: true, upsert: true }
+      );
     }
 
-    // Check if patient exists
-    const patient = await Patient.findById(patientId);
-    if (!patient) {
-      return res.status(404).json({
-        success: false,
-        message: 'Patient not found'
-      });
-    }
-
-    // Check if doctor exists
-    const doctor = await Doctor.findById(doctorId);
-    if (!doctor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Doctor not found'
-      });
-    }
-
-    // Check if doctor already added
-    if (patient.doctors.includes(doctorId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Doctor already added to patient'
-      });
-    }
-
-    // Add doctor to patient and patient to doctor (bidirectional)
-    patient.doctors.push(doctorId);
-    doctor.patients.push(patientId);
-
-    await patient.save();
-    await doctor.save();
-
-    // Populate the updated data
-    const updatedPatient = await Patient.findById(patientId).populate('doctors', 'name email specialist');
-    const updatedDoctor = await Doctor.findById(doctorId).populate('patients', 'name email');
-
-    res.status(200).json({
-      success: true,
-      message: 'Doctor added successfully',
+    res.json({ 
+      success: true, 
+      message: "Profile updated successfully", 
       data: {
-        patient: updatedPatient,
-        doctor: updatedDoctor
+        user: updatedUser,
+        profile: updatedProfile
       }
     });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Error updating profile", error: err.message });
+  }
+};
 
-  } catch (error) {
-    console.error('Add doctor error:', error);
-    res.status(500).json({
+
+const getAllDoctor = async (req, res) => {
+  try {
+    const { role } = req.user;
+    
+    if (role !== "patient") {
+      return res.status(403).json({ success: false, message: "Access denied. Patients only." });
+    }
+
+    const doctors = await Doctor.find({}, "name specialist email experience ratings");
+    res.json({ success: true, data: doctors });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Error fetching doctors", error: err.message });
+  }
+};
+
+const myAppointment = async (req, res) => {
+  try {
+    const { userId, role } = req.user;
+
+    console.log(`🔍 Fetching appointments for userId: ${userId} (${role})`);
+
+    
+    const userData = await User.findById(userId);
+    if (!userData) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    let profile = null;
+
+    
+    if (role === "patient") {
+      profile = await Patient.findOne({ email: userData.email })
+        .populate("doctors._id", "name email specialist");
+
+      if (!profile) {
+        return res.status(404).json({
+          success: false,
+          message: "Patient record not found"
+        });
+      }
+    }
+
+    
+    else if (role === "doctor") {
+      profile = await Doctor.findOne({ email: userData.email })
+        .populate("patients._id", "name email");
+
+      if (!profile) {
+        return res.status(404).json({
+          success: false,
+          message: "Doctor record not found"
+        });
+      }
+    }
+
+    console.log("📘 Profile found:", profile._id);
+
+    
+    const appointments =
+      role === "patient" ? profile.doctors : profile.patients;
+
+    console.log(` Total appointments: ${appointments.length}`);
+
+   
+    const formattedAppointments = appointments.map((a) => ({
+      id: a._id?._id || a._id,
+      name: a._id?.name || "Not Available",
+      email: a._id?.email || "Not Available",
+      specialist: a._id?.specialist || null,
+      date: a.date,
+      time: a.time,
+      reason: a.reason,
+      status: a.status,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      count: formattedAppointments.length,
+      data: formattedAppointments,
+    });
+  } catch (err) {
+    console.error(" myAppointments Error:", err);
+    return res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: "Error fetching appointments",
+      error: err.message,
     });
   }
 };
 
+
+
 module.exports = {
-  getProfile,
+  viewProfile,
   editProfile,
-  addDoctor
+  getAllDoctor,
+  myAppointment
 };
