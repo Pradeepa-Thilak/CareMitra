@@ -17,8 +17,28 @@ const patientSchema = new mongoose.Schema({
     default: "patient" 
   },
   doctors: [{ 
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Doctor" 
+    _id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Doctor",
+      required: true
+    },
+    date: {
+      type: String,
+      required: true
+    },
+    time: {
+      type: String,
+      required: true
+    },
+    reason: {
+      type: String,
+      required: true
+    },
+    status: {
+      type: String,
+      enum: ["pending", "confirmed", "cancelled"],
+      default: "pending"
+    }
   }],
   otp: { 
     type: String 

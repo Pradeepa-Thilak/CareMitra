@@ -162,6 +162,15 @@ const verifyOTP = async (req, res) => {
     user.clearOTP();
     await user.save();
 
+    // ✅ STORE USER IN SESSION - This is the key part!
+    req.session.pendingUser = {
+      email: user.email,
+      userId: user._id.toString()
+    };
+
+    console.log('✅ Session created for user:', user.email);
+    console.log('📋 Session ID:', req.sessionID);
+    
     // Check if user has completed signup
     if (user.name && user.role) {
       const token = generateToken({
@@ -203,12 +212,11 @@ const verifyOTP = async (req, res) => {
   }
 };
 
-// ... rest of the controller methods remain the same
 const completeSignup = async (req, res) => {
   try {
     const { name, role, specialist } = req.body;
 
-    // Only validate name and role (no email)
+    // Only validate name and role
     if (!name || !role) {
       return res.status(400).json({
         success: false,
@@ -223,13 +231,18 @@ const completeSignup = async (req, res) => {
       });
     }
 
-    // Get user from the verified session (you might need to adjust this based on your auth flow)
-    // Option 1: If user is stored in req.user after OTP verification
-    const user = req.user;
-    
-    // Option 2: If you need to get user from database using session/token
-    // const user = await User.findById(req.userId); 
+    // Get user email from session
+    if (!req.session.pendingUser || !req.session.pendingUser.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please verify OTP first before completing signup'
+      });
+    }
 
+    const userEmail = req.session.pendingUser.email;
+
+    // Find user by email from session
+    const user = await User.findOne({ email: userEmail });
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -247,7 +260,7 @@ const completeSignup = async (req, res) => {
     // Create role-specific document
     if (role === 'doctor') {
       roleSpecificDoc = new Doctor({
-        email: user.email, // Use email from user object
+        email: userEmail,
         name,
         role,
         specialist: specialist || null
@@ -255,12 +268,15 @@ const completeSignup = async (req, res) => {
       await roleSpecificDoc.save();
     } else {
       roleSpecificDoc = new Patient({
-        email: user.email, // Use email from user object
+        email: userEmail,
         name,
         role
       });
       await roleSpecificDoc.save();
     }
+
+    // Clear the pending user session
+    delete req.session.pendingUser;
 
     // Generate JWT token
     const token = generateToken({
@@ -298,7 +314,6 @@ const completeSignup = async (req, res) => {
     });
   }
 };
-
 // Get current user
 const getCurrentUser = async (req, res) => {
   try {
