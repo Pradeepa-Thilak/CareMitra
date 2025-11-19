@@ -1,17 +1,17 @@
 const sgMail = require('@sendgrid/mail');
 
 const sendOTPEmail = async (email, otp) => {
-  console.log('🔧 Starting email send process...');
-  console.log('📋 Environment check:');
+  console.log('   Starting email send process...');
+  console.log('   Environment check:');
   console.log('   - SENDGRID_API_KEY exists:', !!process.env.SENDGRID_API_KEY);
   console.log('   - SENDGRID_API_KEY length:', process.env.SENDGRID_API_KEY?.length);
   console.log('   - FROM_EMAIL exists:', !!process.env.EMAIL_FROM);
   console.log('   - FROM_EMAIL value:', process.env.EMAIL_FROM);
 
-  // Check if SendGrid API key is set and valid
+  
   if (!process.env.SENDGRID_API_KEY || process.env.SENDGRID_API_KEY === 'your_sendgrid_api_key_here') {
-    console.log('❌ SendGrid API key not configured or using placeholder');
-    console.log('🔐 OTP for development:', otp);
+    console.log('   SendGrid API key not configured or using placeholder');
+    console.log('   OTP for development:', otp);
     return { 
       success: false, 
       error: 'SendGrid API key not configured',
@@ -19,9 +19,9 @@ const sendOTPEmail = async (email, otp) => {
     };
   }
 
-  // Validate FROM_EMAIL
+  
   if (!process.env.EMAIL_FROM) {
-    console.log('❌ FROM_EMAIL not set');
+    console.log(' FROM_EMAIL not set');
     return { 
       success: false, 
       error: 'FROM_EMAIL environment variable is not set' 
@@ -30,7 +30,7 @@ const sendOTPEmail = async (email, otp) => {
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(process.env.EMAIL_FROM)) {
-    console.log('❌ FROM_EMAIL format invalid:', process.env.EMAIL_FROM);
+    console.log(' FROM_EMAIL format invalid:', process.env.EMAIL_FROM);
     return { 
       success: false, 
       error: 'EMAIL_FROM format is invalid' 
@@ -64,14 +64,14 @@ const sendOTPEmail = async (email, otp) => {
   };
 
   try {
-    console.log(`📧 Attempting to send email:`);
+    console.log(` Attempting to send email:`);
     console.log(`   To: ${email}`);
     console.log(`   From: ${process.env.EMAIL_FROM}`);
     console.log(`   OTP: ${otp}`);
     
     const result = await sgMail.send(msg);
     
-    console.log('✅ Email sent successfully!');
+    console.log('   Email sent successfully!');
     console.log(`   Status Code: ${result[0].statusCode}`);
     console.log(`   Headers:`, result[0].headers);
     
@@ -82,7 +82,7 @@ const sendOTPEmail = async (email, otp) => {
     };
     
   } catch (error) {
-    console.error('❌ SendGrid Error Details:');
+    console.error('   SendGrid Error Details:');
     console.error('   Error Message:', error.message);
     console.error('   Error Code:', error.code);
     

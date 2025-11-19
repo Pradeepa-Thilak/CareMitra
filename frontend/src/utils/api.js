@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL:'http://127.0.0.1:5000/auth',
+  baseURL:'http://localhost:5000',
   withCredentials: true,
 });
 
@@ -17,16 +17,16 @@ api.interceptors.request.use((config) => {
 // —————————————
 
 export const authAPI = {
-  sendSignupOtp: (email) => api.post("/send-otp/signup", { email }),
-  sendLoginOtp: (email) => api.post("/send-otp/login", { email }),
+  sendSignupOtp: (email) => api.post("/auth/send-otp/signup", { email }),
+  sendLoginOtp: (email) => api.post("/auth/send-otp/login", { email }),
 
   verifyOtp: (email, otp) =>
-    api.post("/verify-otp", { email, otp }),
+    api.post("/auth/verify-otp", { email, otp }),
 
   completeSignup: (data) =>
-    api.post("/complete-signup", data),
+    api.post("/auth/complete-signup", data),
 
-  getMe: () => api.get("/me"),
+  getMe: () => api.get("/auth/me"),
 };
 
 export default api;

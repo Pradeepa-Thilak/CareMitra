@@ -3,7 +3,7 @@ const Doctor = require('../models/Doctor');
 const Patient = require('../models/Patient');
 const { sendOTPEmail } = require('../utils/sendEmail');
 const { generateToken } = require('../utils/generateToken');
-// Send OTP for Signup
+
 const sendOTPSignup = async (req, res) => {
   try {
     const { email } = req.body;
@@ -15,7 +15,7 @@ const sendOTPSignup = async (req, res) => {
       });
     }
 
-    // Validate email format
+   
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({
@@ -24,7 +24,7 @@ const sendOTPSignup = async (req, res) => {
       });
     }
 
-    // Check if user already exists
+    
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
@@ -33,18 +33,18 @@ const sendOTPSignup = async (req, res) => {
       });
     }
 
-    // Create new user for OTP
+    
     const user = new User({ email });
     const otp = user.generateOTP();
     await user.save();
 
-    console.log(`🔐 OTP ${otp} generated for ${email}`);
+    console.log(` OTP ${otp} generated for ${email}`);
 
-    // Send OTP email
+   
     const emailResult = await sendOTPEmail(email, otp);
     
     if (!emailResult.success) {
-      // Delete the user record since email failed
+     
       await User.deleteOne({ email });
       
       return res.status(500).json({
@@ -53,7 +53,7 @@ const sendOTPSignup = async (req, res) => {
       });
     }
 
-    // Success response
+   
     res.json({
       success: true,
       message: 'OTP sent successfully to your email',
@@ -69,30 +69,33 @@ const sendOTPSignup = async (req, res) => {
   }
 };
 
-// Send OTP for Login
+
 const sendOTPLogin = async (req, res) => {
   try {
     const { email } = req.body;
 
     if (!email) {
+      console.log("No email");
       return res.status(400).json({
         success: false,
         message: 'Email is required'
       });
     }
 
-    // Validate email format
+    
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      console.log("Email error");
       return res.status(400).json({
         success: false,
         message: 'Please provide a valid email address'
       });
     }
 
-    // Check if user exists
+    
     const user = await User.findOne({ email });
     if (!user) {
+      console.log(user);
       return res.status(404).json({
         success: false,
         message: 'User not found. Please sign up first.'
@@ -104,7 +107,7 @@ const sendOTPLogin = async (req, res) => {
 
     console.log(`🔐 OTP ${otp} generated for ${email}`);
 
-    // Send OTP email
+    
     const emailResult = await sendOTPEmail(email, otp);
     
     if (!emailResult.success) {
@@ -114,7 +117,7 @@ const sendOTPLogin = async (req, res) => {
       });
     }
 
-    // Success response
+    
     res.json({
       success: true,
       message: 'OTP sent successfully to your email',
@@ -130,7 +133,6 @@ const sendOTPLogin = async (req, res) => {
   }
 };
 
-// Verify OTP
 const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -144,34 +146,35 @@ const verifyOTP = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
+      console.log("user not found");
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
 
-    // Verify OTP
+    
     if (!user.verifyOTP(otp)) {
+      console.log("invalid or expired otp");
       return res.status(400).json({
         success: false,
         message: 'Invalid or expired OTP'
       });
     }
 
-    // Clear OTP after verification
+   
     user.clearOTP();
     await user.save();
 
-    // ✅ STORE USER IN SESSION - This is the key part!
     req.session.pendingUser = {
       email: user.email,
       userId: user._id.toString()
     };
 
-    console.log('✅ Session created for user:', user.email);
-    console.log('📋 Session ID:', req.sessionID);
+    console.log(' Session created for user:', user.email);
+    console.log(' Session ID:', req.sessionID);
     
-    // Check if user has completed signup
+   
     if (user.name && user.role) {
       const token = generateToken({
         userId: user._id,
@@ -216,7 +219,7 @@ const completeSignup = async (req, res) => {
   try {
     const { name, role, specialist } = req.body;
 
-    // Only validate name and role
+    
     if (!name || !role) {
       return res.status(400).json({
         success: false,
@@ -231,7 +234,7 @@ const completeSignup = async (req, res) => {
       });
     }
 
-    // Get user email from session
+    
     if (!req.session.pendingUser || !req.session.pendingUser.email) {
       return res.status(400).json({
         success: false,
@@ -241,7 +244,7 @@ const completeSignup = async (req, res) => {
 
     const userEmail = req.session.pendingUser.email;
 
-    // Find user by email from session
+   
     const user = await User.findOne({ email: userEmail });
     if (!user) {
       return res.status(404).json({
@@ -250,14 +253,14 @@ const completeSignup = async (req, res) => {
       });
     }
 
-    // Update user details
+    
     user.name = name;
     user.role = role;
     await user.save();
 
     let roleSpecificDoc;
 
-    // Create role-specific document
+    
     if (role === 'doctor') {
       roleSpecificDoc = new Doctor({
         email: userEmail,
@@ -275,10 +278,10 @@ const completeSignup = async (req, res) => {
       await roleSpecificDoc.save();
     }
 
-    // Clear the pending user session
+    
     delete req.session.pendingUser;
 
-    // Generate JWT token
+    
     const token = generateToken({
       userId: user._id,
       email: user.email,
@@ -314,7 +317,7 @@ const completeSignup = async (req, res) => {
     });
   }
 };
-// Get current user
+
 const getCurrentUser = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-otp -otpExpires');

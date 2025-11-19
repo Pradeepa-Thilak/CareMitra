@@ -35,7 +35,8 @@ const Login = ({ closeModal, setMethod }) => {
     try {
       const res = await authAPI.verifyOtp(email, otp);
 
-      const { user, token } = res.data;
+      const { user, token } = res.data.data;
+      console.log(res.data.data);
 
       login(user, token);
       toast.success("Login successful!");

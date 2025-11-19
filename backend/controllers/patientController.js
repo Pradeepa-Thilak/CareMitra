@@ -162,6 +162,7 @@ const myAppointment = async (req, res) => {
       role === "patient" ? profile.doctors : profile.patients;
 
     console.log(` Total appointments: ${appointments.length}`);
+    console.log("Appointments",appointments);
 
    
     const formattedAppointments = appointments.map((a) => ({

@@ -146,23 +146,29 @@ const getProductsByBrandAndCategory = async (req, res) => {
 
     const brandDoc = await Brand.findOne({ key: brand });
     const categoryDoc = await Category.findOne({ key: category });
+    console.log(brandDoc._id);
+    console.log(categoryDoc._id);
+    
+    
 
-    if (!brandDoc || !categoryDoc) {
-      return res.status(200).json({
-        success: true,
-        count: 0,
-        data: []
-      });
-    }
+    // if (!brandDoc || !categoryDoc) {
+    //   return res.status(200).json({
+    //     success: true,
+    //     count: 0,
+    //     data: []
+    //   });
+    // }
 
     const products = await Product.find({
       brand: brandDoc._id,
       category: categoryDoc._id,
       isActive: true
     })
-    .populate('category', 'name key image description')
-    .populate('brand', 'name key image description');
+    // .populate('category', 'name key image description')
+    // .populate('brand', 'name key image description');
 
+    console.log(products);
+    
     res.status(200).json({
       success: true,
       count: products.length,
