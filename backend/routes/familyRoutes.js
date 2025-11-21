@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const familyController = require('../controllers/familyController');
-const authMiddleware = require('../middleware/authMiddleware');
+const auth = require('../middleware/auth');
 const uploadMiddleware = require('../middleware/uploadMiddleware');
 
 // All routes are protected
-router.use(authMiddleware);
+router.use(auth);
 
 // Family member routes
 router.post('/add', familyController.addFamilyMember);
