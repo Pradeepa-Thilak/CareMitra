@@ -5,7 +5,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const bodyParser = require("body-parser");
 require("dotenv").config();
-
+const familyRoutes = require('./routes/familyRoutes');
 
 dotenv.config();
 
@@ -18,6 +18,8 @@ const products = require("./routes/products");
 const brands = require("./routes/brands");         
 const dashboard = require("./routes/dashboard"); 
 const doctor = require("./routes/doctor");      
+const labTestRoutes = require('./routes/labTests');
+const adminLabTestRoutes = require('./routes/adminLabTests');
 
 
 const app = express();
@@ -69,7 +71,9 @@ app.use("/brands", brands);
 app.use("/dashboard",dashboard)     
 app.use("/doctor" , doctor); 
 app.use("/search", require("./routes/search"));
-
+app.use('/lab-tests', labTestRoutes);
+app.use('/admin/lab-tests', adminLabTestRoutes);
+app.use('/api/family', familyRoutes);
 
 console.log(" All routes mounted successfully");
 

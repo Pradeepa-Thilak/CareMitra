@@ -104,7 +104,7 @@ const sendOTPLogin = async (req, res) => {
 
     const otp = user.generateOTP();
     await user.save();
-
+    
     console.log(`🔐 OTP ${otp} generated for ${email}`);
 
     
@@ -116,6 +116,7 @@ const sendOTPLogin = async (req, res) => {
         message: emailResult.error || 'Failed to send OTP email. Please try again.'
       });
     }
+
 
     
     res.json({
@@ -168,7 +169,8 @@ const verifyOTP = async (req, res) => {
 
     req.session.pendingUser = {
       email: user.email,
-      userId: user._id.toString()
+      userId: user._id,
+      role: user.role
     };
 
     console.log(' Session created for user:', user.email);
