@@ -29,4 +29,45 @@ export const authAPI = {
   getMe: () => api.get("/auth/me"),
 };
 
+
+// —————————————
+// CATEGORY APIs
+// —————————————
+
+export const categoryAPI = {
+  getAll: () => api.get("/categories/"),
+  getByKey: (key) => api.get(`/categories/${key}`),
+};
+
+
+// —————————————
+// PRODUCT APIs
+// —————————————
+
+export const productAPI = {
+  // GET /products
+  getAll: (filters = {}) => api.get("/products/",{params: filters}),
+
+  // GET /products/:id
+  getById: (id) => api.get(`/products/${id}`),
+
+  // GET /products/by-brand-category
+  getByBrandCategory: (brand, category) => 
+    api.get("/products/by-brand-category",{
+      params: {brand,category},
+    }),
+};
+
+
+// —————————————
+// SEARCH APIs
+// —————————————
+
+export const searchAPI = {
+  // GET /search?q=paracetamol
+  basic: (query) => api.get(`/search/`, {params: {q: query}}),
+
+  // POST /search/advanced
+  advanced: (body) => api.post("/search/advanced", body),
+};
 export default api;

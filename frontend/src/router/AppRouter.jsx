@@ -9,15 +9,19 @@ import Appointment from "../pages/Appointment";
 // import NotFound from "../pages/NotFound";
 import ProtectedRoute from "../components/common/ProtectedRoute";
 import Navbar from "../components/common/Navbar";
+import Medicines from "../pages/Medicines";
+import ProductDetails from "../pages/ProductDetails";
 
 const AppRouter = () => {
   return (
     <Router>
         <Navbar />
+      
+    <main style={{ paddingTop: 'var(--nav-offset, 5rem)' }}>
       <Routes>
-        {/* <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} /> */}
+        <Route path="/" element={<Home />} />
+        {/* <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />  */}
 
         <Route
           path="/patient/dashboard"
@@ -29,9 +33,12 @@ const AppRouter = () => {
         />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/appointment" element={<ProtectedRoute><Appointment /></ProtectedRoute>} />
+        <Route path="/medicines" element={<Medicines />} />
+        <Route path="/medicine/:id" element={<ProductDetails />} />
 
         {/* <Route path="*" element={<NotFound />} /> */}
       </Routes>
+    </main>
     </Router>
   );
 };
