@@ -135,7 +135,7 @@ const Appointment = () => {
               </div>
 
               {/* Date & Time */}
-              <div className="flex justify-between text-sm text-gray-600 mb-4">
+              <div className="flex justify-between text-sm text-gray-600 mb-4"> 
                 <p>{appt.date}</p>
                 <p>{appt.time}</p>
               </div>

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
 import AppointmentCard from "../components/user/AppoinmentCard";
@@ -6,30 +6,23 @@ import DoctorCard from "../components/user/DoctorCard";
 import { CalendarDays, UserCircle2, Stethoscope } from "lucide-react";
 import BookAppointmentModal from "../components/modals/BookAppointmentModal";
 import { toast } from "react-hot-toast";
+import api from "../utils/api";
 
 const PatientDashboard = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
 
   // 🩺 Mock Appointments
-  const [appointments, setAppointments] = useState([
-    {
-      id: 1,
-      doctor: "Dr. Priya Sharma",
-      specialty: "Cardiologist",
-      date: "2025-11-14",
-      time: "10:30 AM",
-      status: "Confirmed",
-    },
-    {
-      id: 2,
-      doctor: "Dr. Arun Kumar",
-      specialty: "Dermatologist",
-      date: "2025-11-20",
-      time: "2:00 PM",
-      status: "Pending",
-    },
-  ]);
+  const [appointments, setAppointments] = useState([]);
+  useEffect(() => {
+    // Simulate fetching recommended doctors from an API
+    const fetchAppoinments = async () => {
+      const res = await api.get("/dashboard/myAppointments");
+      setAppointments(res.data.data);
+    };
+
+    fetchAppoinments();
+  }, []);
 
   // 👩‍⚕️ Mock Doctors
   const [recommendedDoctors, setRecommendedDoctors] = useState([
@@ -46,6 +39,17 @@ const PatientDashboard = () => {
       experience: "8 years",
     },
   ]);
+
+  // const [recommendedDoctors, setRecommendedDoctors] = useState([]);
+  // useEffect(() => {
+  //   // Simulate fetching recommended doctors from an API
+  //   const fetchRecommendedDoctors = async () => {
+  //     const res = await api.get("/myAppoinments");
+  //     setRecommendedDoctors(res.data.data);
+  //   };
+
+  //   fetchRecommendedDoctors();
+  // }, []);
 
   const [selectedDoctor, setSelectedDoctor] = useState(null);
 

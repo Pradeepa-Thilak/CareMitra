@@ -1,151 +1,139 @@
 const Doctor = require('../models/Doctor');
 const Patient = require('../models/Patient');
 
-// Get doctor profile
-const getProfile = async (req, res) => {
+const reschedule = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { userId } = req.user;
+    const { patientId } = req.params;
+    const { date, time } = req.body;
 
-    const doctor = await Doctor.findById(id).populate('patients', 'name email');
-
-    if (!doctor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Doctor not found'
-      });
+    if (!date || !time) {
+      return res.status(400).json({ success: false, message: "Date and time are required" });
     }
 
-    res.status(200).json({
-      success: true,
-      data: doctor
-    });
-
-  } catch (error) {
-    console.error('Get doctor profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-};
-
-// Edit doctor profile
-const editProfile = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, specialist } = req.body;
-
-    if (!name && !specialist) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name or specialist is required'
-      });
-    }
-
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (specialist) updateData.specialist = specialist;
-
-    const doctor = await Doctor.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate('patients', 'name email');
-
-    if (!doctor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Doctor not found'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: 'Profile updated successfully',
-      data: doctor
-    });
-
-  } catch (error) {
-    console.error('Edit doctor profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-};
-
-// Add patient to doctor
-const addPatient = async (req, res) => {
-  try {
-    const { doctorId, patientId } = req.body;
-
-    if (!doctorId || !patientId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Doctor ID and Patient ID are required'
-      });
-    }
-
-    // Check if doctor exists
-    const doctor = await Doctor.findById(doctorId);
-    if (!doctor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Doctor not found'
-      });
-    }
-
-    // Check if patient exists
+    const doctor = await Doctor.findById(userId);
     const patient = await Patient.findById(patientId);
-    if (!patient) {
-      return res.status(404).json({
-        success: false,
-        message: 'Patient not found'
-      });
+
+    if (!doctor || !patient) {
+      return res.status(404).json({ success: false, message: "Doctor or Patient not found" });
     }
 
-    // Check if patient already added
-    if (doctor.patients.includes(patientId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Patient already added to doctor'
-      });
+    const docAppointment = doctor.patients.find((p) => p._id.equals(patientId));
+    const patAppointment = patient.doctors.find((d) => d._id.equals(userId));
+
+    if (!docAppointment || !patAppointment) {
+      return res.status(404).json({ success: false, message: "Appointment not found" });
     }
 
-    // Add patient to doctor and doctor to patient (bidirectional)
-    doctor.patients.push(patientId);
-    patient.doctors.push(doctorId);
+    // Update both records
+    docAppointment.date = date;
+    docAppointment.time = time;
+    
+    patAppointment.date = date;
+    patAppointment.time = time;
 
     await doctor.save();
     await patient.save();
 
-    // Populate the updated data
-    const updatedDoctor = await Doctor.findById(doctorId).populate('patients', 'name email');
-    const updatedPatient = await Patient.findById(patientId).populate('doctors', 'name email specialist');
-
     res.status(200).json({
       success: true,
-      message: 'Patient added successfully',
-      data: {
-        doctor: updatedDoctor,
-        patient: updatedPatient
+      message: "Appointment rescheduled successfully",
+      data: { 
+        doctor: doctor.name, 
+        patient: patient.name, 
+        date, 
+        time,
+        status: docAppointment.status
       }
     });
-
-  } catch (error) {
-    console.error('Add patient error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 };
 
+const doctorAppointment = async (req, res) => {
+  try {
+    const { userId } = req.user;
+
+    const doctor = await Doctor.findById(userId).populate(
+      "patients._id",
+      "name email phone"
+    );
+
+    if (!doctor) {
+      return res.status(404).json({ success: false, message: "Doctor not found" });
+    }
+
+    // Format response with patient details
+    const appointments = doctor.patients.map(patient => ({
+      appointmentId: patient._id,
+      patient: {
+        _id: patient._id._id,
+        name: patient._id.name,
+        email: patient._id.email,
+        phone: patient._id.phone
+      },
+      date: patient.date,
+      time: patient.time,
+      reason: patient.reason,
+      status: patient.status
+    }));
+
+    res.status(200).json({ success: true, data: appointments });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
+  }
+};
+
+const changeStatus = async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { patientId } = req.params;
+    const { status } = req.body;
+
+    if (!["pending", "confirmed", "cancelled"].includes(status)) {
+      return res.status(400).json({ success: false, message: "Invalid status. Use: pending, confirmed, or cancelled" });
+    }
+
+    const doctor = await Doctor.findById(userId);
+    const patient = await Patient.findById(patientId);
+
+    if (!doctor || !patient) {
+      return res.status(404).json({ success: false, message: "Doctor or Patient not found" });
+    }
+
+    // Update in doctor's record
+    const docAppointment = doctor.patients.find((p) => p._id.equals(patientId));
+    // Update in patient's record
+    const patAppointment = patient.doctors.find((d) => d._id.equals(userId));
+
+    if (!docAppointment || !patAppointment) {
+      return res.status(404).json({ success: false, message: "Appointment not found" });
+    }
+
+    docAppointment.status = status;
+    patAppointment.status = status;
+
+    await doctor.save();
+    await patient.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Appointment ${status} successfully`,
+      data: { 
+        doctor: doctor.name, 
+        patient: patient.name, 
+        status,
+        date: docAppointment.date,
+        time: docAppointment.time
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
+  }
+};
 module.exports = {
-  getProfile,
-  editProfile,
-  addPatient
+  reschedule,
+  doctorAppointment,
+  changeStatus
 };

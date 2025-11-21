@@ -1,8 +1,9 @@
 import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { AuthContext } from "../contexts/AuthContext"; // ✅ corrected import
+import { AuthContext } from "../contexts/AuthContext"; 
 import { toast } from "react-hot-toast";
 import LoginForm from "../components/forms/LoginForm";
+import { authAPI } from "../utils/api";
 
 const Login = ({ closeModal, setMethod }) => {
   const [email, setEmail] = useState("");
@@ -18,7 +19,8 @@ const Login = ({ closeModal, setMethod }) => {
  const handleSendOtp = async (e) => {
     e.preventDefault();
     try {
-      await authAPI.sendLoginOtp(email);
+      const res = await authAPI.sendLoginOtp(email);
+      console.log(res.data);
       toast.success("OTP sent!");
       setStage(2);
     } catch (err) {
@@ -33,7 +35,8 @@ const Login = ({ closeModal, setMethod }) => {
     try {
       const res = await authAPI.verifyOtp(email, otp);
 
-      const { user, token } = res.data;
+      const { user, token } = res.data.data;
+      console.log(res.data.data);
 
       login(user, token);
       toast.success("Login successful!");
@@ -47,7 +50,7 @@ const Login = ({ closeModal, setMethod }) => {
     }
   };
 
-
+  
   return (
     <>
       <LoginForm
