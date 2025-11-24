@@ -18,7 +18,7 @@ export const useCategories = () => {
     const load = async () => {
       try {
         const res = await categoryAPI.getAll();
-        const data = res.data ?? res;
+        const data = res.data.data ;
         if (mounted) setCategories(Array.isArray(data) ? data : fallbackCategories);
       } catch (err) {
         console.warn("Category API failed. Using fallback:", err);
