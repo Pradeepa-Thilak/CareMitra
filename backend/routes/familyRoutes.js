@@ -8,11 +8,14 @@ const uploadMiddleware = require('../middleware/uploadMiddleware');
 router.use(auth);
 
 // Family member routes
-router.post('/add', familyController.addFamilyMember);
-router.get('/members', familyController.getFamilyMembers);
-router.get('/members/:memberId', familyController.getMemberWithStats);
-router.put('/members/:memberId', familyController.updateFamilyMember);
-router.delete('/members/:memberId', familyController.deleteFamilyMember);
+// ✅ Correct order - specific routes first
+router.get('/members/:memberId', familyController.getMemberWithStats); // GET specific member
+router.put('/members/:memberId', familyController.updateFamilyMember); // UPDATE member
+router.delete('/members/:memberId', familyController.deleteFamilyMember); // DELETE member
+
+// General routes after specific ones
+router.post('/add', familyController.addFamilyMember); // ADD member
+router.get('/members', familyController.getFamilyMembers); // GET all members
 
 // Health record routes
 router.post('/upload-record', 

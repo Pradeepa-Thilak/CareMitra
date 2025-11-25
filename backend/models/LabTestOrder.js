@@ -45,8 +45,17 @@ const labTestOrderSchema = new mongoose.Schema({
     date: Date,
     time: String
   },
-  prescriptionUrl: String,
-  reportUrl: String,
+  // Store file references in MongoDB
+  prescriptionFile: {
+    filename: String,
+    fileId: mongoose.Schema.Types.ObjectId,
+    uploadDate: { type: Date, default: Date.now }
+  },
+  reportFile: {
+    filename: String,
+    fileId: mongoose.Schema.Types.ObjectId,
+    uploadDate: { type: Date, default: Date.now }
+  },
   razorpayOrderId: String,
   razorpayPaymentId: String,
   razorpaySignature: String

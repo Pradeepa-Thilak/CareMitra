@@ -75,6 +75,8 @@ const updateFamilyMember = async (req, res) => {
     const updates = req.body;
     const userId = req.user.userId;
 
+  console.log('Extracted memberId:', memberId);
+  
     const familyMember = await FamilyMember.findOne({ _id: memberId, userId });
     if (!familyMember) {
       return res.status(404).json({

@@ -3,13 +3,12 @@ const esClient = require("../config/elasticsearch");
 
 const ES_INDEX = "products";
 
-// =======================
-// PRODUCT SCHEMA
-// =======================
+
 const productSchema = new mongoose.Schema({
   name: {
     type: String,
     required: false,
+    
     trim: true
   },
   brand: {
@@ -62,17 +61,13 @@ const productSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// =======================
-// PRE-SAVE HOOK
-// =======================
+
 productSchema.pre("save", function (next) {
   this.discountedPrice = this.price * (1 - this.discount / 100);
   next();
 });
 
-// =======================
-// POST-SAVE: SYNC TO ELASTICSEARCH
-// =======================
+
 productSchema.post("save", async function () {
   try {
     await esClient.index({
@@ -95,9 +90,7 @@ productSchema.post("save", async function () {
   }
 });
 
-// =======================
-// POST-REMOVE: DELETE FROM ES
-// =======================
+
 productSchema.post("remove", async function () {
   try {
     await esClient.delete({
@@ -109,9 +102,7 @@ productSchema.post("remove", async function () {
   }
 });
 
-// =======================
-// MONGODB INDEXES (GOOD FOR PERFORMANCE)
-// =======================
+
 productSchema.index({ category: 1 });
 productSchema.index({ brand: 1 });
 productSchema.index({ name: "text", description: "text" });

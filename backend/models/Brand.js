@@ -31,7 +31,7 @@ const brandSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Virtual for getting products of this brand
+
 brandSchema.virtual('products', {
   ref: 'Product',
   localField: '_id',

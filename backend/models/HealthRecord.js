@@ -62,11 +62,11 @@ const healthRecordSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for efficient queries
+
 healthRecordSchema.index({ memberId: 1, recordDate: -1 });
 healthRecordSchema.index({ userId: 1, recordType: 1 });
 
-// Virtual for formatted file size
+
 healthRecordSchema.virtual('formattedFileSize').get(function() {
   const bytes = this.fileSize;
   if (bytes === 0) return '0 Bytes';

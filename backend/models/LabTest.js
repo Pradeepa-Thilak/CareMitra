@@ -55,7 +55,7 @@ const labTestSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Calculate finalPrice before saving
+
 labTestSchema.pre('save', function(next) {
   this.finalPrice = this.price - (this.price * this.discount / 100);
   next();

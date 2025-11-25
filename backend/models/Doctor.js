@@ -54,10 +54,10 @@ const doctorSchema = new mongoose.Schema({
   timestamps: true 
 });
 
-// OTP expiration index
+
 doctorSchema.index({ otpExpires: 1 }, { expireAfterSeconds: 0 });
 
-// Add OTP methods to Doctor model too
+
 doctorSchema.methods.generateOTP = function() {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   this.otp = otp;
