@@ -31,9 +31,15 @@ export const ProductProvider = ({ children }) => {
           categoryAPI.getAll(),         // GET /categories/
           productAPI.getAll({ limit: 10000 }) // GET /products/?limit=10000 (adjust if backend supports)
         ]);
-
-        const catData = catRes?.data ?? catRes;
-        const prodData = prodRes?.data ?? prodRes;
+       console.log(catRes);
+       console.log(prodRes);
+       
+       
+        const catData = catRes.data?.data ?? catRes;
+        const prodData = prodRes.data?.data ?? prodRes;
+ 
+         console.log(catData);
+       console.log(prodData);
 
         if (!mounted) return;
         setCategories(Array.isArray(catData) ? catData : []);

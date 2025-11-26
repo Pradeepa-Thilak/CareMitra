@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Home from "../pages/Home";
-// import Login from "../pages/Login";
-// import Signup from "../pages/Signup";
+import Login from "../pages/Login";
+import Signup from "../pages/Signup";
 import PatientDashboard from "../pages/PatientDashboard";
 import DoctorDashboard from "../pages/DoctorDashboard";
 import Profile from "../pages/Profile";
@@ -12,6 +12,7 @@ import Navbar from "../components/common/Navbar";
 import Medicines from "../pages/Medicines";
 import ProductDetails from "../pages/ProductDetails";
 
+
 const AppRouter = () => {
   return (
     <Router>
@@ -20,8 +21,8 @@ const AppRouter = () => {
     <main style={{ paddingTop: 'var(--nav-offset, 5rem)' }}>
       <Routes>
         <Route path="/" element={<Home />} />
-        {/* <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />  */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} /> 
 
         <Route
           path="/patient/dashboard"
@@ -35,7 +36,6 @@ const AppRouter = () => {
         <Route path="/appointment" element={<ProtectedRoute><Appointment /></ProtectedRoute>} />
         <Route path="/medicines" element={<Medicines />} />
         <Route path="/medicine/:id" element={<ProductDetails />} />
-
         {/* <Route path="*" element={<NotFound />} /> */}
       </Routes>
     </main>

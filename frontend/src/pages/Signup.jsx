@@ -52,7 +52,7 @@ const Signup = ({ closeModal, setMethod }) => {
         role: formData.role,
       });
 
-      const { token, user } = res.data;
+      const { token, user } = res.data.data;
 
       login(user, token);
       toast.success("Signup successful!");
