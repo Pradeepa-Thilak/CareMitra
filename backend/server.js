@@ -5,13 +5,13 @@ const cors = require("cors");
 const helmet = require("helmet");
 const bodyParser = require("body-parser");
 require("dotenv").config();
-const familyRoutes = require('./routes/familyRoutes');
+
 
 dotenv.config();
 
 
 const connectDB = require("./config/database");
-
+const familyRoutes = require('./routes/familyRoutes');
 const authRoutes = require("./routes/authRoutes"); 
 const categories = require("./routes/categories"); 
 const products = require("./routes/products");     

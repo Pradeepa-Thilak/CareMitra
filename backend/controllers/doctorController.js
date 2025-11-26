@@ -53,7 +53,7 @@ const reschedule = async (req, res) => {
 
 const doctorAppointment = async (req, res) => {
   try {
-    const { userId } = req.user;
+    const { userId } = req.userId;
 
     const doctor = await Doctor.findById(userId).populate(
       "patients._id",

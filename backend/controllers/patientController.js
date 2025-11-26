@@ -121,7 +121,7 @@ const myAppointment = async (req, res) => {
 
     console.log(`🔍 Fetching appointments for userId: ${userId} (${role})`);
 
-    
+    // Fetch the user first
     const userData = await User.findById(userId);
     if (!userData) {
       return res.status(404).json({ success: false, message: "User not found" });
@@ -129,47 +129,48 @@ const myAppointment = async (req, res) => {
 
     let profile = null;
 
-    
     if (role === "patient") {
+      // Find patient record and populate doctor info
       profile = await Patient.findOne({ email: userData.email })
         .populate("doctors._id", "name email specialist");
 
       if (!profile) {
-        return res.status(404).json({
-          success: false,
-          message: "Patient record not found"
-        });
+        return res.status(404).json({ success: false, message: "Patient record not found" });
       }
-    }
-
-    
-    else if (role === "doctor") {
+    } else if (role === "doctor") {
       profile = await Doctor.findOne({ email: userData.email })
         .populate("patients._id", "name email");
 
       if (!profile) {
-        return res.status(404).json({
-          success: false,
-          message: "Doctor record not found"
-        });
+        return res.status(404).json({ success: false, message: "Doctor record not found" });
       }
     }
 
     console.log("📘 Profile found:", profile._id);
 
-    
-    const appointments =
-      role === "patient" ? profile.doctors : profile.patients;
-
+    // Get appointments array
+    const appointments = role === "patient" ? profile.doctors : profile.patients;
     console.log(` Total appointments: ${appointments.length}`);
-    console.log("Appointments",appointments);
+    console.log("Appointments", appointments);
 
-   
+    // Format appointments with doctor/patient info
     const formattedAppointments = appointments.map((a) => ({
-      id: a._id?._id || a._id,
-      name: a._id?.name || "Not Available",
-      email: a._id?.email || "Not Available",
-      specialist: a._id?.specialist || null,
+      id: a._id?._id || a._id, // keep the original ObjectId as id
+      doctor: role === "patient"
+        ? {
+            id: a._id?._id,
+            name: a._id?.name || "Unknown Doctor",
+            email: a._id?.email || "",
+            specialist: a._id?.specialist || "General",
+          }
+        : null,
+      patient: role === "doctor"
+        ? {
+            id: a._id?._id,
+            name: a._id?.name || "Unknown Patient",
+            email: a._id?.email || "",
+          }
+        : null,
       date: a.date,
       time: a.time,
       reason: a.reason,
@@ -191,11 +192,80 @@ const myAppointment = async (req, res) => {
   }
 };
 
+const bookAppointment = async (req, res) => {
+  try {
+    const { doctorId, date, time, reason } = req.body;
+
+    console.log("hi john ramn");
+    
+
+    if (!doctorId || !date || !time || !reason) {
+      return res.status(400).json({ success: false, message: "All fields required" });
+    }
+
+    // 1️⃣ Find logged-in user by email from JWT
+    const user = await User.findOne({ email: req.user.email }); 
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // 2️⃣ Now find patient using user email
+    const patient = await Patient.findOne({ email: user.email });
+    if (!patient) {
+      return res.status(404).json({ success: false, message: "Patient not found" });
+    }
+
+    // 3️⃣ Find doctor
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return res.status(404).json({ success: false, message: "Doctor not found" });
+    }
+
+    // 4️⃣ Create appointment objects (for both)
+    const appointmentForPatient = {
+      _id: doctorId,
+      date,
+      time,
+      reason,
+      status: "pending"
+    };
+
+    const appointmentForDoctor = {
+      _id: patient._id,
+      date,
+      time,
+      reason,
+      status: "pending"
+    };
+
+    // 5️⃣ Push appointment into patient
+    patient.doctors.push(appointmentForPatient);
+    await patient.save();
+
+    // 6️⃣ Push appointment into doctor
+    doctor.patients.push(appointmentForDoctor);
+    await doctor.save();
+
+    return res.json({
+      success: true,
+      message: "Appointment booked successfully",
+      data: {
+        patientAppointment: appointmentForPatient,
+        doctorAppointment: appointmentForDoctor
+      }
+    });
+
+  } catch (err) {
+    console.log("BOOKING ERROR:", err);
+    return res.status(500).json({ success: false, message: "Error booking appointment" });
+  }
+};
 
 
 module.exports = {
   viewProfile,
   editProfile,
   getAllDoctor,
-  myAppointment
+  myAppointment,
+  bookAppointment
 };
