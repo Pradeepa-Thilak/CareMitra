@@ -31,15 +31,12 @@ export const ProductProvider = ({ children }) => {
           categoryAPI.getAll(),         // GET /categories/
           productAPI.getAll({ limit: 10000 }) // GET /products/?limit=10000 (adjust if backend supports)
         ]);
-       console.log(catRes);
-       console.log(prodRes);
-       
-       
-        const catData = catRes.data?.data ?? catRes;
-        const prodData = prodRes.data?.data ?? prodRes;
- 
-         console.log(catData);
-       console.log(prodData);
+
+        // axios responses wrap the payload inside `response.data`.
+        // Our backend returns an object like { success, count, data: [...] }
+        // so prefer `response.data.data` where available.
+        const catData = catRes?.data?.data ?? catRes?.data ?? catRes;
+        const prodData = prodRes?.data?.data ?? prodRes?.data ?? prodRes;
 
         if (!mounted) return;
         setCategories(Array.isArray(catData) ? catData : []);

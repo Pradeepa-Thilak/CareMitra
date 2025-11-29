@@ -22,7 +22,7 @@ const ProductDetails = () => {
         } else {
           // fetch from server if not present locally
           const res = await productAPI.getById(id);
-          const data = res?.data ?? res;
+          const data = res?.data.data ?? res;
           if (mounted) setProduct(data);
         }
       } catch (err) {

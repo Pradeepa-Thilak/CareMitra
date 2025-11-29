@@ -8,10 +8,10 @@ const ProductCard = ({ product, onViewDetails }) => {
 
   const handleAddToCart = () => {
     addToCart({
-      id: product.id,
+      id: product._id ?? product.id,
       name: product.name,
-      price: product.price,
-      image: product.image,
+      price: product.discountedPrice ?? product.price ?? 0,
+      image: product.image || (product.images && product.images[0]) || '/placeholder.png',
       quantity: 1,
     });
   };
@@ -21,7 +21,7 @@ const ProductCard = ({ product, onViewDetails }) => {
       {/* Image Container */}
       <div className="relative mb-4 bg-light rounded-lg overflow-hidden h-40 flex items-center justify-center">
         <img
-          src={product.image || '/placeholder.png'}
+          src={product.image || (product.images && product.images[0]) || '/placeholder.png'}
           alt={product.name}
           className="w-full h-full object-cover hover:scale-110 transition-transform"
         />
@@ -45,7 +45,7 @@ const ProductCard = ({ product, onViewDetails }) => {
         <h3 className="font-semibold text-dark mb-1 line-clamp-2 text-sm">
           {product.name}
         </h3>
-        <p className="text-xs text-gray-500 mb-2">{product.category}</p>
+        <p className="text-xs text-gray-500 mb-2">{product.category?.name ?? product.category}</p>
 
         {/* Rating */}
         {product.rating && (
@@ -68,10 +68,10 @@ const ProductCard = ({ product, onViewDetails }) => {
 
         {/* Price */}
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-lg font-bold text-primary">₹{product.price}</span>
-          {product.originalPrice && (
+          <span className="text-lg font-bold text-primary">₹{product.discountedPrice ?? product.price}</span>
+          {product.price && product.discount && (
             <span className="text-sm text-gray-400 line-through">
-              ₹{product.originalPrice}
+              ₹{product.price}
             </span>
           )}
         </div>
