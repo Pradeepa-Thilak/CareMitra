@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Home from "../pages/Home";
 import Login from "../pages/Login";
 import Signup from "../pages/Signup";
@@ -11,12 +11,14 @@ import ProtectedRoute from "../components/common/ProtectedRoute";
 import Navbar from "../components/common/Navbar";
 import Medicines from "../pages/Medicines";
 import ProductDetails from "../pages/ProductDetails";
-import AllAppointments from "../pages/AllAppointments";
-// Admin Dashboard and other pages can be added similarly
-// import AdminDashboard from '../pages/Admin/AdminDashboard';
-// import OrdersManagement from '../pages/Admin/OrdersManagement';
-// import StaffManagement from '../pages/Admin/StaffManagement';
-// import LabTestsManagement from '../pages/Admin/LabTestsManagement';
+
+// import AllAppointments from "../pages/AllAppointments";
+// // Admin Dashboard and other pages can be added similarly
+// // import AdminDashboard from '../pages/Admin/AdminDashboard';
+// // import OrdersManagement from '../pages/Admin/OrdersManagement';
+// // import StaffManagement from '../pages/Admin/StaffManagement';
+// // import LabTestsManagement from '../pages/Admin/LabTestsManagemen
+import LabTests from "../pages/LabTests";
 
 const AppRouter = () => {
   return (
@@ -41,13 +43,11 @@ const AppRouter = () => {
         <Route path="/appointment" element={<ProtectedRoute><Appointment /></ProtectedRoute>} />
         <Route path="/medicines" element={<Medicines />} />
         <Route path="/medicine/:id" element={<ProductDetails />} />
+        <Route path="/lab-tests" element={<LabTests />} />
+        <Route path="/labtests" element={<Navigate to="/lab-tests" replace />} />
+
+        <Route path="/lab-tests/:key" element={<LabTests />} />
         {/* <Route path="*" element={<NotFound />} /> */}
-        <Route path="/all-appointments" element={<AllAppointments />} />
-        // Add these routes
-        {/* <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/orders" element={<OrdersManagement />} />
-        <Route path="/admin/staff" element={<StaffManagement />} /> */}
-        {/* <Route path="/admin/lab-tests" element={<LabTestsManagement />} /> */}
 
       </Routes>
     </main>

@@ -1,283 +1,255 @@
-import React, { useState } from 'react';
-import { Beaker, Clock, MapPin, ShoppingCart } from 'lucide-react';
-import { useCart } from '../hooks/useCart';
+import React, { useState, useEffect } from 'react';
+import { Plus, X } from 'lucide-react';
+import LoadSpinner from '../components/LoadSpinner';
+import LabTestOrderForm from '../components/forms/LabTestOrderForm';
+import { labTestAPI } from '../utils/api';
 
-const LabTests = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const { addToCart } = useCart();
+/**
+ * LabTests page:
+ * - shows tests via labTestAPI.getAll()
+ * - creates order via labTestAPI.createOrder() (server should create Razorpay order)
+ * - opens Razorpay checkout using returned razorpayOrder object
+ * - on payment success calls labTestAPI.verifyPayment(...)
+ *
+ * Requires Vite env: VITE_RAZORPAY_KEY_ID (only if backend doesn't include key_id in razorpayOrder)
+ */
 
-  const categories = ['All', 'Blood Tests', 'Urine Tests', 'Imaging', 'Cardiac', 'Wellness'];
+export default function LabTests() {
+  const [tests, setTests] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const mockTests = [
-    {
-      id: 101,
-      name: 'Complete Blood Count (CBC)',
-      category: 'Blood Tests',
-      price: 299,
-      originalPrice: 399,
-      discount: 25,
-      description: 'Comprehensive blood test to check overall health',
-      turnaroundTime: '24 hours',
-      homeCollection: true,
-      sampleType: 'Blood',
-      fasting: true,
-    },
-    {
-      id: 102,
-      name: 'Thyroid Profile (TSH, T3, T4)',
-      category: 'Blood Tests',
-      price: 499,
-      originalPrice: 699,
-      discount: 29,
-      description: 'Check thyroid function and hormones',
-      turnaroundTime: '24 hours',
-      homeCollection: true,
-      sampleType: 'Blood',
-      fasting: true,
-    },
-    {
-      id: 103,
-      name: 'Lipid Profile',
-      category: 'Blood Tests',
-      price: 399,
-      originalPrice: 549,
-      discount: 27,
-      description: 'Cholesterol and triglycerides test',
-      turnaroundTime: '24 hours',
-      homeCollection: true,
-      sampleType: 'Blood',
-      fasting: true,
-    },
-    {
-      id: 104,
-      name: 'Liver Function Test (LFT)',
-      category: 'Blood Tests',
-      price: 449,
-      originalPrice: 599,
-      discount: 25,
-      description: 'Assess liver health and function',
-      turnaroundTime: '24 hours',
-      homeCollection: true,
-      sampleType: 'Blood',
-      fasting: false,
-    },
-    {
-      id: 105,
-      name: 'Kidney Function Test (KFT)',
-      category: 'Blood Tests',
-      price: 449,
-      originalPrice: 599,
-      discount: 25,
-      description: 'Check kidney health and function',
-      turnaroundTime: '24 hours',
-      homeCollection: true,
-      sampleType: 'Blood',
-      fasting: false,
-    },
-    {
-      id: 106,
-      name: 'Chest X-Ray',
-      category: 'Imaging',
-      price: 349,
-      originalPrice: 499,
-      discount: 30,
-      description: 'Digital chest X-ray imaging',
-      turnaroundTime: '2 hours',
-      homeCollection: false,
-      sampleType: 'N/A',
-      fasting: false,
-    },
-    {
-      id: 107,
-      name: 'Ultrasound Abdomen',
-      category: 'Imaging',
-      price: 599,
-      originalPrice: 799,
-      discount: 25,
-      description: 'Abdominal ultrasound scan',
-      turnaroundTime: '1 hour',
-      homeCollection: false,
-      sampleType: 'N/A',
-      fasting: true,
-    },
-    {
-      id: 108,
-      name: 'ECG (Electrocardiogram)',
-      category: 'Cardiac',
-      price: 199,
-      originalPrice: 299,
-      discount: 33,
-      description: 'Heart rhythm and electrical activity test',
-      turnaroundTime: '30 minutes',
-      homeCollection: true,
-      sampleType: 'N/A',
-      fasting: false,
-    },
-    {
-      id: 109,
-      name: 'Vitamin D Level Test',
-      category: 'Wellness',
-      price: 349,
-      originalPrice: 499,
-      discount: 30,
-      description: 'Check vitamin D deficiency',
-      turnaroundTime: '24 hours',
-      homeCollection: true,
-      sampleType: 'Blood',
-      fasting: false,
-    },
-    {
-      id: 110,
-      name: 'COVID-19 RT-PCR Test',
-      category: 'Blood Tests',
-      price: 249,
-      originalPrice: 349,
-      discount: 29,
-      description: 'Accurate COVID-19 detection test',
-      turnaroundTime: '24 hours',
-      homeCollection: true,
-      sampleType: 'Nasal Swab',
-      fasting: false,
-    },
-  ];
+  const [selectedTest, setSelectedTest] = useState(null);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderLoading, setOrderLoading] = useState(false);
 
-  const filteredTests = mockTests.filter((test) => {
-    const matchesCategory = selectedCategory === 'All' || test.category === selectedCategory;
-    const matchesSearch = test.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          test.description.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  useEffect(() => {
+    fetchTests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const handleAddToCart = (test) => {
-    addToCart({
-      id: test.id,
-      name: test.name,
-      price: test.price,
-      image: 'https://via.placeholder.com/100x100?text=LabTest',
-      quantity: 1,
-      type: 'lab-test',
+  async function fetchTests() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await labTestAPI.getAll();
+      const fetched = res.data?.data;
+      if (!fetched) throw new Error('Invalid response from server');
+      setTests(fetched);
+    } catch (err) {
+      console.error('Error fetching lab tests', err);
+      setError(err.response?.data?.message || err.message || 'Failed to fetch tests');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function openOrder(test) {
+    setSelectedTest(test);
+    setShowOrderModal(true);
+  }
+
+  // helper: ensure razorpay script is loaded
+  function loadRazorpayScript() {
+    return new Promise((resolve, reject) => {
+      if (typeof window === 'undefined') return reject(new Error('No window object'));
+      if (window.Razorpay) return resolve(true);
+
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => reject(new Error('Razorpay SDK failed to load'));
+      document.body.appendChild(script);
     });
-  };
+  }
+
+  async function openRazorpayCheckout(razorpayOrder, orderFromServer) {
+    // razorpayOrder is expected to be something like: { id, amount, currency, receipt, key_id? }
+    if (!razorpayOrder || !razorpayOrder.id) {
+      throw new Error('Invalid razorpay order returned from server');
+    }
+
+    const keyId = razorpayOrder.key_id || import.meta.env.VITE_RAZORPAY_KEY_ID;
+    if (!keyId) throw new Error('Razorpay key_id missing. Provide VITE_RAZORPAY_KEY_ID or include key_id in backend response.');
+
+    await loadRazorpayScript();
+
+    return new Promise((resolve, reject) => {
+      const options = {
+        key: keyId,
+        amount: razorpayOrder.amount, // amount in paise
+        currency: razorpayOrder.currency || 'INR',
+        order_id: razorpayOrder.id, // razorpay order id
+        name: 'CareMitra', // customize
+        description: `Payment for lab tests (Order: ${orderFromServer?._id || 'N/A'})`,
+        handler: async function (response) {
+          // response contains: razorpay_payment_id, razorpay_order_id, razorpay_signature
+          try {
+            // call backend verify
+            await labTestAPI.verifyPayment({
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            resolve(response);
+          } catch (err) {
+            // verification failed
+            reject(err);
+          }
+        },
+        prefill: {
+          name: orderFromServer?.sampleCollectionDetails?.name || '',
+          email: orderFromServer?.user?.email || '',
+          contact: orderFromServer?.sampleCollectionDetails?.phone || ''
+        },
+        theme: { color: '#6366F1' } // indigo-500
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (resp) {
+        // resp has error fields; reject so caller can show message
+        reject(resp);
+      });
+
+      rzp.open();
+    });
+  }
+
+  async function handleFormSubmit(formValues, prescriptionFile) {
+    if (!selectedTest) return alert('No test selected');
+    setOrderLoading(true);
+    try {
+      // build form data
+      const fd = new FormData();
+      fd.append('testIds', JSON.stringify([selectedTest._id]));
+      fd.append('name', formValues.name);
+      fd.append('phone', formValues.phone);
+      fd.append('address', formValues.address);
+      fd.append('pincode', formValues.pincode);
+      fd.append('date', formValues.date);
+      fd.append('time', formValues.time || '09:00 AM');
+      if (prescriptionFile) fd.append('prescription', prescriptionFile);
+
+      // create order on server
+      const res = await labTestAPI.createOrder(fd);
+      // expected: { success: true, data: { order, razorpayOrder } }
+      const responseData = res.data?.data;
+      if (!responseData) throw new Error('Invalid createOrder response from server');
+
+      const { order, razorpayOrder } = responseData;
+      // If backend returns a razorpayOrder, open checkout
+      if (razorpayOrder && razorpayOrder.id) {
+        try {
+          await openRazorpayCheckout(razorpayOrder, order);
+          alert('Payment successful and verified. Thank you!');
+        } catch (payErr) {
+          console.error('Payment / verification failed', payErr);
+          // If payment failed, backend may have already marked it failed; show user-friendly message
+          const msg = payErr?.response?.data?.message || payErr?.error?.description || payErr?.message || 'Payment failed or verification failed.';
+          alert(msg);
+        }
+      } else {
+        // No razorpayOrder — maybe the backend has payment off (COD) or test is paid by other means
+        alert('Order created successfully. Payment not required at this step.');
+      }
+
+      setShowOrderModal(false);
+      setSelectedTest(null);
+      // refresh list or redirect to orders page if you have one
+    } catch (err) {
+      console.error('Error creating order or opening payment', err);
+      alert(err.response?.data?.message || err.message || 'Order creation/payment failed.');
+    } finally {
+      setOrderLoading(false);
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="container-custom">
-        <h1 className="text-3xl font-bold mb-8">Lab Tests</h1>
+    <div className="min-h-screen bg-slate-50 p-6 lg:p-12">
+      <div className="max-w-6xl mx-auto">
+        <header className="mb-8">
+          <h1 className="text-3xl font-bold">Lab Tests</h1>
+          <p className="text-sm text-slate-600 mt-1">Choose tests and book a sample collection.</p>
+        </header>
 
-        {/* Search and Filter */}
-        <div className="card p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <input
-              type="text"
-              placeholder="Search tests by name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-field"
-            />
-          </div>
-
-          {/* Category Filter */}
-          <div className="flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`px-4 py-2 rounded-full font-medium transition ${
-                  selectedCategory === category
-                    ? 'bg-primary text-white'
-                    : 'bg-light text-dark hover:bg-gray-300'
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Tests Grid */}
-        {filteredTests.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTests.map((test) => (
-              <div key={test.id} className="card hover:shadow-lg transition overflow-hidden">
-                <div className="p-6">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h3 className="font-bold text-dark mb-1">{test.name}</h3>
-                      <p className="text-xs text-gray-500">{test.category}</p>
-                    </div>
-                    {test.discount && (
-                      <div className="bg-danger text-white px-2 py-1 rounded text-xs font-bold">
-                        {test.discount}%
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Description */}
-                  <p className="text-sm text-gray-600 mb-4">{test.description}</p>
-
-                  {/* Details */}
-                  <div className="space-y-2 mb-4 pb-4 border-b text-sm">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Clock className="w-4 h-4" />
-                      <span>Report in {test.turnaroundTime}</span>
-                    </div>
-                    {test.homeCollection && (
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <MapPin className="w-4 h-4" />
-                        <span>Home collection available</span>
-                      </div>
-                    )}
-                    <div className="text-gray-600">
-                      <span className="font-medium">Sample: </span>
-                      <span>{test.sampleType}</span>
-                    </div>
-                    {test.fasting && (
-                      <div className="text-warning font-medium">
-                        ⚠ Fasting required
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Price */}
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-lg font-bold text-primary">₹{test.price}</span>
-                    <span className="text-sm text-gray-400 line-through">
-                      ₹{test.originalPrice}
-                    </span>
-                  </div>
-
-                  {/* Add to Cart Button */}
-                  <button
-                    onClick={() => handleAddToCart(test)}
-                    className="btn-primary w-full py-2 flex items-center justify-center gap-2"
-                  >
-                    <ShoppingCart className="w-4 h-4" />
-                    Book Test
-                  </button>
-                </div>
+        <section>
+          <div className="mb-6">
+            {loading && (
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <LoadSpinner /> Loading tests...
               </div>
-            ))}
+            )}
+            {error && <div className="text-sm text-red-600">{error}</div>}
           </div>
-        ) : (
-          <div className="text-center py-12">
-            <Beaker className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600 mb-4">No tests found matching your criteria</p>
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setSelectedCategory('All');
-              }}
-              className="btn-primary"
-            >
-              Clear Filters
-            </button>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {!loading && tests.length === 0 ? (
+              <div className="col-span-full text-center p-12 bg-white rounded-2xl shadow">No lab tests found.</div>
+            ) : (
+              tests.map(test => <TestCard key={test._id} test={test} onOrder={() => openOrder(test)} />)
+            )}
+          </div>
+        </section>
+
+        {/* Order Modal */}
+        {showOrderModal && selectedTest && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="w-full max-w-2xl bg-white rounded-2xl shadow-lg overflow-hidden">
+              <div className="p-4 flex items-start justify-between">
+                <div>
+                  <h3 className="text-xl font-semibold">Order: {selectedTest.name}</h3>
+                  <div className="text-sm text-slate-500">{selectedTest.sampleType} • {selectedTest.duration}</div>
+                </div>
+                <button onClick={() => { setShowOrderModal(false); setSelectedTest(null); }} className="p-2 rounded hover:bg-slate-100"><X /></button>
+              </div>
+
+              <LabTestOrderForm
+                selectedTest={selectedTest}
+                initialValues={{
+                  name: localStorage.getItem('user_name') || '',
+                  phone: localStorage.getItem('user_phone') || '',
+                }}
+                onCancel={() => { setShowOrderModal(false); setSelectedTest(null); }}
+                onSubmit={handleFormSubmit}
+                loading={orderLoading}
+              />
+            </div>
           </div>
         )}
       </div>
     </div>
   );
-};
+}
 
-export default LabTests;
+function TestCard({ test, onOrder }) {
+  return (
+    <div className="bg-white rounded-2xl shadow hover:shadow-md transition p-4 flex flex-col">
+      <div className="relative rounded-lg overflow-hidden h-40">
+        {test.image ? (
+          <img src={test.image} alt={test.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-400">No image</div>
+        )}
+      </div>
+
+      <div className="mt-3 flex-1">
+        <h4 className="font-semibold text-lg">{test.name}</h4>
+        <p className="text-sm text-slate-500 mt-1 line-clamp-3">{test.description}</p>
+
+        <div className="mt-3 flex items-center justify-between">
+          <div>
+            <div className="text-sm text-slate-500">{test.sampleType}</div>
+            <div className="text-base font-semibold">₹{test.finalPrice || test.price}</div>
+          </div>
+
+          <div className="flex flex-col items-end gap-2">
+            <button onClick={onOrder} className="px-3 py-1 rounded-lg bg-indigo-600 text-white flex items-center gap-2">
+              <Plus size={14} /> Book
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

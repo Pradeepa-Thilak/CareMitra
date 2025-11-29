@@ -71,3 +71,21 @@ export const searchAPI = {
   advanced: (body) => api.post("/search/advanced", body),
 };
 export default api;
+
+
+// —————————————
+// LAB-TEST APIs
+// —————————————
+
+export const labTestAPI = {
+  getAll: () => api.get('/lab-tests'),
+  getByKey: (key) => api.get(`/lab-tests/${encodeURIComponent(key)}`),
+  createOrder: (formData) => api.post('/lab-tests/create-order',formData),
+  verifyPayment: (payload) => api.post('/lab-tests/verify-payment',payload),
+  uploadPrescription: (formData) => api.post('/lab-tests/upload-prescription',formData),
+  getPrescription: (orderId) => api.get(`/lab-tests/prescription/${orderId}`, { responseType: 'blob' }),
+  getReport: (orderId) => api.get(`/lab-tests/report/${orderId}`, { responseType: 'blob' }),
+  uploadReport: (orderId, formData) => api.post(`/lab-tests/report/${orderId}`, formData),
+  updateSampleStatus: (orderId) => api.patch(`/lab-tests/sample-status/${orderId}`),
+  updateProcessingStatus: (orderId) => api.patch(`/lab-tests/processing-status/${orderId}`),
+}
