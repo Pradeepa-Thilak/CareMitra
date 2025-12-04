@@ -1,6 +1,8 @@
+// src/components/common/Navbar.jsx
 import { useContext, useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../contexts/AuthContext";
+import { useCart } from "../../hooks/useCart";
 import AuthModal from "../modals/AuthModal";
 import ProductSearchBar from "../product/ProductSearchBar";
 import {
@@ -10,30 +12,33 @@ import {
   Stethoscope,
   HomeIcon,
   ChevronDown,
+  ShoppingCart,
 } from "lucide-react";
 
 const Navbar = () => {
   const { user, role, logout, token } = useContext(AuthContext);
+  const { cartItems } = useCart();
   const navigate = useNavigate();
 
+  // derive cart count from context
+  const cartCount = cartItems?.reduce((sum, it) => sum + (it.quantity || 0), 0) ?? 0;
 
-   const navRef = useRef(null);
+  const navRef = useRef(null);
 
   // set CSS var with navbar height so pages can use it
   useEffect(() => {
     const setNavOffset = () => {
       if (navRef.current) {
         const h = navRef.current.getBoundingClientRect().height;
-        document.documentElement.style.setProperty('--nav-offset', `${h}px`);
+        document.documentElement.style.setProperty("--nav-offset", `${h}px`);
       }
     };
 
     setNavOffset();
-    window.addEventListener('resize', setNavOffset);
-    return () => window.removeEventListener('resize', setNavOffset);
+    window.addEventListener("resize", setNavOffset);
+    return () => window.removeEventListener("resize", setNavOffset);
   }, []);
 
-  
   // Modal state
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
@@ -62,7 +67,10 @@ const Navbar = () => {
   return (
     <>
       {/* Navbar container (fixed) */}
-      <nav className="w-full bg-sky-700 text-white shadow-lg fixed top-0 left-0 z-50">
+      <nav
+        ref={navRef}
+        className="w-full bg-sky-700 text-white shadow-lg fixed top-0 left-0 z-50"
+      >
         <div className="container-custom flex items-center justify-between px-4 md:px-6 py-3">
           {/* Left: Logo */}
           <div className="flex items-center space-x-3">
@@ -88,11 +96,47 @@ const Navbar = () => {
             </Link>
           </div>
 
-          {/* Right area: Search + Auth */}
+          {/* Right area: Search + Cart + Auth */}
           <div className="flex items-center gap-4">
             {/* Search bar placed to the right of center labels */}
-            <div className="hidden md:block w-[380px]">
-              <ProductSearchBar placeholder="Search medicines, brands, symptoms..." />
+            <div className="hidden md:flex items-center gap-3">
+              <div className="hidden md:block w-[380px]">
+                <ProductSearchBar placeholder="Search medicines, brands, symptoms..." />
+              </div>
+
+              {/* Cart button placed to the right of search bar */}
+              <div className="relative">
+                <Link
+                  to="/cart"
+                  className="flex items-center space-x-2 bg-white text-sky-700 px-3 py-1.5 rounded-full hover:bg-gray-100 transition"
+                >
+                  <ShoppingCart size={18} />
+                  <span className="text-sm font-medium">Cart</span>
+                </Link>
+
+                {/* badge */}
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold leading-none text-white bg-red-600 rounded-full">
+                    {cartCount}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* For small screens: show cart icon (compact) */}
+            <div className="md:hidden">
+              <Link
+                to="/cart"
+                className="relative inline-flex items-center justify-center p-2 bg-white text-sky-700 rounded-full hover:bg-gray-100 transition"
+                aria-label="Cart"
+              >
+                <ShoppingCart size={18} />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white bg-red-600 rounded-full">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
             </div>
 
             {/* Auth / profile area */}
