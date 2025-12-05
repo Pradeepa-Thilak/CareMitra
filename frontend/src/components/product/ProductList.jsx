@@ -1,12 +1,14 @@
 // src/components/product/ProductList.jsx
 import React from 'react';
 import { useProduct } from '../../hooks/useProduct';
-import ProductCard from '../user/ProductCard';
+import ProductCard from '../product/ProductCard';
 import LoadSpinner from '../LoadSpinner';
+import { useNavigate } from 'react-router-dom';
 
 const ProductList = ({ onViewDetails }) => {
   const { filteredProducts, loading } = useProduct();
-
+  const navigate = useNavigate();
+  
   if (loading) return <LoadSpinner fullPage={false} />;
 
   if (!filteredProducts || filteredProducts.length === 0) {
@@ -23,8 +25,7 @@ const ProductList = ({ onViewDetails }) => {
         <ProductCard
           key={p._id ?? p.id}
           product={p}
-          onViewDetails={() => (onViewDetails ? onViewDetails(p) : window.location.href = `/medicine/${p._id ?? p.id}`)}
-        />
+          onViewDetails={() => (onViewDetails ? onViewDetails(p) : navigate(`/medicine/${p._id ?? p.id}`))}        />
       ))}
     </div>
   );

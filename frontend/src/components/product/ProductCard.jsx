@@ -7,15 +7,21 @@ const ProductCard = ({ product }) => {
   const [wishlisted, setWishlisted] = useState(false);
   const navigate = useNavigate();
 
-  const price = product.discountedPrice ?? product.price;
-  const original = product.price;
-  const discount = product.discount || Math.round(((original - price) / original) * 100);
+  const price = Number(product.discountedPrice ?? product.price ?? 0);
+  const original = Number(product.price ?? price);
+  const discount =
+    Number.isFinite(product.discount) && product.discount > 0
+      ? product.discount
+      : original > 0
+      ? Math.round(((original - price) / original) * 100)
+      : 0;
 
+      
   const goToDetails = () => {
     navigate(`/medicine/${product._id || product.id}`);
   };
 
-  return (
+  return (  
     <div className="card p-4 rounded-lg border hover:shadow-md transition cursor-pointer">
       {/* Image */}
       <div className="relative mb-3 h-40 bg-gray-100 rounded-lg overflow-hidden">

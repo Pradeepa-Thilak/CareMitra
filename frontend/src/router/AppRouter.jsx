@@ -18,7 +18,7 @@ import Cart from "../pages/Cart";
 // // import AdminDashboard from '../pages/Admin/AdminDashboard';
 // // import OrdersManagement from '../pages/Admin/OrdersManagement';
 // // import StaffManagement from '../pages/Admin/StaffManagement';
-// // import LabTestsManagement from '../pages/Admin/LabTestsManagemen
+// // import LabTestsManagement from '../pages/Admin/LabTestsManagement
 import LabTests from "../pages/LabTests";
 
 const AppRouter = () => {

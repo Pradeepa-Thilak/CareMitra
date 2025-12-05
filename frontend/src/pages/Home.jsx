@@ -19,8 +19,8 @@ const QuickStat = ({ label, value }) => (
 
 const Home = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-slate-50 py-12">
-      <div className="container-custom px-4">
+    <div className="min-h-screen bg-gradient-to-b from-white to-slate-50 py-8">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Hero */}
         <section className="relative grid grid-cols-1 lg:grid-cols-2 gap-8 items-center mb-10">
