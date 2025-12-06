@@ -13,30 +13,29 @@ const AuthModal = ({ isOpen, isLogin, setIsLogin, onClose }) => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          {/* 🔹 Modal Container */}
+          {/* Modal Container */}
           <motion.div
-            className="relative bg-white rounded-xl shadow-2xl w-[90%] max-w-sm p-6 border border-gray-200"
-            initial={{ scale: 0.9, opacity: 0, y: 40 }}
+            className="relative bg-white rounded-xl shadow-xl w-[90%] max-w-lg p-6 border border-gray-200"
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 40 }}
-            transition={{ type: "spring", stiffness: 180, damping: 20 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            transition={{ type: "spring", stiffness: 140, damping: 18 }}
           >
-            {/* 🔸 Close Button */}
+            {/* Close Button */}
             <button
               onClick={onClose}
-              className="absolute top-2 right-3 text-gray-500 hover:text-red-600 text-xl font-semibold"
-              aria-label="Close"
+              className="absolute top-2 right-3 text-gray-500 hover:text-red-600 text-xl"
             >
               ✕
             </button>
 
-            {/* 🔸 Dynamic Content */}
+            {/* Login / Signup */}
             {isLogin ? (
-              <Login setMethod={setIsLogin} closeModal={onClose} />
+              <Login closeModal={onClose} setMethod={setIsLogin} />
             ) : (
               <Signup
-                setMethod={setIsLogin}
                 closeModal={onClose}
+                setMethod={setIsLogin}
                 onSignupSuccess={() => setIsLogin(true)}
               />
             )}

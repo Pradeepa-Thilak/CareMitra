@@ -5,6 +5,7 @@ import { categoryAPI, productAPI, searchAPI } from '../utils/api';
 export const ProductContext = createContext();
 
 export const ProductProvider = ({ children }) => {
+  console.log('[ProductProvider] mounted');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 

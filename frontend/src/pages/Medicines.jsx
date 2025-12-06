@@ -13,6 +13,7 @@ const Medicines = () => {
     loading,
     searchTerm,
     setSearchTerm,
+    setSelectedBrand,
     selectedCategory,
     setSelectedCategory,
     setPriceRange,

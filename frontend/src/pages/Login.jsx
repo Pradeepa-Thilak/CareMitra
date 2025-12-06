@@ -1,6 +1,6 @@
 import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { AuthContext } from "../contexts/AuthContext"; 
+import { AuthContext } from "../contexts/AuthContext";
 import { toast } from "react-hot-toast";
 import LoginForm from "../components/forms/LoginForm";
 import { authAPI } from "../utils/api";
@@ -15,67 +15,65 @@ const Login = ({ closeModal, setMethod }) => {
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
 
-  // Step 1: Send OTP (mock)
- const handleSendOtp = async (e) => {
+  const handleSendOtp = async (e) => {
     e.preventDefault();
     try {
-      const res = await authAPI.sendLoginOtp(email);
-      console.log(res.data);
+      setLoading(true);
+      await authAPI.sendLoginOtp(email);
       toast.success("OTP sent!");
       setStage(2);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to send OTP");
+      toast.error("Failed to send OTP");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Step 2: Verify OTP (mock)
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
-
     try {
+      setLoading(true);
       const res = await authAPI.verifyOtp(email, otp);
-
       const { user, token } = res.data.data;
-      console.log(res.data.data);
-
       login(user, token);
       toast.success("Login successful!");
 
-      if (user.role === "patient") navigate("/patient/dashboard");
-      else navigate("/doctor/dashboard");
-
+      navigate(user.role === "patient" ? "/patient/dashboard" : "/doctor/dashboard");
       closeModal?.();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Invalid OTP");
+      toast.error("Invalid OTP");
+      setInvalid(true);
+      setMessage("Incorrect OTP, please try again");
+    } finally {
+      setLoading(false);
     }
   };
 
-  
   return (
-    <>
+    <div className="w-full">
       <LoginForm
         email={email}
         otp={otp}
         setEmail={setEmail}
         setOtp={setOtp}
+        stage={stage}
         invalid={invalid}
         message={message}
-        stage={stage}
+        loading={loading}
         handleSendOtp={handleSendOtp}
         handleVerifyOtp={handleVerifyOtp}
-        loading={loading}
       />
 
-      <div className="text-center mt-3 text-xs text-gray-700">
+      <p className="text-center text-sm mt-3 text-gray-600">
         New to CareMitra?{" "}
         <span
           onClick={() => setMethod(false)}
-          className="text-red-600 font-medium cursor-pointer hover:underline"
+          className="text-indigo-600 font-medium cursor-pointer hover:underline"
         >
-          Sign Up
+          Create an account
         </span>
-      </div>
-    </>
+      </p>
+    </div>
   );
 };
 

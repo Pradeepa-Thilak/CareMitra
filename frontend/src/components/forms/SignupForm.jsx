@@ -7,9 +7,10 @@ const SignupForm = ({
   setEmail,
   setOtp,
   setFormData,
+  stage,
+  setStage,
   invalid,
   message,
-  stage,
   handleSendOtp,
   handleVerifyOtp,
   handleCompleteSignup,
@@ -21,67 +22,70 @@ const SignupForm = ({
     if (stage === 2) otpRefs.current[0]?.focus();
   }, [stage]);
 
+  // SPA-friendly "Edit" handler used in stage 2
+  const handleEditEmail = () => {
+    setStage(1);
+    setOtp("");
+  };
+
   return (
-    <div className="bg-white w-full max-w-sm rounded-xl shadow-md border border-gray-200 p-6">
-      {/* 🔹 Stage 1 — Email Input */}
+    <div className="bg-white w-full max-w-md rounded-xl shadow-md border border-gray-200 p-6">
+      {/* Stage 1 — Email Input */}
       {stage === 1 && (
         <form onSubmit={handleSendOtp} className="space-y-5">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">Sign Up</h1>
-            <p className="text-xs text-gray-600 mt-1">
+            <h1 className="text-xl font-semibold text-gray-800">Create account</h1>
+            <p className="text-sm text-gray-500 mt-1">
               Enter your email to receive a verification code
             </p>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Email
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-red-500 outline-none"
+              placeholder="you@example.com"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-100 outline-none"
               required
             />
             {invalid && (
-              <p className="text-xs text-red-600 mt-1 text-center">{message}</p>
+              <p className="text-xs text-red-600 mt-2 text-center">{message}</p>
             )}
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-1.5 text-sm text-white rounded-md font-semibold ${
-              loading
-                ? "bg-red-400 cursor-not-allowed"
-                : "bg-red-600 hover:bg-red-700 transition"
+            className={`w-full py-2.5 text-sm text-white rounded-md font-semibold ${
+              loading ? "bg-indigo-300 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"
             }`}
           >
-            {loading ? "Sending..." : "SEND OTP"}
+            {loading ? "Sending..." : "Send OTP"}
           </button>
         </form>
       )}
 
-      {/* 🔹 Stage 2 — OTP Verification */}
+      {/* Stage 2 — OTP Verification */}
       {stage === 2 && (
         <form onSubmit={handleVerifyOtp} className="space-y-5">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">Verify OTP</h1>
-            <p className="text-xs text-gray-600 mt-1">
+            <h1 className="text-xl font-semibold text-gray-800">Verify OTP</h1>
+            <p className="text-sm text-gray-500 mt-1">
               Enter the code sent to{" "}
-              <span className="font-semibold">{email}</span>{" "}
-              <span
-                onClick={() => window.location.reload()}
-                className="text-red-600 font-semibold cursor-pointer hover:underline"
+              <span className="font-medium text-gray-700">{email}</span>{" "}
+              <button
+                type="button"
+                onClick={handleEditEmail}
+                className="text-indigo-600 font-medium ml-2 hover:underline"
               >
                 Edit
-              </span>
+              </button>
             </p>
           </div>
 
-          <div className="flex gap-2 justify-center">
+          <div className="flex gap-3 justify-center">
             {Array.from({ length: 6 }).map((_, i) => (
               <input
                 key={i}
@@ -101,7 +105,7 @@ const SignupForm = ({
                     otpRefs.current[i - 1]?.focus();
                   }
                 }}
-                className="w-8 h-10 text-center border border-gray-300 rounded-md text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none"
+                className="w-12 h-12 text-center border border-gray-300 rounded-md text-lg focus:ring-2 focus:ring-indigo-100 outline-none"
               />
             ))}
           </div>
@@ -113,53 +117,43 @@ const SignupForm = ({
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-1.5 text-sm text-white rounded-md font-semibold ${
-              loading
-                ? "bg-red-400 cursor-not-allowed"
-                : "bg-red-600 hover:bg-red-700 transition"
+            className={`w-full py-2.5 text-sm text-white rounded-md font-semibold ${
+              loading ? "bg-indigo-300 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"
             }`}
           >
-            {loading ? "Verifying..." : "VERIFY OTP"}
+            {loading ? "Verifying..." : "Verify OTP"}
           </button>
         </form>
       )}
 
-      {/* 🔹 Stage 3 — User Details + Role Selection */}
+      {/* Stage 3 — User Details + Role Selection */}
       {stage === 3 && (
         <form onSubmit={handleCompleteSignup} className="space-y-5">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">
-              Complete Your Profile
-            </h1>
-            <p className="text-xs text-gray-600 mt-1">
-              Fill in your details to finish signing up
-            </p>
+            <h1 className="text-xl font-semibold text-gray-800">Complete profile</h1>
+            <p className="text-sm text-gray-500 mt-1">Fill in your details to finish signing up</p>
           </div>
 
-          {/* 🔸 Name */}
+          {/* Name */}
           <div>
-            <label className="block text-xs text-gray-700 mb-1">Name</label>
+            <label className="block text-sm text-gray-700 mb-1">Full name</label>
             <input
               type="text"
               value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Enter your full name"
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-red-500 outline-none"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-100 outline-none"
               required
             />
           </div>
 
-          {/* 🔸 Role Selection */}
+          {/* Role */}
           <div>
-            <label className="block text-xs text-gray-700 mb-1">Role</label>
+            <label className="block text-sm text-gray-700 mb-1">Role</label>
             <select
               value={formData.role}
-              onChange={(e) =>
-                setFormData({ ...formData, role: e.target.value })
-              }
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-red-500 outline-none"
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-100 outline-none"
               required
             >
               <option value="">Select your role</option>
@@ -175,13 +169,11 @@ const SignupForm = ({
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-1.5 text-sm text-white rounded-md font-semibold ${
-              loading
-                ? "bg-red-400 cursor-not-allowed"
-                : "bg-red-600 hover:bg-red-700 transition"
+            className={`w-full py-2.5 text-sm text-white rounded-md font-semibold ${
+              loading ? "bg-indigo-300 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"
             }`}
           >
-            {loading ? "Creating..." : "COMPLETE SIGNUP"}
+            {loading ? "Creating..." : "Complete signup"}
           </button>
         </form>
       )}

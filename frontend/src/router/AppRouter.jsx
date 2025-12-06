@@ -12,6 +12,7 @@ import Navbar from "../components/common/Navbar";
 import Medicines from "../pages/Medicines";
 import ProductDetails from "../pages/ProductDetails";
 import Cart from "../pages/Cart";
+import Doctors from "../pages/Doctors";
 
 // import AllAppointments from "../pages/AllAppointments";
 // // Admin Dashboard and other pages can be added similarly
@@ -49,6 +50,7 @@ const AppRouter = () => {
 
         <Route path="/lab-tests/:key" element={<LabTests />} />
         <Route path="/cart" element={<Cart />} />
+        <Route path="/doctors" element={<Doctors />} />
         {/* <Route path="*" element={<NotFound />} /> */}
 
       </Routes>

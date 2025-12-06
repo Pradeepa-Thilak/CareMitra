@@ -64,6 +64,8 @@ const Navbar = () => {
     setIsDropdownOpen(false);
   };
 
+
+
   return (
     <>
       {/* Navbar container (fixed) */}
@@ -81,7 +83,7 @@ const Navbar = () => {
           </div>
 
           {/* Center: nav links */}
-          <div className="hidden lg:flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-6">
             <Link to="/" className="hover:text-gray-200 flex items-center gap-1">
               <HomeIcon size={18} /> Home
             </Link>
