@@ -94,51 +94,29 @@ export default function LabTests() {
     });
   }
 
-  async function handleFormSubmit(formValues, prescriptionFile) {
-    if (!selectedTest) return alert('No test selected');
-    setOrderLoading(true);
+async function handleFormSubmit(details, testIds, file) {
+  const fd = new FormData();
+  fd.append("sampleCollectionDetails", JSON.stringify(details));
+  fd.append("testIds", JSON.stringify(testIds));
+  if (file) fd.append("prescription", file);
 
-    try {
-      const fd = new FormData();
-      fd.append("testIds", JSON.stringify([selectedTest._id]));
-      fd.append("sampleCollectionDetails", JSON.stringify({
-        name: formValues.name,
-        phone: formValues.phone,
-        address: formValues.address,
-        pincode: formValues.pincode,
-        date: formValues.date,
-        time: formValues.time || "09:00 AM"
-      }));
-      if (prescriptionFile) fd.append("prescription", prescriptionFile);
-
-      const res = await labTestAPI.createOrder(fd);
-      const responseData = res.data?.data;
-      if (!responseData) throw new Error("Invalid response from server");
-
-      const { order, razorpayOrder } = responseData;
-
-      if (razorpayOrder?.id) {
-        const isMock = razorpayOrder.id.startsWith("order_mock_");
-        if (isMock) {
-          alert("Mock order created successfully. Payment skipped.");
-        } else {
-          await openRazorpayCheckout(razorpayOrder, order);
-          alert("Payment successful and verified. Thank you!");
-        }
-      } else {
-        alert("Order created successfully. Payment not required.");
-      }
-
+  try {
+    const res = await labTestAPI.createOrder(fd);
+    console.log("Order created:", res.data);
+    
+    // ✅ Add Razorpay payment flow after order creation
+    if (res.data.data?.razorpayOrder) {
+      await openRazorpayCheckout(res.data.data.razorpayOrder, res.data.data.order);
+      // Payment success handling
+      alert("Order placed successfully!");
       setShowOrderModal(false);
       setSelectedTest(null);
-    } catch (err) {
-      console.error("Error creating order or payment", err);
-      alert(err.response?.data?.message || err.message || "Order creation/payment failed.");
-    } finally {
-      setOrderLoading(false);
     }
+  } catch (error) {
+    console.error("Order creation failed:", error);
+    alert(error.response?.data?.message || "Failed to create order");
   }
-
+}
   return (
     <div className="min-h-screen bg-slate-50 p-6 lg:p-12">
       <div className="max-w-6xl mx-auto">

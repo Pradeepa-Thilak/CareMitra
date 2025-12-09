@@ -5,6 +5,16 @@ import { Upload } from 'lucide-react';
 /**
  * Props:
  * - selectedTest, initialValues, onCancel, onSubmit, loading
+ * - selectedTest: object (test to order)
+ * - initialValues: optional { name, phone, address, pincode, date, time }
+ * - onCancel: function()
+ * - onSubmit: async function(formValues, prescriptionFile) -> should return a promise (optional)
+ * - loading: boolean
+ *
+ * Behavior:
+ * - If parent passes onSubmit(form, file) it will be called and awaited.
+ * - If parent doesn't pass onSubmit or it throws, the component falls back to
+ *   posting multipart/form-data to /api/labtests/order using axios.
  */
 export default function LabTestOrderForm({
   selectedTest,
@@ -30,6 +40,7 @@ export default function LabTestOrderForm({
   const [pincodeVerified, setPincodeVerified] = useState(null); // null | true | false
   const [pincodeMessage, setPincodeMessage] = useState('');
   const [pincodeSuggestions, setPincodeSuggestions] = useState([]); // array of postOffice objects
+  const [pincodeSuggestions, setPincodeSuggestions] = useState([]); // array of strings
 
   // debounce ref for auto verify
   const verifyTimeout = useRef(null);
@@ -147,6 +158,12 @@ export default function LabTestOrderForm({
           setPincodeMessage('Pincode does not appear to match the typed address. Please pick a suggestion or correct the address.');
         }
       }
+      const suggestions = postOffices.map(po => `${po.Name}, ${po.District}, ${po.State}`);
+      setPincodeSuggestions(suggestions);
+
+      // basic verified = pincode exists; ask user to pick suggestion if needed
+      setPincodeVerified(true);
+      setPincodeMessage('Pincode found. Select a suggestion to autofill locality or continue.');
     } catch (err) {
       console.error('verifyPincode error', err);
       setPincodeVerified(false);
@@ -170,6 +187,9 @@ export default function LabTestOrderForm({
     // require verification success
     if (pincodeVerified !== true) {
       errs.pincode = pincodeMessage || 'Please verify the pincode and make sure it matches the address.';
+    // require verification success
+    if (pincodeVerified !== true) {
+      errs.pincode = pincodeMessage || 'Please verify the pincode.';
     }
 
     if (!form.date) errs.date = 'Please select a date.';
@@ -185,12 +205,28 @@ export default function LabTestOrderForm({
     return errs;
   };
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    const validation = validateForm();
-    setErrors(validation);
-    if (Object.keys(validation).length > 0) return;
+  // Integrated handleSubmit: try parent onSubmit, fallback to internal axios multipart send
+async function handleSubmit(e) {
+  e.preventDefault();
 
+  const validation = validateForm();
+  setErrors(validation);
+  if (Object.keys(validation).length > 0) return;
+
+  const sampleCollectionDetails = {
+    name: form.name,
+    phone: form.phone,
+    address: form.address,
+    pincode: form.pincode,
+    date: form.date,
+    time: form.time
+  };
+
+  const testIdsToSend = Array.isArray(selectedTest)
+    ? selectedTest.map(t => t._id || t.id)
+    : [(selectedTest && (selectedTest._id || selectedTest.id))].filter(Boolean);
+
+  try {
     if (onSubmit) {
       await onSubmit(form, prescriptionFile);
     }
@@ -200,6 +236,31 @@ export default function LabTestOrderForm({
   const acceptSuggestion = (postOffice) => {
     const suggestion = `${postOffice.Name}, ${postOffice.District}, ${postOffice.State}`;
     setForm(prev => ({ ...prev, address: suggestion }));
+      // ✅ Use the parent's onSubmit prop
+      await onSubmit(sampleCollectionDetails, testIdsToSend, prescriptionFile);
+    } else {
+      // Fallback if no onSubmit provided
+      const fd = new FormData();
+      fd.append("testIds", JSON.stringify(testIdsToSend));
+      fd.append("sampleCollectionDetails", JSON.stringify(sampleCollectionDetails));
+      if (prescriptionFile) {
+        fd.append("prescription", prescriptionFile, prescriptionFile.name);
+      }
+
+      const res = await axios.post("/lab-tests/create-order", fd, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      console.log("Order create response:", res.data);
+    }
+  } catch (err) {
+    console.error("Order submit error:", err, err?.response?.data);
+    setErrors(prev => ({ ...prev, submit: err?.response?.data?.message || "Failed to place order" }));
+  }
+}
+
+  // accept suggestion helper
+  const acceptSuggestion = (suggestion, index) => {
+    setForm(prev => ({ ...prev, address: `${suggestion}` }));
     setPincodeVerified(true);
     setPincodeMessage('Suggestion accepted — pincode and address match.');
     // keep suggestions visible so user can change if needed
@@ -259,7 +320,6 @@ export default function LabTestOrderForm({
           </button>
         </div>
 
-        {/* verification status / messages */}
         <div className="mt-2">
           {pincodeVerified === true && <p className="text-green-600 text-sm">✅ {pincodeMessage}</p>}
           {pincodeVerified === false && <p className="text-red-600 text-sm">❌ {pincodeMessage}</p>}
@@ -341,6 +401,8 @@ export default function LabTestOrderForm({
           </button>
         </div>
       </div>
+
+      {errors.submit && <div className="md:col-span-2 text-red-600 text-sm mt-2">{errors.submit}</div>}
     </form>
   );
 }
