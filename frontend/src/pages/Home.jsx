@@ -1,14 +1,11 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import CategorySection from "../components/product/CategorySection";
 import ProductSearchBar from "../components/product/ProductSearchBar";
 import BrandSection from "../components/product/BrandSection";
 import ProductCard from "../components/product/ProductCard";
-
-// Decorative Home page inspired by the clean, friendly look of Tata 1mg
-// - keeps the same component structure and places (CategorySection, BrandSection)
-// - adds a more vibrant hero, search placement, cards, and subtle motion
-// - requires Tailwind CSS and framer-motion (framer-motion is optional — remove imports/usage if you don't want it)
+// Optional API helper - use your existing api instance if present
+import api from "../utils/api";
 
 const QuickStat = ({ label, value }) => (
   <div className="flex flex-col items-center p-3 bg-white/60 backdrop-blur rounded-2xl shadow-sm min-w-[110px]">
@@ -18,6 +15,50 @@ const QuickStat = ({ label, value }) => (
 );
 
 const Home = () => {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fallback sample products (used if API is not available)
+  const sampleProducts = Array.from({ length: 8 }).map((_, i) => ({
+    id: `sample-${i}`,
+    _id: `sample-${i}`,
+    name: `Sample Medicine ${i + 1}`,
+    price: 199 + i * 25,
+    discountedPrice: i % 2 === 0 ? 149 + i * 20 : undefined,
+    brand: { name: i % 2 ? "HealthCo" : "MediPlus" },
+    category: { name: "General" },
+    rating: 4.2 - (i % 3) * 0.3,
+    reviews: 10 + i * 3,
+    images: [],
+    stock: i % 4 === 0 ? 0 : 20,
+  }));
+
+  useEffect(() => {
+    let mounted = true;
+    // Try to fetch products from backend; fallback to sampleProducts on error
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        // If you don't have an API, this will throw and use the fallback.
+        const res = await api.get("/products?limit=24"); // adapt endpoint as needed
+        if (!mounted) return;
+        const data = res.data?.products || res.data || [];
+        setProducts(Array.isArray(data) ? data : sampleProducts);
+      } catch (err) {
+        // fallback
+        setProducts(sampleProducts);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    fetchProducts();
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50 py-8">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -39,10 +80,9 @@ const Home = () => {
                 Find medicines, lab tests and healthcare products quickly. Trusted sellers, verified medical information and fast delivery.
               </p>
 
-              {/* Search bar (keeps core functionality) */}
-              {/* <div className="mt-3">
+              <div className="mt-3">
                 <ProductSearchBar className="shadow-md" />
-              </div> */}
+              </div>
 
               {/* Quick stats */}
               <div className="mt-6 flex gap-3">
@@ -66,7 +106,7 @@ const Home = () => {
             </div>
           </motion.div>
 
-          {/* Right: Decorative card with hero illustration (keeps layout) */}
+          {/* Right: Decorative card with hero illustration */}
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -74,7 +114,6 @@ const Home = () => {
             className="flex justify-center lg:justify-end"
           >
             <div className="w-full max-w-md rounded-3xl overflow-hidden shadow-2xl bg-white border border-gray-100">
-              {/* Replace the placeholder below with an image or illustration asset if you have one */}
               <div className="h-56 bg-[url('/assets/hero-health.svg')] bg-center bg-cover sm:h-64 lg:h-72" />
 
               <div className="p-6">
@@ -90,38 +129,27 @@ const Home = () => {
           </motion.div>
         </section>
 
-        {/* Category Section (keeps existing component & placement) */}
+        {/* Category Section */}
         <section className="mb-8">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Browse by Category</h2>
           <CategorySection />
         </section>
 
-        {/* Featured/Popular products strip (decorative, optional) */}
+        {/* Popular products grid */}
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Popular right now</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-800">Popular right now</h2>
+            <div className="text-sm text-gray-500">{loading ? "Loading..." : `${products.length} items`}</div>
+          </div>
 
-          {/* Horizontal carousel: simple, dependency-free, touch-friendly */}
-          <div className="relative">
-            <div className="flex gap-4 overflow-x-auto scrollbar-hide py-2">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="min-w-[200px] flex-shrink-0">
-                  {/* Swap this inline product object with real product data when available */}
-                  <ProductCard product={{ id: i, name: `Sample Product ${i + 1}`, price: '₹99', image: null }} />
-                </div>
-              ))}
-            </div>
-
-            {/* Left / Right chevrons for desktop (optional; purely visual) */}
-            <div className="hidden md:flex absolute inset-y-0 left-0 items-center pl-2">
-              <button className="bg-white/70 backdrop-blur rounded-full p-2 shadow-sm">◀</button>
-            </div>
-            <div className="hidden md:flex absolute inset-y-0 right-0 items-center pr-2">
-              <button className="bg-white/70 backdrop-blur rounded-full p-2 shadow-sm">▶</button>
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {products.map((p) => (
+              <ProductCard key={p._id || p.id} product={p} />
+            ))}
           </div>
         </section>
 
-        {/* Brand Section (keeps existing component & placement) */}
+        {/* Brand Section */}
         <section className="mb-12">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Trusted Brands</h2>
           <BrandSection />

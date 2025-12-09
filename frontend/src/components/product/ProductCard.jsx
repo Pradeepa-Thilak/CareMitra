@@ -2,11 +2,16 @@
 import React, { useState } from "react";
 import { Heart, ShoppingCart, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useCart } from "../../hooks/useCart";
+import { toast } from "react-hot-toast"; // optional
 
 const ProductCard = ({ product }) => {
   const [wishlisted, setWishlisted] = useState(false);
   const navigate = useNavigate();
+  const { addToCart } = useCart();
 
+  // normalize id and price
+  const normalizedId = product.id ?? product._id ?? String(product._id ?? Math.random());
   const price = Number(product.discountedPrice ?? product.price ?? 0);
   const original = Number(product.price ?? price);
   const discount =
@@ -16,14 +21,43 @@ const ProductCard = ({ product }) => {
       ? Math.round(((original - price) / original) * 100)
       : 0;
 
-      
-  const goToDetails = () => {
-    navigate(`/medicine/${product._id || product.id}`);
+  const goToDetails = (e) => {
+    // e may be undefined when called programmatically
+    e?.stopPropagation();
+    navigate(`/medicine/${normalizedId}`);
   };
 
-  return (  
-    <div className="card p-4 rounded-lg border hover:shadow-md transition cursor-pointer">
-      {/* Image */}
+  const handleAddToCart = (e) => {
+    e.stopPropagation(); // important — prevent any ancestor click handlers
+    console.log("ProductCard: handleAddToCart clicked for", normalizedId);
+
+    const normalized = {
+      ...product,
+      id: normalizedId,
+      quantity: product.quantity ?? 1,
+      price: Number(product.discountedPrice ?? product.price ?? 0),
+    };
+
+    try {
+      if (addToCart) {
+        addToCart(normalized);
+        toast?.success?.("Added to cart");
+      } else {
+        console.warn("addToCart not available", addToCart);
+        toast?.error?.("Cart unavailable");
+      }
+    } catch (err) {
+      console.error("Add to cart failed", err);
+      toast?.error?.("Could not add to cart");
+    }
+  };
+
+  return (
+    <div
+      className="card p-4 rounded-lg border hover:shadow-md transition cursor-default bg-white"
+      // note: cursor-default to avoid implying whole-card clickable
+    >
+      {/* Image (clickable only on the image) */}
       <div className="relative mb-3 h-40 bg-gray-100 rounded-lg overflow-hidden">
         <img
           src={
@@ -32,13 +66,15 @@ const ProductCard = ({ product }) => {
             "https://via.placeholder.com/200x200?text=Medicine"
           }
           alt={product.name}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover cursor-pointer"
           onClick={goToDetails}
         />
 
-        {/* Wishlist */}
         <button
-          onClick={() => setWishlisted(!wishlisted)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setWishlisted((s) => !s);
+          }}
           className="absolute top-2 right-2 p-2 bg-white rounded-full shadow hover:bg-gray-100"
         >
           <Heart
@@ -48,7 +84,6 @@ const ProductCard = ({ product }) => {
           />
         </button>
 
-        {/* Discount badge */}
         {discount > 0 && (
           <span className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
             {discount}% OFF
@@ -58,7 +93,7 @@ const ProductCard = ({ product }) => {
 
       {/* Product Details */}
       <h3
-        className="font-semibold text-dark line-clamp-2 text-sm mb-1"
+        className="font-semibold text-dark line-clamp-2 text-sm mb-1 cursor-pointer"
         onClick={goToDetails}
       >
         {product.name}
@@ -93,15 +128,20 @@ const ProductCard = ({ product }) => {
         )}
       </div>
 
-      {/* Buttons */}
+      {/* Buttons (explicitly stop event propagation) */}
       <div className="flex gap-2">
         <button
-          onClick={goToDetails}
+          onClick={(e) => {
+            e.stopPropagation();
+            goToDetails(e);
+          }}
           className="flex-1 btn-outline text-sm py-2"
         >
           Details
         </button>
+
         <button
+          onClick={handleAddToCart}
           className="flex-1 btn-primary text-sm py-2 flex items-center justify-center gap-2"
         >
           <ShoppingCart className="w-4 h-4" />
@@ -109,7 +149,6 @@ const ProductCard = ({ product }) => {
         </button>
       </div>
 
-      {/* Stock */}
       {product.stock !== undefined && (
         <p className="text-xs mt-2">
           {product.stock > 0 ? (

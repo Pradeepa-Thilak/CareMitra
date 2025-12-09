@@ -4,13 +4,8 @@ import { Upload } from 'lucide-react';
 
 /**
  * Props:
- * - selectedTest: object (test to order)
- * - initialValues: optional { name, phone, address, pincode, date, time }
- * - onCancel: function()
- * - onSubmit: async function(formValues, prescriptionFile) -> should return a promise
- * - loading: boolean
+ * - selectedTest, initialValues, onCancel, onSubmit, loading
  */
-
 export default function LabTestOrderForm({
   selectedTest,
   initialValues = {},
@@ -34,13 +29,12 @@ export default function LabTestOrderForm({
   const [pincodeVerifying, setPincodeVerifying] = useState(false);
   const [pincodeVerified, setPincodeVerified] = useState(null); // null | true | false
   const [pincodeMessage, setPincodeMessage] = useState('');
-  const [pincodeSuggestions, setPincodeSuggestions] = useState([]); // array of strings
-
-  // allow user to override verification (if needed)
-  const [allowOverride, setAllowOverride] = useState(false);
+  const [pincodeSuggestions, setPincodeSuggestions] = useState([]); // array of postOffice objects
 
   // debounce ref for auto verify
   const verifyTimeout = useRef(null);
+  // ref for container to position dropdown
+  const pincodeWrapRef = useRef(null);
 
   useEffect(() => {
     setForm(prev => ({ ...prev, ...initialValues }));
@@ -49,20 +43,16 @@ export default function LabTestOrderForm({
   // Auto-verify when pincode becomes a valid 6-digit number (debounced)
   useEffect(() => {
     const p = (form.pincode || '').trim();
-    // reset state on change
     setPincodeVerified(null);
     setPincodeMessage('');
     setPincodeSuggestions([]);
-    setAllowOverride(false);
 
     if (/^\d{6}$/.test(p)) {
-      // debounce call to avoid many requests while typing
       if (verifyTimeout.current) clearTimeout(verifyTimeout.current);
       verifyTimeout.current = setTimeout(() => {
         verifyPincode(p);
       }, 600);
     } else {
-      // if not valid format, clear verification
       if (verifyTimeout.current) clearTimeout(verifyTimeout.current);
       setPincodeVerifying(false);
     }
@@ -73,6 +63,30 @@ export default function LabTestOrderForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.pincode]);
 
+  // Basic similarity check: does typed address include any PO fields (name/district/state) OR vice versa
+  const addressMatchesPostOffice = (typedAddress, postOffice) => {
+    if (!typedAddress) return false;
+    const addr = typedAddress.toLowerCase();
+    const name = (postOffice.Name || '').toLowerCase();
+    const district = (postOffice.District || '').toLowerCase();
+    const state = (postOffice.State || '').toLowerCase();
+
+    // direct substring checks
+    if (name && addr.includes(name)) return true;
+    if (district && addr.includes(district)) return true;
+    if (state && addr.includes(state)) return true;
+
+    // try token overlap: split words and check intersection
+    const addrTokens = new Set(addr.split(/\W+/).filter(Boolean));
+    const poTokens = new Set(`${name} ${district} ${state}`.split(/\W+/).filter(Boolean));
+    let common = 0;
+    for (const t of poTokens) {
+      if (addrTokens.has(t)) common++;
+    }
+    // if there is at least one token in common, treat as match
+    return common > 0;
+  };
+
   const verifyPincode = async (pincode) => {
     setPincodeVerifying(true);
     setPincodeVerified(null);
@@ -80,7 +94,6 @@ export default function LabTestOrderForm({
     setPincodeSuggestions([]);
 
     try {
-      // India Post public API
       const resp = await axios.get(`https://api.postalpincode.in/pincode/${encodeURIComponent(pincode)}`);
       const data = resp.data && resp.data[0];
 
@@ -103,16 +116,37 @@ export default function LabTestOrderForm({
         return;
       }
 
-      // build suggestion strings and pick first as default suggestion
-      const suggestions = postOffices.map(po => `${po.Name}, ${po.District}, ${po.State}`);
-      setPincodeSuggestions(suggestions);
+      // keep the raw postOffice objects
+      setPincodeSuggestions(postOffices);
 
-      // basic match success: if there's at least one post office, treat as verified
-      setPincodeVerified(true);
-      setPincodeMessage('Pincode found. Select a suggestion to autofill locality or continue.');
+      // Check if any postOffice roughly matches the typed address
+      const typedAddr = (form.address || '').trim();
+      let matched = false;
+      if (typedAddr) {
+        for (const po of postOffices) {
+          if (addressMatchesPostOffice(typedAddr, po)) {
+            matched = true;
+            break;
+          }
+        }
+      } else {
+        // no typed address; consider not matched but still show suggestions
+        matched = false;
+      }
 
-      // Optionally autofill address's city/state if empty — commented out; enable if desired:
-      // if (!form.address) setForm(prev => ({ ...prev, address: `${postOffices[0].Name}, ${postOffices[0].District}` }));
+      if (matched) {
+        setPincodeVerified(true);
+        setPincodeMessage('Pincode matches the provided address.');
+      } else {
+        // if typed address is empty, treat as verified (since pincode exists) but request user to pick suggestion
+        if (!typedAddr) {
+          setPincodeVerified(true);
+          setPincodeMessage('Pincode found. Please select a suggestion to autofill locality or type address.');
+        } else {
+          setPincodeVerified(false);
+          setPincodeMessage('Pincode does not appear to match the typed address. Please pick a suggestion or correct the address.');
+        }
+      }
     } catch (err) {
       console.error('verifyPincode error', err);
       setPincodeVerified(false);
@@ -133,12 +167,9 @@ export default function LabTestOrderForm({
     if (!form.name.trim()) errs.name = 'Name is required.';
     if (!/^[0-9]{10}$/.test(form.phone)) errs.phone = 'Enter a valid 10-digit phone number.';
     if (!form.pincode || !/^[0-9]{6}$/.test(form.pincode)) errs.pincode = 'Enter a valid 6-digit pincode.';
-
-    // enforce verification unless user chooses override
-    if (!allowOverride) {
-      if (pincodeVerified !== true) {
-        errs.pincode = pincodeMessage || 'Please verify the pincode.';
-      }
+    // require verification success
+    if (pincodeVerified !== true) {
+      errs.pincode = pincodeMessage || 'Please verify the pincode and make sure it matches the address.';
     }
 
     if (!form.date) errs.date = 'Please select a date.';
@@ -165,13 +196,13 @@ export default function LabTestOrderForm({
     }
   }
 
-  // allow user to accept a suggestion and populate address
-  const acceptSuggestion = (suggestion, index) => {
-    // suggestion like "Name, District, State" -> put into address field (you can customize)
-    setForm(prev => ({ ...prev, address: `${suggestion}` }));
-    // keep pincode verified as true
+  // accept suggestion: sets address to a nice formatted string and mark verified
+  const acceptSuggestion = (postOffice) => {
+    const suggestion = `${postOffice.Name}, ${postOffice.District}, ${postOffice.State}`;
+    setForm(prev => ({ ...prev, address: suggestion }));
     setPincodeVerified(true);
-    setAllowOverride(false);
+    setPincodeMessage('Suggestion accepted — pincode and address match.');
+    // keep suggestions visible so user can change if needed
   };
 
   return (
@@ -205,7 +236,8 @@ export default function LabTestOrderForm({
         />
       </div>
 
-      <div>
+      {/* PINCODE + suggestions wrapped in relative container to position absolute dropdown */}
+      <div ref={pincodeWrapRef} className="relative">
         <label className="block text-sm text-slate-600">Pincode</label>
         <div className="flex items-center gap-2">
           <input
@@ -236,36 +268,30 @@ export default function LabTestOrderForm({
           )}
         </div>
 
-        {/* list suggestions if available */}
+        {/* suggestions dropdown: absolutely positioned so it doesn't push layout and allows page scroll */}
         {pincodeSuggestions.length > 0 && (
-          <div className="mt-2 border rounded p-2 bg-slate-50">
-            <div className="text-xs text-slate-600 mb-1">Suggestions (click to autofill address):</div>
-            <ul className="space-y-1 max-h-36 overflow-auto">
-              {pincodeSuggestions.slice(0, 6).map((s, i) => (
-                <li key={i}>
+          <div
+            className="absolute left-0 right-0 mt-2 bg-white border rounded shadow-lg z-50"
+            style={{ maxHeight: 220, overflowY: 'auto' }}
+          >
+            <div className="p-2 text-xs text-slate-600 border-b">Suggestions (click to autofill):</div>
+            <ul className="divide-y">
+              {pincodeSuggestions.slice(0, 12).map((po, i) => (
+                <li key={i} className="p-2 hover:bg-slate-50">
                   <button
                     type="button"
-                    onClick={() => acceptSuggestion(s, i)}
-                    className="text-left text-sm w-full hover:underline"
+                    onClick={() => acceptSuggestion(po)}
+                    className="text-left w-full"
                   >
-                    {s}
+                    <div className="text-sm font-medium">{po.Name}</div>
+                    <div className="text-xs text-slate-500">{po.District}, {po.State}</div>
+                    <div className="text-xs text-slate-400 mt-1">Branch Type: {po.BranchType}</div>
                   </button>
                 </li>
               ))}
             </ul>
           </div>
         )}
-
-        <div className="mt-2">
-          <label className="inline-flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={allowOverride}
-              onChange={e => setAllowOverride(e.target.checked)}
-            />
-            <span>Allow submit without verification (override)</span>
-          </label>
-        </div>
 
         {errors.pincode && <p className="text-red-500 text-xs mt-1">{errors.pincode}</p>}
       </div>
