@@ -15,6 +15,7 @@ import Cart from "../pages/Cart";          // your change
 import Doctors from "../pages/Doctors";    // your change
 
 import LabTests from "../pages/LabTests";  // teammate's change
+import Footer from "../components/common/Footer";
 
 const AppRouter = () => {
   return (
@@ -76,6 +77,7 @@ const AppRouter = () => {
           <Route path="/doctors" element={<Doctors />} />
         </Routes>
       </main>
+      <Footer />
     </Router>
   );
 };
