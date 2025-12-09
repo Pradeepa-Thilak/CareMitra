@@ -8,5 +8,5 @@ const { reportUpload } = require('../middleware/fileUpload');
 router.put('/order/:id/sample-status', admin, labTestController.updateSampleStatus);
 router.put('/order/:id/processing', admin, labTestController.updateProcessingStatus);
 router.put('/order/:id/upload-report', admin, reportUpload.single('report'), labTestController.uploadReport);
-
+router.get('/prescription/:razorpayOrderId', admin , labTestController.getPrescription);
 module.exports = router;

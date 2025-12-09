@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const Doctor = require('../models/Doctor');
 const Patient = require('../models/Patient');
-const User = require('../models/User');
 
 const auth = async (req, res, next) => {
   try {
@@ -12,111 +11,62 @@ const auth = async (req, res, next) => {
     console.log(' Token Present:', !!token);
 
     if (!token) {
-      console.log(' Token Missing');
       return res.status(401).json({
         success: false,
         message: 'Access denied. No token provided.'
       });
     }
 
-    // Verify JWT
+    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    console.log(' JWT Decoded Successfully:', decoded);
+    console.log(' JWT Decoded:', decoded);
 
-    if (!decoded || !decoded.userId) {
-      console.log(' Invalid token structure - missing userId');
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid token structure' 
-      });
+    if (!decoded || !decoded.id || !decoded.role) {
+      return res.status(401).json({ success: false, message: "Invalid token" });
     }
-
-    console.log(' Looking for user with ID:', decoded.userId);
-    console.log(' Role from token:', decoded.role);
 
     let user = null;
-    let userModel = null;
 
-    // 🔥 FIXED LOGIC: Check role-specific collections FIRST
-    if (decoded.role === 'doctor') {
-      user = await Doctor.findById(decoded.userId);
-      userModel = 'Doctor';
-      console.log('Checking Doctor collection first for doctor role');
-    } else if (decoded.role === 'patient') {
-      user = await Patient.findById(decoded.userId);
-      userModel = 'Patient';
-      console.log(' Checking Patient collection first for patient role');
-    }
-
-    // If not found in role-specific collection, check User collection
-    if (!user) {
-      console.log(' User not found in role-specific collection, checking User collection');
-      user = await User.findById(decoded.userId);
-      userModel = 'User';
-    }
-
-    // Final fallback - check all collections (for debugging)
-    if (!user) {
-      console.log(' User not found in primary collections, checking all...');
-      const userInUser = await User.findById(decoded.userId);
-      const userInDoctor = await Doctor.findById(decoded.userId);
-      const userInPatient = await Patient.findById(decoded.userId);
-
-      console.log(' Database Check Results:');
-      console.log('  - User collection:', userInUser ? `FOUND (${userInUser.email})` : 'NOT FOUND');
-      console.log('  - Doctor collection:', userInDoctor ? `FOUND (${userInDoctor.email})` : 'NOT FOUND');
-      console.log('  - Patient collection:', userInPatient ? `FOUND (${userInPatient.email})` : 'NOT FOUND');
-
-      if (userInUser) {
-        user = userInUser;
-        userModel = 'User';
-      } else if (userInDoctor) {
-        user = userInDoctor;
-        userModel = 'Doctor';
-      } else if (userInPatient) {
-        user = userInPatient;
-        userModel = 'Patient';
-      }
+    // Role-based lookup (NO USER MODEL)
+    if (decoded.role === "doctor") {
+      console.log(' Searching Doctor collection...');
+      user = await Doctor.findById(decoded.id);
+    } 
+    else if (decoded.role === "patient") {
+      console.log(' Searching Patient collection...');
+      user = await Patient.findById(decoded.id);
+    } 
+    else {
+      return res.status(401).json({ success: false, message: "Invalid role in token" });
     }
 
     if (!user) {
-      console.log(' USER NOT FOUND IN ANY COLLECTION');
-      console.log(' Token userId:', decoded.userId);
-      console.log(' Token role:', decoded.role);
-      console.log(' Token email:', decoded.email);
-      
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid token. User not found in any collection.' 
+      return res.status(401).json({
+        success: false,
+        message: "Invalid token. User not found."
       });
     }
 
-    console.log(` User found in ${userModel} collection:`, user.email);
-
-    // Attach verified user to request
+    // Attach user to req
     req.user = {
       userId: user._id,
-      role: user.role || decoded.role, // Use database role if available
-      email: user.email,
-      model: userModel
+      role: user.role,
+      email: user.email
     };
 
-    console.log(` AUTH SUCCESS → ${req.user.email} (${req.user.role}) from ${userModel}`);
-    console.log(' AUTH MIDDLEWARE COMPLETED ');
+    console.log(` AUTH SUCCESS → ${user.email} (${user.role})`);
     next();
 
   } catch (error) {
     console.log(' AUTH MIDDLEWARE ERROR:', error.message);
 
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ success: false, message: 'Invalid token.' });
-    }
+    if (error.name === "JsonWebTokenError")
+      return res.status(401).json({ success: false, message: "Invalid token." });
 
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ success: false, message: 'Token expired.' });
-    }
+    if (error.name === "TokenExpiredError")
+      return res.status(401).json({ success: false, message: "Token expired." });
 
-    res.status(401).json({ success: false, message: 'Authentication failed.' });
+    return res.status(401).json({ success: false, message: "Authentication failed." });
   }
 };
 

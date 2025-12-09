@@ -6,55 +6,76 @@ import PatientDashboard from "../pages/PatientDashboard";
 import DoctorDashboard from "../pages/DoctorDashboard";
 import Profile from "../pages/Profile";
 import Appointment from "../pages/Appointment";
-// import NotFound from "../pages/NotFound";
 import ProtectedRoute from "../components/common/ProtectedRoute";
 import Navbar from "../components/common/Navbar";
 import Medicines from "../pages/Medicines";
 import ProductDetails from "../pages/ProductDetails";
-import Cart from "../pages/Cart";
-import Doctors from "../pages/Doctors";
 
-// import AllAppointments from "../pages/AllAppointments";
-// // Admin Dashboard and other pages can be added similarly
-// // import AdminDashboard from '../pages/Admin/AdminDashboard';
-// // import OrdersManagement from '../pages/Admin/OrdersManagement';
-// // import StaffManagement from '../pages/Admin/StaffManagement';
-// // import LabTestsManagement from '../pages/Admin/LabTestsManagement
-import LabTests from "../pages/LabTests";
+import Cart from "../pages/Cart";          // your change
+import Doctors from "../pages/Doctors";    // your change
+
+import LabTests from "../pages/LabTests";  // teammate's change
 
 const AppRouter = () => {
   return (
     <Router>
-        <Navbar />
-      
-    <main style={{ paddingTop: 'var(--nav-offset, 5rem)' }}>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} /> 
+      <Navbar />
 
-        <Route
-          path="/patient/dashboard"
-          element={<ProtectedRoute role="patient"><PatientDashboard /></ProtectedRoute>}
-        />
-        <Route
-          path="/doctor/dashboard"
-          element={<ProtectedRoute role="doctor"><DoctorDashboard /></ProtectedRoute>}
-        />
-        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/appointment" element={<ProtectedRoute><Appointment /></ProtectedRoute>} />
-        <Route path="/medicines" element={<Medicines />} />
-        <Route path="/medicine/:id" element={<ProductDetails />} />
-        <Route path="/lab-tests" element={<LabTests />} />
-        <Route path="/labtests" element={<Navigate to="/lab-tests" replace />} />
+      <main style={{ paddingTop: "var(--nav-offset, 5rem)" }}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
 
-        <Route path="/lab-tests/:key" element={<LabTests />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/doctors" element={<Doctors />} />
-        {/* <Route path="*" element={<NotFound />} /> */}
+          <Route
+            path="/patient/dashboard"
+            element={
+              <ProtectedRoute role="patient">
+                <PatientDashboard />
+              </ProtectedRoute>
+            }
+          />
 
-      </Routes>
-    </main>
+          <Route
+            path="/doctor/dashboard"
+            element={
+              <ProtectedRoute role="doctor">
+                <DoctorDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/appointment"
+            element={
+              <ProtectedRoute>
+                <Appointment />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route path="/medicines" element={<Medicines />} />
+          <Route path="/medicine/:id" element={<ProductDetails />} />
+
+          {/* Lab Tests */}
+          <Route path="/lab-tests" element={<LabTests />} />
+          <Route path="/labtests" element={<Navigate to="/lab-tests" replace />} />
+          <Route path="/lab-tests/:key" element={<LabTests />} />
+
+          {/* Your new routes */}
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/doctors" element={<Doctors />} />
+        </Routes>
+      </main>
     </Router>
   );
 };
