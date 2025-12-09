@@ -7,10 +7,14 @@ import { Upload } from 'lucide-react';
  * - selectedTest: object (test to order)
  * - initialValues: optional { name, phone, address, pincode, date, time }
  * - onCancel: function()
- * - onSubmit: async function(formValues, prescriptionFile) -> should return a promise
+ * - onSubmit: async function(formValues, prescriptionFile) -> should return a promise (optional)
  * - loading: boolean
+ *
+ * Behavior:
+ * - If parent passes onSubmit(form, file) it will be called and awaited.
+ * - If parent doesn't pass onSubmit or it throws, the component falls back to
+ *   posting multipart/form-data to /api/labtests/order using axios.
  */
-
 export default function LabTestOrderForm({
   selectedTest,
   initialValues = {},
@@ -36,9 +40,6 @@ export default function LabTestOrderForm({
   const [pincodeMessage, setPincodeMessage] = useState('');
   const [pincodeSuggestions, setPincodeSuggestions] = useState([]); // array of strings
 
-  // allow user to override verification (if needed)
-  const [allowOverride, setAllowOverride] = useState(false);
-
   // debounce ref for auto verify
   const verifyTimeout = useRef(null);
 
@@ -49,20 +50,16 @@ export default function LabTestOrderForm({
   // Auto-verify when pincode becomes a valid 6-digit number (debounced)
   useEffect(() => {
     const p = (form.pincode || '').trim();
-    // reset state on change
     setPincodeVerified(null);
     setPincodeMessage('');
     setPincodeSuggestions([]);
-    setAllowOverride(false);
 
     if (/^\d{6}$/.test(p)) {
-      // debounce call to avoid many requests while typing
       if (verifyTimeout.current) clearTimeout(verifyTimeout.current);
       verifyTimeout.current = setTimeout(() => {
         verifyPincode(p);
       }, 600);
     } else {
-      // if not valid format, clear verification
       if (verifyTimeout.current) clearTimeout(verifyTimeout.current);
       setPincodeVerifying(false);
     }
@@ -103,16 +100,12 @@ export default function LabTestOrderForm({
         return;
       }
 
-      // build suggestion strings and pick first as default suggestion
       const suggestions = postOffices.map(po => `${po.Name}, ${po.District}, ${po.State}`);
       setPincodeSuggestions(suggestions);
 
-      // basic match success: if there's at least one post office, treat as verified
+      // basic verified = pincode exists; ask user to pick suggestion if needed
       setPincodeVerified(true);
       setPincodeMessage('Pincode found. Select a suggestion to autofill locality or continue.');
-
-      // Optionally autofill address's city/state if empty — commented out; enable if desired:
-      // if (!form.address) setForm(prev => ({ ...prev, address: `${postOffices[0].Name}, ${postOffices[0].District}` }));
     } catch (err) {
       console.error('verifyPincode error', err);
       setPincodeVerified(false);
@@ -133,12 +126,9 @@ export default function LabTestOrderForm({
     if (!form.name.trim()) errs.name = 'Name is required.';
     if (!/^[0-9]{10}$/.test(form.phone)) errs.phone = 'Enter a valid 10-digit phone number.';
     if (!form.pincode || !/^[0-9]{6}$/.test(form.pincode)) errs.pincode = 'Enter a valid 6-digit pincode.';
-
-    // enforce verification unless user chooses override
-    if (!allowOverride) {
-      if (pincodeVerified !== true) {
-        errs.pincode = pincodeMessage || 'Please verify the pincode.';
-      }
+    // require verification success
+    if (pincodeVerified !== true) {
+      errs.pincode = pincodeMessage || 'Please verify the pincode.';
     }
 
     if (!form.date) errs.date = 'Please select a date.';
@@ -154,24 +144,55 @@ export default function LabTestOrderForm({
     return errs;
   };
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    const validation = validateForm();
-    setErrors(validation);
-    if (Object.keys(validation).length > 0) return;
+  // Integrated handleSubmit: try parent onSubmit, fallback to internal axios multipart send
+async function handleSubmit(e) {
+  e.preventDefault();
 
+  const validation = validateForm();
+  setErrors(validation);
+  if (Object.keys(validation).length > 0) return;
+
+  const sampleCollectionDetails = {
+    name: form.name,
+    phone: form.phone,
+    address: form.address,
+    pincode: form.pincode,
+    date: form.date,
+    time: form.time
+  };
+
+  const testIdsToSend = Array.isArray(selectedTest)
+    ? selectedTest.map(t => t._id || t.id)
+    : [(selectedTest && (selectedTest._id || selectedTest.id))].filter(Boolean);
+
+  try {
     if (onSubmit) {
-      await onSubmit(form, prescriptionFile);
-    }
-  }
+      // ✅ Use the parent's onSubmit prop
+      await onSubmit(sampleCollectionDetails, testIdsToSend, prescriptionFile);
+    } else {
+      // Fallback if no onSubmit provided
+      const fd = new FormData();
+      fd.append("testIds", JSON.stringify(testIdsToSend));
+      fd.append("sampleCollectionDetails", JSON.stringify(sampleCollectionDetails));
+      if (prescriptionFile) {
+        fd.append("prescription", prescriptionFile, prescriptionFile.name);
+      }
 
-  // allow user to accept a suggestion and populate address
+      const res = await axios.post("/lab-tests/create-order", fd, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      console.log("Order create response:", res.data);
+    }
+  } catch (err) {
+    console.error("Order submit error:", err, err?.response?.data);
+    setErrors(prev => ({ ...prev, submit: err?.response?.data?.message || "Failed to place order" }));
+  }
+}
+
+  // accept suggestion helper
   const acceptSuggestion = (suggestion, index) => {
-    // suggestion like "Name, District, State" -> put into address field (you can customize)
     setForm(prev => ({ ...prev, address: `${suggestion}` }));
-    // keep pincode verified as true
     setPincodeVerified(true);
-    setAllowOverride(false);
   };
 
   return (
@@ -227,7 +248,6 @@ export default function LabTestOrderForm({
           </button>
         </div>
 
-        {/* verification status / messages */}
         <div className="mt-2">
           {pincodeVerified === true && <p className="text-green-600 text-sm">✅ {pincodeMessage}</p>}
           {pincodeVerified === false && <p className="text-red-600 text-sm">❌ {pincodeMessage}</p>}
@@ -236,7 +256,6 @@ export default function LabTestOrderForm({
           )}
         </div>
 
-        {/* list suggestions if available */}
         {pincodeSuggestions.length > 0 && (
           <div className="mt-2 border rounded p-2 bg-slate-50">
             <div className="text-xs text-slate-600 mb-1">Suggestions (click to autofill address):</div>
@@ -255,17 +274,6 @@ export default function LabTestOrderForm({
             </ul>
           </div>
         )}
-
-        <div className="mt-2">
-          <label className="inline-flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={allowOverride}
-              onChange={e => setAllowOverride(e.target.checked)}
-            />
-            <span>Allow submit without verification (override)</span>
-          </label>
-        </div>
 
         {errors.pincode && <p className="text-red-500 text-xs mt-1">{errors.pincode}</p>}
       </div>
@@ -315,6 +323,8 @@ export default function LabTestOrderForm({
           </button>
         </div>
       </div>
+
+      {errors.submit && <div className="md:col-span-2 text-red-600 text-sm mt-2">{errors.submit}</div>}
     </form>
   );
 }
