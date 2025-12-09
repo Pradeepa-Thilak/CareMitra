@@ -147,20 +147,24 @@ const SignupForm = ({
             />
           </div>
 
-          {/* Role */}
+          {/* Phone number */}
           <div>
             <label className="block text-sm text-gray-700 mb-1">Role</label>
-            <select
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+            <input
+              type="text"
+              maxLength="10"
+              value={formData.phone || ""}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g,"") })}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-100 outline-none"
               required
-            >
-              <option value="">Select your role</option>
-              <option value="patient">Patient</option>
-              <option value="doctor">Doctor</option>
-            </select>
+            />
           </div>
+
+          {formData.phone?.length > 10 && formData.phone?.length < 10 && (
+            <p className="text-xs text-red-500 mt-1">
+              Phone number must be 10 digits
+            </p>
+          ) }
 
           {invalid && (
             <p className="text-xs text-red-600 text-center mt-1">{message}</p>

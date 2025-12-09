@@ -58,7 +58,7 @@ const Signup = ({ closeModal, setMethod }) => {
       const res = await authAPI.completeSignup({
         email,
         name: formData.name,
-        role: formData.role,
+        phone: formData.phone,
       });
 
       const { token, user } = res.data;
