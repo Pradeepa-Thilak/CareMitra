@@ -1,0 +1,68 @@
+const { kafka } = require('../config/kafka.config');
+const { TOPICS } = require('./topics');
+
+class KafkaProducer {
+  constructor() {
+    this.producer = kafka.producer();
+    this.connected = false;
+  }
+
+  async connect() {
+    if (!this.connected) {
+      await this.producer.connect();
+      this.connected = true;
+      console.log('✅ Kafka Producer connected');
+    }
+  }
+
+  async disconnect() {
+    if (this.connected) {
+      await this.producer.disconnect();
+      this.connected = false;
+      console.log('🔌 Kafka Producer disconnected');
+    }
+  }
+
+  async sendMessage(topic, eventType, payload) {
+    try {
+      await this.connect();
+      
+      const message = {
+        eventType,
+        payload,
+        timestamp: new Date().toISOString(),
+        service: 'lab-test-service'
+      };
+
+      await this.producer.send({
+        topic,
+        messages: [
+          {
+            key: eventType,
+            value: JSON.stringify(message)
+          }
+        ]
+      });
+
+      console.log(`📤 Kafka message sent to ${topic}: ${eventType}`);
+      return true;
+    } catch (error) {
+      console.error('❌ Kafka Producer Error:', error.message);
+      // Fail silently in development, log in production
+      if (process.env.NODE_ENV === 'production') {
+        // Add to dead letter queue or retry logic here
+      }
+      return false;
+    }
+  }
+
+  async sendLabTestEvent(eventType, payload) {
+    return this.sendMessage(TOPICS.LAB_TEST_BOOKING, eventType, payload);
+  }
+
+  async sendDoctorBookingEvent(eventType, payload) {
+    return this.sendMessage(TOPICS.DOCTOR_BOOKING, eventType, payload);
+  }
+}
+
+module.exports = new KafkaProducer();

@@ -14,7 +14,8 @@ router.post('/payment/verify', auth, labTestController.verifyPayment);
 router.post('/upload-prescription', auth, upload.single('prescription'), labTestController.uploadPrescription);
 
 // File download routes
-router.get('/prescription/:orderId', auth, labTestController.getPrescription);
-router.get('/report/:orderId', auth, labTestController.getReport);
+router.get('/report/:reportId', auth, labTestController.getReport);
+
+
 
 module.exports = router;

@@ -15,6 +15,7 @@ const Medicines = () => {
     setSearchTerm,
     setSelectedBrand,
     selectedCategory,
+    setSelectedBrand,
     setSelectedCategory,
     setPriceRange,
     setSortBy,

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const patientSchema = new mongoose.Schema({
+  // Basic Details
   email: { 
     type: String, 
     required: true, 
@@ -16,44 +17,56 @@ const patientSchema = new mongoose.Schema({
     type: String, 
     default: "patient" 
   },
-  doctors: [{ 
-    _id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Doctor",
-      required: true
-    },
-    date: {
-      type: String,
-      required: true
-    },
-    time: {
-      type: String,
-      required: true
-    },
-    reason: {
-      type: String,
-      required: true
-    },
-    status: {
-      type: String,
-      enum: ["pending", "confirmed", "cancelled"],
-      default: "pending"
-    }
-  }],
+  phone: { type: String, required: true },
+
+  // Doctor Appointments
+  // doctors: [{ 
+  //   _id: {
+  //     type: mongoose.Schema.Types.ObjectId,
+  //     ref: "Doctor",
+  //     required: true
+  //   },
+  //   doctorName: {                 // ⭐ ADDED
+  //     type: String,
+  //     required: true
+  //   },
+  //   date: {
+  //     type: String,
+  //     required: true
+  //   },
+  //   time: {
+  //     type: String,
+  //     required: true
+  //   },
+  //   reason: {
+  //     type: String,
+  //     required: true
+  //   },
+  //   status: {
+  //     type: String,
+  //     enum: ["pending", "confirmed", "cancelled"],
+  //     default: "pending"
+  //   },
+  //   consultionType : {
+  //   type : String,
+  //   required : true
+  // }
+  // }],
+
+  // OTP Login
   otp: { 
     type: String 
   },
   otpExpires: { 
     type: Date 
   }
-}, { 
-  timestamps: true 
-});
 
+}, { timestamps: true });
 
+// Expire OTP after it is past expiry time
 patientSchema.index({ otpExpires: 1 }, { expireAfterSeconds: 0 });
 
-
+// Generate OTP
 patientSchema.methods.generateOTP = function() {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   this.otp = otp;
@@ -61,10 +74,12 @@ patientSchema.methods.generateOTP = function() {
   return otp;
 };
 
+// Verify OTP
 patientSchema.methods.verifyOTP = function(enteredOTP) {
   return this.otp === enteredOTP && this.otpExpires > Date.now();
 };
 
+// Clear OTP
 patientSchema.methods.clearOTP = function() {
   this.otp = undefined;
   this.otpExpires = undefined;

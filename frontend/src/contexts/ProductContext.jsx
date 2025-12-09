@@ -38,7 +38,8 @@ export const ProductProvider = ({ children }) => {
         // so prefer `response.data.data` where available.
         const catData = catRes?.data?.data ?? catRes?.data ?? catRes;
         const prodData = prodRes?.data?.data ?? prodRes?.data ?? prodRes;
-
+        console.log(catData , prodData);
+        
         if (!mounted) return;
         setCategories(Array.isArray(catData) ? catData : []);
         setProducts(Array.isArray(prodData) ? prodData : []);

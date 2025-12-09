@@ -1,9 +1,16 @@
-const User = require('../models/User');
-const Doctor = require('../models/Doctor');
+// NO USER SCHEMA USED NOW
 const Patient = require('../models/Patient');
+const Doctor = require('../models/Doctor');
+const LabStaff = require('../models/LabStaff');
+// const LabTechnician = require('../models/LabTechnician');
+
 const { sendOTPEmail } = require('../utils/sendEmail');
 const { generateToken } = require('../utils/generateToken');
 
+
+// -----------------------------
+// 1. PATIENT SIGNUP (EMAIL ONLY)
+// -----------------------------
 const sendOTPSignup = async (req, res) => {
   try {
     const { email } = req.body;
@@ -11,350 +18,346 @@ const sendOTPSignup = async (req, res) => {
     if (!email) {
       return res.status(400).json({
         success: false,
-        message: 'Email is required'
+        error: "Email is required"
       });
     }
 
-   
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide a valid email address'
-      });
-    }
+    console.log("Signup OTP requested for:", email);
+    console.log("Session ID:", req.sessionID);
 
+    // Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    console.log("Generated OTP:", otp);
+
+    // Store in session
+    req.session.pendingUser = {
+      email,
+      otp: String(otp),
+      role: 'patient',
+      createdAt: Date.now(),
+      isSignup: true,
+    };
+
+    // Save session to store
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    console.log("Session saved. Sending email...");
+
+    // Send OTP email
+    await sendOTPEmail(email, otp);
     
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already exists. Please login instead.'
-      });
-    }
+    console.log("Email sent successfully");
 
-    
-    const user = new User({ email });
-    const otp = user.generateOTP();
-    await user.save();
-
-    console.log(` OTP ${otp} generated for ${email}`);
-
-   
-    const emailResult = await sendOTPEmail(email, otp);
-    
-    if (!emailResult.success) {
-     
-      await User.deleteOne({ email });
-      
-      return res.status(500).json({
-        success: false,
-        message: emailResult.error || 'Failed to send OTP email. Please try again.'
-      });
-    }
-
-   
-    res.json({
+    return res.status(200).json({
       success: true,
-      message: 'OTP sent successfully to your email',
-      data: { email }
+      message: "OTP sent to email"
     });
 
   } catch (error) {
-    console.error('Send OTP Signup error:', error);
-    res.status(500).json({
+    console.error("Signup OTP Error:", error);
+    return res.status(500).json({
       success: false,
-      message: 'Server error: ' + error.message
+      error: error.message || "Internal server error"
     });
   }
 };
 
-
+// ----------------------------------------
+// 2. LOGIN - AUTO ROLE DETECTION (EMAIL ONLY)
+// ----------------------------------------
 const sendOTPLogin = async (req, res) => {
   try {
     const { email } = req.body;
 
     if (!email) {
-      console.log("No email");
-      return res.status(400).json({
-        success: false,
-        message: 'Email is required'
-      });
+      return res.status(400).json({ success: false, message: "Email is required" });
     }
 
-    
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      console.log("Email error");
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide a valid email address'
-      });
-    }
+    // Auto detect user role by email
+    let user = await Patient.findOne({ email });
+    let role = "patient";
 
-    
-    const user = await User.findOne({ email });
     if (!user) {
-      console.log(user);
+      user = await Doctor.findOne({ email });
+      if (user) role = "doctor";
+    }
+
+    if (!user) {
+      user = await LabStaff.findOne({ email });
+      if (user) role = "labstaff";
+    }
+
+    // if (!user) {
+    //   user = await LabTechnician.findOne({ email });
+    //   if (user) role = "labtechnician";
+    // }
+
+    if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found. Please sign up first.'
+        message: "Email not found. Please signup if new."
       });
     }
 
     const otp = user.generateOTP();
     await user.save();
-    
-    console.log(`🔐 OTP ${otp} generated for ${email}`);
 
-    
-    const emailResult = await sendOTPEmail(email, otp);
-    
-    if (!emailResult.success) {
-      return res.status(500).json({
-        success: false,
-        message: emailResult.error || 'Failed to send OTP email. Please try again.'
+    await sendOTPEmail(email, otp);
+
+    console.log("Login OTP:", otp);
+
+    // Store in session
+    req.session.pendingUser = {
+      email,
+      role,
+      otp: String(otp), // Store as string
+      isSignup: false,
+      createdAt: Date.now()
+    };
+
+    // SAVE THE SESSION
+    req.session.save((saveErr) => {
+      if (saveErr) {
+        console.error("Session save error:", saveErr);
+        return res.status(500).json({ 
+          success: false, 
+          message: "Session error" 
+        });
+      }
+
+      console.log("Login session saved:", req.session.pendingUser);
+      
+      res.json({ 
+        success: true, 
+        message: "OTP sent successfully", 
+        email, 
+        role 
       });
-    }
-
-
-    
-    res.json({
-      success: true,
-      message: 'OTP sent successfully to your email',
-      data: { email }
     });
 
   } catch (error) {
-    console.error('Send OTP Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error: ' + error.message
-    });
+    console.error("Login OTP Error:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
-
+// ---------------------------
+// 3. VERIFY OTP (LOGIN/SIGNUP)
+// ---------------------------
 const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
+    console.log("=== VERIFY OTP DEBUG ===");
+    console.log("Request body:", req.body);
+    console.log("Session ID:", req.sessionID);
+    console.log("Full session:", req.session);
+    console.log("Pending user:", req.session?.pendingUser);
+    console.log("========================");
+
     if (!email || !otp) {
+      console.log("Missing email or OTP");
       return res.status(400).json({
         success: false,
-        message: 'Email and OTP are required'
+        message: "Email and OTP are required"
       });
     }
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      console.log("user not found");
+    const sessionUser = req.session?.pendingUser;
+    
+    if (!sessionUser) {
+      console.log("No session user found");
+      return res.status(400).json({
+        success: false,
+        message: "OTP session expired or not found"
+      });
+    }
+
+    // Convert both to strings for comparison
+    const sessionOtp = String(sessionUser.otp);
+    const requestOtp = String(otp);
+    
+    console.log("Comparing - Session OTP:", sessionOtp, "Request OTP:", requestOtp);
+    console.log("Comparing - Session Email:", sessionUser.email, "Request Email:", email);
+    
+    if (sessionUser.email !== email || !sessionUser.otp || sessionOtp !== requestOtp) {
+      console.log("OTP or email mismatch");
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP or email mismatch"
+      });
+    }
+
+    console.log("OTP validation passed");
+    const role = sessionUser.role;
+    console.log("User role:", role);
+
+    // Get user by role - ADD AWAIT AND TIMEOUT
+    let user;
+    console.log("Starting database lookup...");
+    
+    try {
+      if (role === "patient") {
+        console.log("Looking for patient with email:", email);
+        user = await Patient.findOne({ email });
+        console.log("Patient found:", user ? "Yes" : "No");
+      } else if (role === "doctor") {
+        user = await Doctor.findOne({ email });
+        console.log("Doctor found:", user ? "Yes" : "No");
+      } else if (role === "labstaff") {
+        user = await LabStaff.findOne({ email });
+        console.log("LabStaff found:", user ? "Yes" : "No");
+      } else if (role === "labtechnician") {
+        user = await LabTechnician.findOne({ email });
+        console.log("LabTechnician found:", user ? "Yes" : "No");
+      }
+    } catch (dbError) {
+      console.error("Database lookup error:", dbError);
+      return res.status(500).json({
+        success: false,
+        message: "Database error during lookup"
+      });
+    }
+
+    console.log("Database lookup completed");
+
+    if (!user && !sessionUser.isSignup) {
+      // Login OTP requires existing user
+      console.log("User not found for login");
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found"
       });
     }
 
+    console.log("Checking if it's signup flow:", sessionUser.isSignup);
+
+    // ------------ SIGNUP FLOW ------------
+    if (sessionUser.isSignup) {
+      console.log("Processing signup flow");
+      req.session.pendingUser.otpVerified = true;
+      
+      // SAVE THE SESSION WITH OTP VERIFIED
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          console.error("Session save error:", saveErr);
+          return res.status(500).json({
+            success: false,
+            message: "Session save failed"
+          });
+        }
+        
+        console.log("Session saved with otpVerified=true");
+        return res.json({
+          success: true,
+          message: "Signup OTP verified successfully",
+          requiresProfileCompletion: true
+        });
+      });
+      return; // IMPORTANT: Return after async operation
+    }
+
+    // ------------ LOGIN FLOW ------------
+    console.log("Processing login flow");
     
+    // Check if user has verifyOTP method
+    if (!user.verifyOTP) {
+      console.error("User model missing verifyOTP method");
+      return res.status(500).json({
+        success: false,
+        message: "Server configuration error"
+      });
+    }
+
+    console.log("Verifying OTP with user model...");
     if (!user.verifyOTP(otp)) {
-      console.log("invalid or expired otp");
+      console.log("User model OTP verification failed");
       return res.status(400).json({
         success: false,
-        message: 'Invalid or expired OTP'
+        message: "Invalid or expired OTP"
       });
     }
 
-   
-    user.clearOTP();
-    await user.save();
-
-    req.session.pendingUser = {
-      email: user.email,
-      userId: user._id,
-      role: user.role
-    };
-
-    console.log(' Session created for user:', user.email);
-    console.log(' Session ID:', req.sessionID);
-    
-   
-    if (user.name && user.role) {
-      const token = generateToken({
-        userId: user._id,
-        email: user.email,
-        role: user.role
-      });
-
-      return res.json({
-        success: true,
-        message: 'Login successful',
-        data: {
-          user: {
-            email: user.email,
-            role: user.role,
-            name: user.name
-          },
-          token,
-          signupCompleted: true
-        }
-      });
+    console.log("Clearing OTP from user...");
+    if (user.clearOTP) {
+      user.clearOTP();
+      await user.save();
+      console.log("User OTP cleared and saved");
     }
 
-    res.json({
+    console.log("Generating token...");
+    const token = generateToken({ id: user._id, email, role });
+    console.log("Token generated");
+
+    return res.json({
       success: true,
-      message: 'OTP verified successfully',
-      data: {
-        signupCompleted: false,
-        email: user.email
-      }
+      message: "Login successful",
+      token,
+      role
     });
 
   } catch (error) {
-    console.error('Verify OTP error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
+    console.error("Verify OTP Error:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
+// ---------------------------
+// 4. COMPLETE SIGNUP (PATIENT)
+// ---------------------------
 const completeSignup = async (req, res) => {
   try {
-    const { name, role, specialist } = req.body;
+    const { name, phone } = req.body;
 
-    
-    if (!name || !role) {
+    // ✅ Correct session and OTP check
+    if (!req.session.pendingUser || !req.session.pendingUser.otpVerified) {
       return res.status(400).json({
         success: false,
-        message: 'Name and role are required'
+        message: "OTP verification required first."
       });
     }
 
-    if (!['doctor', 'patient'].includes(role)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Role must be either doctor or patient'
-      });
-    }
+    const { email } = req.session.pendingUser;
 
-    
-    if (!req.session.pendingUser || !req.session.pendingUser.email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please verify OTP first before completing signup'
-      });
-    }
+    // ✅ Correct: A new patient is created during profile completion
+    const patient = await Patient.create({
+      email,
+      name,
+      phone
+    });
 
-    const userEmail = req.session.pendingUser.email;
+    // ✅ Correct JWT token creation
+    const token = generateToken({
+      id: patient._id,
+      email: patient.email,
+      role: "patient"
+    });
 
-   
-    const user = await User.findOne({ email: userEmail });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found. Please verify OTP first.'
-      });
-    }
-
-    
-    user.name = name;
-    user.role = role;
-    await user.save();
-
-    let roleSpecificDoc;
-
-    
-    if (role === 'doctor') {
-      roleSpecificDoc = new Doctor({
-        email: userEmail,
-        name,
-        role,
-        specialist: specialist || null
-      });
-      await roleSpecificDoc.save();
-    } else {
-      roleSpecificDoc = new Patient({
-        email: userEmail,
-        name,
-        role
-      });
-      await roleSpecificDoc.save();
-    }
-
-    
+    // ✅ Clear session to avoid reuse
     delete req.session.pendingUser;
 
-    
-    const token = generateToken({
-      userId: user._id,
-      email: user.email,
-      role: user.role
-    });
-
-    res.json({
+    return res.json({
       success: true,
-      message: 'Signup completed successfully',
-      data: {
-        user: {
-          email: user.email,
-          role: user.role,
-          name: user.name
-        },
-        token
-      }
+      message: "Signup completed successfully",
+      token,
+      user: patient
     });
 
   } catch (error) {
-    console.error('Complete signup error:', error);
-    
-    if (error.code === 11000) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already exists in role-specific collection'
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Server error during signup completion'
-    });
+    console.error("Complete Signup Error:", error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-const getCurrentUser = async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id).select('-otp -otpExpires');
-    
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
 
-    res.json({
-      success: true,
-      data: {
-        user: {
-          email: user.email,
-          role: user.role,
-          name: user.name
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('Get current user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
-};
 
 module.exports = {
   sendOTPSignup,
   sendOTPLogin,
   verifyOTP,
-  completeSignup,
-  getCurrentUser
+  completeSignup
 };
