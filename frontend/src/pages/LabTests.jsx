@@ -4,16 +4,6 @@ import LoadSpinner from '../components/LoadSpinner';
 import LabTestOrderForm from '../components/forms/LabTestOrderForm';
 import { labTestAPI } from '../utils/api';
 
-/**
- * LabTests page:
- * - shows tests via labTestAPI.getAll()
- * - creates order via labTestAPI.createOrder() (server should create Razorpay order)
- * - opens Razorpay checkout using returned razorpayOrder object
- * - on payment success calls labTestAPI.verifyPayment(...)
- *
- * Requires Vite env: VITE_RAZORPAY_KEY_ID (only if backend doesn't include key_id in razorpayOrder)
- */
-
 export default function LabTests() {
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -25,7 +15,6 @@ export default function LabTests() {
 
   useEffect(() => {
     fetchTests();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function fetchTests() {
@@ -49,7 +38,6 @@ export default function LabTests() {
     setShowOrderModal(true);
   }
 
-  // helper: ensure razorpay script is loaded
   function loadRazorpayScript() {
     return new Promise((resolve, reject) => {
       if (typeof window === 'undefined') return reject(new Error('No window object'));
@@ -65,28 +53,23 @@ export default function LabTests() {
   }
 
   async function openRazorpayCheckout(razorpayOrder, orderFromServer) {
-    // razorpayOrder is expected to be something like: { id, amount, currency, receipt, key_id? }
-    if (!razorpayOrder || !razorpayOrder.id) {
-      throw new Error('Invalid razorpay order returned from server');
-    }
+    if (!razorpayOrder || !razorpayOrder.id) throw new Error('Invalid razorpay order');
 
     const keyId = razorpayOrder.key_id || import.meta.env.VITE_RAZORPAY_KEY_ID;
-    if (!keyId) throw new Error('Razorpay key_id missing. Provide VITE_RAZORPAY_KEY_ID or include key_id in backend response.');
+    if (!keyId) throw new Error('Razorpay key_id missing');
 
     await loadRazorpayScript();
 
     return new Promise((resolve, reject) => {
       const options = {
         key: keyId,
-        amount: razorpayOrder.amount, // amount in paise
+        amount: razorpayOrder.amount,
         currency: razorpayOrder.currency || 'INR',
-        order_id: razorpayOrder.id, // razorpay order id
-        name: 'CareMitra', // customize
+        order_id: razorpayOrder.id,
+        name: 'CareMitra',
         description: `Payment for lab tests (Order: ${orderFromServer?._id || 'N/A'})`,
-        handler: async function (response) {
-          // response contains: razorpay_payment_id, razorpay_order_id, razorpay_signature
+        handler: async (response) => {
           try {
-            // call backend verify
             await labTestAPI.verifyPayment({
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
@@ -94,7 +77,6 @@ export default function LabTests() {
             });
             resolve(response);
           } catch (err) {
-            // verification failed
             reject(err);
           }
         },
@@ -103,15 +85,11 @@ export default function LabTests() {
           email: orderFromServer?.user?.email || '',
           contact: orderFromServer?.sampleCollectionDetails?.phone || ''
         },
-        theme: { color: '#6366F1' } // indigo-500
+        theme: { color: '#6366F1' }
       };
 
       const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', function (resp) {
-        // resp has error fields; reject so caller can show message
-        reject(resp);
-      });
-
+      rzp.on('payment.failed', function (resp) { reject(resp); });
       rzp.open();
     });
   }
@@ -119,47 +97,43 @@ export default function LabTests() {
   async function handleFormSubmit(formValues, prescriptionFile) {
     if (!selectedTest) return alert('No test selected');
     setOrderLoading(true);
-    try {
-      // build form data
-      const fd = new FormData();
-      fd.append('testIds', JSON.stringify([selectedTest._id]));
-      fd.append('name', formValues.name);
-      fd.append('phone', formValues.phone);
-      fd.append('address', formValues.address);
-      fd.append('pincode', formValues.pincode);
-      fd.append('date', formValues.date);
-      fd.append('time', formValues.time || '09:00 AM');
-      if (prescriptionFile) fd.append('prescription', prescriptionFile);
 
-      // create order on server
+    try {
+      const fd = new FormData();
+      fd.append("testIds", JSON.stringify([selectedTest._id]));
+      fd.append("sampleCollectionDetails", JSON.stringify({
+        name: formValues.name,
+        phone: formValues.phone,
+        address: formValues.address,
+        pincode: formValues.pincode,
+        date: formValues.date,
+        time: formValues.time || "09:00 AM"
+      }));
+      if (prescriptionFile) fd.append("prescription", prescriptionFile);
+
       const res = await labTestAPI.createOrder(fd);
-      // expected: { success: true, data: { order, razorpayOrder } }
       const responseData = res.data?.data;
-      if (!responseData) throw new Error('Invalid createOrder response from server');
+      if (!responseData) throw new Error("Invalid response from server");
 
       const { order, razorpayOrder } = responseData;
-      // If backend returns a razorpayOrder, open checkout
-      if (razorpayOrder && razorpayOrder.id) {
-        try {
+
+      if (razorpayOrder?.id) {
+        const isMock = razorpayOrder.id.startsWith("order_mock_");
+        if (isMock) {
+          alert("Mock order created successfully. Payment skipped.");
+        } else {
           await openRazorpayCheckout(razorpayOrder, order);
-          alert('Payment successful and verified. Thank you!');
-        } catch (payErr) {
-          console.error('Payment / verification failed', payErr);
-          // If payment failed, backend may have already marked it failed; show user-friendly message
-          const msg = payErr?.response?.data?.message || payErr?.error?.description || payErr?.message || 'Payment failed or verification failed.';
-          alert(msg);
+          alert("Payment successful and verified. Thank you!");
         }
       } else {
-        // No razorpayOrder — maybe the backend has payment off (COD) or test is paid by other means
-        alert('Order created successfully. Payment not required at this step.');
+        alert("Order created successfully. Payment not required.");
       }
 
       setShowOrderModal(false);
       setSelectedTest(null);
-      // refresh list or redirect to orders page if you have one
     } catch (err) {
-      console.error('Error creating order or opening payment', err);
-      alert(err.response?.data?.message || err.message || 'Order creation/payment failed.');
+      console.error("Error creating order or payment", err);
+      alert(err.response?.data?.message || err.message || "Order creation/payment failed.");
     } finally {
       setOrderLoading(false);
     }

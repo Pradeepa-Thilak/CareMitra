@@ -12,38 +12,78 @@ const Login = ({ closeModal, setMethod }) => {
   const [invalid, setInvalid] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
 
+  /* ------------------------- SEND OTP ------------------------- */
   const handleSendOtp = async (e) => {
     e.preventDefault();
+
     try {
       setLoading(true);
+
       await authAPI.sendLoginOtp(email);
+
       toast.success("OTP sent!");
       setStage(2);
     } catch (err) {
-      toast.error("Failed to send OTP");
+      toast.error(
+        err?.response?.data?.message || "Failed to send OTP. Try again."
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  /* ------------------------- VERIFY OTP ------------------------- */
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
+
+    const cleanedOtp = (otp || "").replace(/\D/g, "");
+
+    if (cleanedOtp.length !== 6) {
+      setInvalid(true);
+      setMessage("Please enter a valid 6-digit OTP.");
+      return;
+    }
+
     try {
       setLoading(true);
-      const res = await authAPI.verifyOtp(email, otp);
-      const { user, token } = res.data.data;
-      login(user, token);
+      setInvalid(false);
+      setMessage("");
+
+      // Call backend
+      const res = await authAPI.verifyOtp(email, cleanedOtp);
+
+      // NEW BACKEND RESPONSE FORMAT
+      const { success, message, token, role } = res.data;
+
+      if (!success) {
+        toast.error(message || "Login failed");
+        return;
+      }
+
+      // Save in context
+      login({ email, role }, token);
+
       toast.success("Login successful!");
 
-      navigate(user.role === "patient" ? "/patient/dashboard" : "/doctor/dashboard");
+      // Role-based navigation
+      if (role === "patient") {
+        navigate("/patient/dashboard");
+      } else {
+        navigate("/doctor/dashboard");
+      }
+
       closeModal?.();
     } catch (err) {
-      toast.error("Invalid OTP");
+      const serverMsg =
+        err?.response?.data?.message || "Invalid or expired OTP";
+
       setInvalid(true);
-      setMessage("Incorrect OTP, please try again");
+      setMessage(serverMsg);
+      toast.error(serverMsg);
     } finally {
       setLoading(false);
     }
