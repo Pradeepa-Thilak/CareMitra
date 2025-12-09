@@ -39,8 +39,8 @@ export default function LabTestOrderForm({
   const [pincodeVerifying, setPincodeVerifying] = useState(false);
   const [pincodeVerified, setPincodeVerified] = useState(null); // null | true | false
   const [pincodeMessage, setPincodeMessage] = useState('');
-  const [pincodeSuggestions, setPincodeSuggestions] = useState([]); // array of postOffice objects
-  const [pincodeSuggestions, setPincodeSuggestions] = useState([]); // array of strings
+  // const [pincodeSuggestions, setPincodeSuggestions] = useState([]); // array of postOffice objects
+  // const [pincodeSuggestions, setPincodeSuggestions] = useState([]); // array of strings
 
   // debounce ref for auto verify
   const verifyTimeout = useRef(null);
