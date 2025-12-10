@@ -165,27 +165,23 @@ async function handleSubmit(e) {
     ? selectedTest.map(t => t._id || t.id)
     : [(selectedTest && (selectedTest._id || selectedTest.id))].filter(Boolean);
 
+  console.log("📝 Form submitted, calling parent onSubmit...");
+  
   try {
     if (onSubmit) {
-      // :white_check_mark: Use the parent's onSubmit prop
+      // ✅ This should trigger the parent's handleFormSubmit
       await onSubmit(sampleCollectionDetails, testIdsToSend, prescriptionFile);
     } else {
-      // Fallback if no onSubmit provided
-      const fd = new FormData();
-      fd.append("testIds", JSON.stringify(testIdsToSend));
-      fd.append("sampleCollectionDetails", JSON.stringify(sampleCollectionDetails));
-      if (prescriptionFile) {
-        fd.append("prescription", prescriptionFile, prescriptionFile.name);
-      }
-
-      const res = await axios.post("/lab-tests/create-order", fd, {
-        headers: { "Content-Type": "multipart/form-data" }
-      });
-      console.log("Order create response:", res.data);
+      // Fallback (for testing)
+      console.log("No onSubmit prop provided");
+      alert("Order form submitted (development mode)");
     }
-  } catch (err) {
-    console.error("Order submit error:", err, err?.response?.data);
-    setErrors(prev => ({ ...prev, submit: err?.response?.data?.message || "Failed to place order" }));
+  } catch (error) {
+    console.error("❌ Form submission error:", error);
+    setErrors(prev => ({ 
+      ...prev, 
+      submit: error.message || "Failed to place order" 
+    }));
   }
 }
 
