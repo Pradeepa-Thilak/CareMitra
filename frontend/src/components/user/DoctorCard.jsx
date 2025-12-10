@@ -17,3 +17,4 @@ const DoctorCard = ({ doctor, onBook }) => (
 
 
 export default DoctorCard;
+ 

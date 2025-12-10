@@ -1,249 +1,142 @@
-import React, { useState } from 'react';
-import { Star, MapPin, Video, MessageCircle, Calendar } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+// src/pages/Doctors.jsx
+import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import ConsultationHero from "../components/common/ConsultationHero";
+import DoctorCard from "../components/user/DoctorCard";
 
-const Doctors = () => {
-  const [selectedSpecialty, setSelectedSpecialty] = useState('All');
-  const [searchTerm, setSearchTerm] = useState('');
-  const { isAuthenticated } = useAuth();
+const mockDoctors = [
+  {
+    id: 1,
+    name: "Dr. Rajesh Kumar",
+    specialty: "General Physician",
+    experience: "15 years",
+    consultationFee: 299,
+    rating: 4.8,
+    reviews: 234,
+    availability: "Available Now",
+    image: "https://via.placeholder.com/150",
+    languages: ["English", "Hindi"],
+    location: "New Delhi",
+  },
+  {
+    id: 2,
+    name: "Dr. Priya Sharma",
+    specialty: "Heart Specialist",
+    experience: "12 years",
+    consultationFee: 499,
+    rating: 4.9,
+    reviews: 456,
+    availability: "Available in 2 hours",
+    image: "https://via.placeholder.com/150",
+    languages: ["English", "Hindi"],
+    location: "Mumbai",
+  },
+  {
+    id: 3,
+    name: "Dr. Amit Patel",
+    specialty: "Skin & Hair Specialist",
+    experience: "10 years",
+    consultationFee: 399,
+    rating: 4.7,
+    reviews: 189,
+    availability: "Available Tomorrow",
+    image: "https://via.placeholder.com/150",
+    languages: ["English", "Gujarati"],
+    location: "Ahmedabad",
+  },
+];
+
+export default function Doctors() {
   const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [selectedSpecialty, setSelectedSpecialty] = useState("All");
 
-  const specialties = ['All', 'General Practitioner', 'Cardiologist', 'Dermatologist', 'Pediatrician', 'Orthopedic'];
+  const filtered = useMemo(() => {
+    return mockDoctors.filter((d) => {
+      const matchesSpecialty = selectedSpecialty === "All" || d.specialty === selectedSpecialty;
+      const matchesSearch =
+        d.name.toLowerCase().includes(search.toLowerCase()) ||
+        d.specialty.toLowerCase().includes(search.toLowerCase());
+      return matchesSpecialty && matchesSearch;
+    });
+  }, [search, selectedSpecialty]);
 
-  const mockDoctors = [
-    {
-      id: 1,
-      name: 'Dr. Rajesh Kumar',
-      specialty: 'General Practitioner',
-      rating: 4.8,
-      experience: '15 years',
-      consultationFee: 299,
-      availability: 'Available Now',
-      image: 'https://via.placeholder.com/150x150?text=Doctor1',
-      languages: ['English', 'Hindi'],
-      location: 'New Delhi',
-    },
-    {
-      id: 2,
-      name: 'Dr. Priya Sharma',
-      specialty: 'Cardiologist',
-      rating: 4.9,
-      experience: '12 years',
-      consultationFee: 499,
-      availability: 'Available in 2 hours',
-      image: 'https://via.placeholder.com/150x150?text=Doctor2',
-      languages: ['English', 'Hindi'],
-      location: 'Mumbai',
-    },
-    {
-      id: 3,
-      name: 'Dr. Amit Patel',
-      specialty: 'Dermatologist',
-      rating: 4.7,
-      reviews: 189,
-      experience: '10 years',
-      consultationFee: 399,
-      availability: 'Available Tomorrow',
-      image: 'https://via.placeholder.com/150x150?text=Doctor3',
-      languages: ['English', 'Gujarati'],
-      location: 'Ahmedabad',
-    },
-    {
-      id: 4,
-      name: 'Dr. Neha Singh',
-      specialty: 'Pediatrician',
-      rating: 4.6,
-      reviews: 312,
-      experience: '8 years',
-      consultationFee: 349,
-      availability: 'Available Now',
-      image: 'https://via.placeholder.com/150x150?text=Doctor4',
-      languages: ['English', 'Hindi'],
-      location: 'Bangalore',
-    },
-    {
-      id: 5,
-      name: 'Dr. Vikram Reddy',
-      specialty: 'Orthopedic',
-      rating: 4.8,
-      reviews: 267,
-      experience: '14 years',
-      consultationFee: 449,
-      availability: 'Available in 1 hour',
-      image: 'https://via.placeholder.com/150x150?text=Doctor5',
-      languages: ['English', 'Telugu'],
-      location: 'Hyderabad',
-    },
-    {
-      id: 6,
-      name: 'Dr. Anjali Verma',
-      specialty: 'General Practitioner',
-      rating: 4.5,
-      reviews: 198,
-      experience: '9 years',
-      consultationFee: 279,
-      availability: 'Available Now',
-      image: 'https://via.placeholder.com/150x150?text=Doctor6',
-      languages: ['English', 'Hindi', 'Punjabi'],
-      location: 'Chandigarh',
-    },
-  ];
+  // ⬅ NEW ROUTES
+  const openBookingGeneral = () => {
+    navigate("/consultation");
+  };
 
-  const filteredDoctors = mockDoctors.filter((doctor) => {
-    const matchesSpecialty = selectedSpecialty === 'All' || doctor.specialty === selectedSpecialty;
-    const matchesSearch = doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          doctor.specialty.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSpecialty && matchesSearch;
-  });
-
-  const handleBookConsultation = (doctorId) => {
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
-    navigate(`/consultation/book/${doctorId}`);
+  const openBookingForDoctor = (doctor) => {
+    navigate(`/consultation?doctorId=${doctor.id}`);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="container-custom">
-        <h1 className="text-3xl font-bold mb-8">Consult Doctors</h1>
+    <div className="min-h-screen bg-gray-50" style={{ paddingTop: "var(--nav-offset)" }}>
+      {/* Hero */}
+      <ConsultationHero
+        startingPrice={199}
+        onStart={openBookingGeneral}
+        stats={{ consultations: "30L+", doctors: "3k+", cities: "22+" }}
+      />
 
-        {/* Search and Filter */}
-        <div className="card p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Filters */}
+        <div className="bg-white p-6 rounded shadow mb-6">
+          <div className="flex flex-col md:flex-row gap-4 items-center">
             <input
-              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search doctors by name or specialty..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-field"
+              className="border rounded px-3 py-2 w-full"
             />
-          </div>
-
-          {/* Specialty Filter */}
-          <div className="flex flex-wrap gap-2">
-            {specialties.map((specialty) => (
-              <button
-                key={specialty}
-                onClick={() => setSelectedSpecialty(specialty)}
-                className={`px-4 py-2 rounded-full font-medium transition ${
-                  selectedSpecialty === specialty
-                    ? 'bg-primary text-white'
-                    : 'bg-light text-dark hover:bg-gray-300'
-                }`}
-              >
-                {specialty}
-              </button>
-            ))}
+            <select
+              value={selectedSpecialty}
+              onChange={(e) => setSelectedSpecialty(e.target.value)}
+              className="border rounded px-3 py-2 w-full md:w-64"
+            >
+              <option>All</option>
+              {[...new Set(mockDoctors.map((d) => d.specialty))].map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        {/* Doctors Grid */}
-        {filteredDoctors.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredDoctors.map((doctor) => (
-              <div key={doctor.id} className="card hover:shadow-lg transition overflow-hidden">
-                {/* Doctor Info */}
-                <div className="p-6">
-                  <div className="flex gap-4 mb-4">
-                    <img
-                      src={doctor.image}
-                      alt={doctor.name}
-                      className="w-16 h-16 rounded-full object-cover"
-                    />
-                    <div className="flex-1">
-                      <h3 className="font-bold text-dark">{doctor.name}</h3>
-                      <p className="text-sm text-gray-600">{doctor.specialty}</p>
-                      <p className="text-xs text-gray-500">{doctor.experience} experience</p>
-                    </div>
-                  </div>
+        {/* Doctors grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filtered.map((d) => (
+            <DoctorCard key={d.id} doctor={d} onBook={() => openBookingForDoctor(d)} />
+          ))}
+        </div>
 
-                  {/* Rating */}
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="flex gap-0.5">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-4 h-4 ${
-                            i < Math.floor(doctor.rating)
-                              ? 'fill-warning text-warning'
-                              : 'text-gray-300'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-sm font-medium">{doctor.rating}</span>
-                    <span className="text-xs text-gray-500">({doctor.reviews} reviews)</span>
-                  </div>
-
-                  {/* Details */}
-                  <div className="space-y-2 mb-4 pb-4 border-b text-sm">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <MapPin className="w-4 h-4" />
-                      <span>{doctor.location}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Calendar className="w-4 h-4" />
-                      <span>{doctor.availability}</span>
-                    </div>
-                    <div className="text-gray-600">
-                      <span className="font-medium text-primary">₹{doctor.consultationFee}</span>
-                      <span className="text-gray-500"> per consultation</span>
-                    </div>
-                  </div>
-
-                  {/* Languages */}
-                  <div className="mb-4">
-                    <p className="text-xs text-gray-500 mb-2">Languages</p>
-                    <div className="flex flex-wrap gap-1">
-                      {doctor.languages.map((lang) => (
-                        <span
-                          key={lang}
-                          className="bg-blue-50 text-primary text-xs px-2 py-1 rounded"
-                        >
-                          {lang}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleBookConsultation(doctor.id)}
-                      className="btn-primary flex-1 py-2 text-sm flex items-center justify-center gap-2"
-                    >
-                      <Video className="w-4 h-4" />
-                      Video Call
-                    </button>
-                    <button className="btn-outline flex-1 py-2 text-sm flex items-center justify-center gap-2">
-                      <MessageCircle className="w-4 h-4" />
-                      Chat
-                    </button>
-                  </div>
-                </div>
+        {/* Reviews */}
+        <div className="mt-10 bg-white p-6 rounded shadow-sm">
+          <h3 className="text-xl font-semibold mb-2">What patients say</h3>
+          <p className="text-gray-600 mb-3">4.8 average rating • 1,656+ consultations</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-3 border rounded">
+              <div className="font-medium">Excellent consultation</div>
+              <div className="text-xs text-gray-500 mt-1">
+                "Doctor listened carefully and gave effective advice."
               </div>
-            ))}
+            </div>
+            <div className="p-3 border rounded">
+              <div className="font-medium">Fast & Helpful</div>
+              <div className="text-xs text-gray-500 mt-1">
+                "Quick response and clear instructions. Highly recommended."
+              </div>
+            </div>
+            <div className="p-3 border rounded">
+              <div className="font-medium">Friendly & Professional</div>
+              <div className="text-xs text-gray-500 mt-1">
+                "Explained tests and next steps. Very professional."
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-600 mb-4">No doctors found matching your criteria</p>
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setSelectedSpecialty('All');
-              }}
-              className="btn-primary"
-            >
-              Clear Filters
-            </button>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
-};
-
-export default Doctors;
+}

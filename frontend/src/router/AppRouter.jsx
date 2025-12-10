@@ -16,6 +16,9 @@ import Doctors from "../pages/Doctors";    // your change
 
 import LabTests from "../pages/LabTests";  // teammate's change
 import Footer from "../components/common/Footer";
+import BookConsultation from "../pages/BookConsultation";
+import Wishlist from "../pages/Wishlist";
+import Payment from "../pages/Payment";
 
 const AppRouter = () => {
   return (
@@ -75,6 +78,9 @@ const AppRouter = () => {
           {/* Your new routes */}
           <Route path="/cart" element={<Cart />} />
           <Route path="/doctors" element={<Doctors />} />
+          <Route path="/consultation" element={<BookConsultation />} />
+          <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/payments" element={<Payment />} />
         </Routes>
       </main>
       <Footer />

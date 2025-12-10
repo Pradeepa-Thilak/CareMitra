@@ -6,6 +6,7 @@ import './index.css';
 import { CartProvider } from './contexts/CartContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProductProvider } from './contexts/ProductContext.jsx';
+import { WishlistProvider } from './contexts/WishlistContext.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -13,7 +14,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <AuthProvider>
         <CartProvider>
           <ProductProvider>
+            <WishlistProvider>
             <App />
+            </WishlistProvider>
           </ProductProvider>
         </CartProvider>
       </AuthProvider>

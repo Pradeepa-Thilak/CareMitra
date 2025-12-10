@@ -3,7 +3,7 @@ import React, { useContext, useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useCart } from "../../hooks/useCart";
-// import { useWishlist } from "../../hooks/useWishlist"; 
+import { useWishlist } from "../../hooks/useWishlist"; 
 import AuthModal from "../modals/AuthModal";
 import {
   Heart,
@@ -21,11 +21,11 @@ import { searchAPI } from "../../utils/api";
 const Navbar = () => {
   const { user, role, logout, token } = useContext(AuthContext);
   const { cartItems } = useCart();
-  // const { items: wishlistItems } = useWishlist(); // <- added
+  const { items: wishlistItems } = useWishlist(); // <- added
   const navigate = useNavigate();
 
   const cartCount = cartItems?.reduce((sum, it) => sum + (it.quantity || 0), 0) ?? 0;
-  // const wishlistCount = wishlistItems?.length ?? 0; // number to display
+  const wishlistCount = wishlistItems?.length ?? 0; // number to display
 
   const navRef = useRef(null);
   // keeps track of nav height variable for page layout
@@ -238,11 +238,11 @@ const Navbar = () => {
                         <span className="flex items-center gap-2">
                           <Heart size={16} /> Wishlist
                         </span>
-                        {/* {wishlistCount > 0 && (
+                        {wishlistCount > 0 && (
                           <span className="text-xs bg-sky-700 text-white px-2 py-0.5 rounded-full">
                             {wishlistCount}
                           </span>
-                        )} */}
+                        )}
                       </Link>
 
                       {/* Orders entry */}
@@ -366,7 +366,7 @@ const Navbar = () => {
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       <span className="flex items-center gap-2"><Heart size={16}/> Wishlist</span>
-                      {/* {wishlistCount > 0 && <span className="text-xs bg-white text-sky-700 px-2 py-0.5 rounded-full">{wishlistCount}</span>} */}
+                      {wishlistCount > 0 && <span className="text-xs bg-white text-sky-700 px-2 py-0.5 rounded-full">{wishlistCount}</span>}
                     </Link>
 
                     {/* Orders (mobile) */}
