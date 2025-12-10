@@ -238,11 +238,11 @@ const Navbar = () => {
                         <span className="flex items-center gap-2">
                           <Heart size={16} /> Wishlist
                         </span>
-                        {wishlistCount > 0 && (
+                        {/* {wishlistCount > 0 && (
                           <span className="text-xs bg-sky-700 text-white px-2 py-0.5 rounded-full">
                             {wishlistCount}
                           </span>
-                        )}
+                        )} */}
                       </Link>
 
                       {/* Orders entry */}
@@ -362,7 +362,7 @@ const Navbar = () => {
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       <span className="flex items-center gap-2"><Heart size={16}/> Wishlist</span>
-                      {wishlistCount > 0 && <span className="text-xs bg-white text-sky-700 px-2 py-0.5 rounded-full">{wishlistCount}</span>}
+                      {/* {wishlistCount > 0 && <span className="text-xs bg-white text-sky-700 px-2 py-0.5 rounded-full">{wishlistCount}</span>} */}
                     </Link>
 
                     {/* Orders (mobile) */}
