@@ -170,7 +170,7 @@ const ProductSearchBarNav = ({
           type="text"
           value={q}
           placeholder={placeholder}
-          className="w-full bg-transparent outline-none text-sm"
+          className="w-full bg-transparent outline-none text-sm text-gray-800 placeholder-gray-400"
           onChange={(e) => {
             setQ(e.target.value);
             setFocused(-1);
@@ -178,6 +178,7 @@ const ProductSearchBarNav = ({
           onKeyDown={onKeyDown}
           onFocus={() => sugs.length && setOpen(true)}
         />
+
 
         <button className="p-1" onClick={submitSearch}>
           <Search size={16} />

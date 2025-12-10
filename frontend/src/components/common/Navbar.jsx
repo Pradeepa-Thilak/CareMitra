@@ -5,8 +5,6 @@ import { AuthContext } from "../../contexts/AuthContext";
 import { useCart } from "../../hooks/useCart";
 // import { useWishlist } from "../../hooks/useWishlist"; 
 import AuthModal from "../modals/AuthModal";
-import ProductSearchBar from "./ProductSearchBarNav";
-import { productAPI } from "../../utils/api"; 
 import {
   Heart,
   LogOut,
@@ -18,6 +16,7 @@ import {
   FileText,
 } from "lucide-react";
 import { searchAPI } from "../../utils/api";
+import ProductSearchBarNav from "./ProductSearchBarNav";
 
 const Navbar = () => {
   const { user, role, logout, token } = useContext(AuthContext);
@@ -133,7 +132,7 @@ const Navbar = () => {
             {/* Search - compact on small screens, full on md+ */}
             <div className="hidden md:flex items-center">
               <div className="w-[360px]">
-                <ProductSearchBar 
+                <ProductSearchBarNav 
                 placeholder="Search medicines, brands, symptoms..." 
                 mode = "auto"
                 searchAPI={searchAPI.basic}
@@ -239,11 +238,11 @@ const Navbar = () => {
                         <span className="flex items-center gap-2">
                           <Heart size={16} /> Wishlist
                         </span>
-                        {wishlistCount > 0 && (
+                        {/* {wishlistCount > 0 && (
                           <span className="text-xs bg-sky-700 text-white px-2 py-0.5 rounded-full">
                             {wishlistCount}
                           </span>
-                        )}
+                        )} */}
                       </Link>
 
                       {/* Orders entry */}
@@ -301,7 +300,11 @@ const Navbar = () => {
           <div className="px-4 py-3">
             {/* bring search to top of mobile menu */}
             <div className="mb-3">
-              <ProductSearchBar placeholder="Search medicines, brands, symptoms..." />
+              <ProductSearchBarNav 
+              placeholder="Search medicines, brands, symptoms..." 
+              mode="auto"
+              searchAPI={searchAPI.basic}
+              />
             </div>
 
             <nav className="flex flex-col gap-2">
@@ -363,7 +366,7 @@ const Navbar = () => {
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       <span className="flex items-center gap-2"><Heart size={16}/> Wishlist</span>
-                      {wishlistCount > 0 && <span className="text-xs bg-white text-sky-700 px-2 py-0.5 rounded-full">{wishlistCount}</span>}
+                      {/* {wishlistCount > 0 && <span className="text-xs bg-white text-sky-700 px-2 py-0.5 rounded-full">{wishlistCount}</span>} */}
                     </Link>
 
                     {/* Orders (mobile) */}
