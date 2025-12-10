@@ -83,6 +83,7 @@ export const labTestAPI = {
 // MEMBER APIs
 // ----------------------------
 export const memberAPI = {
+  addMode: (memberId,body) => api.get(`/dashboard/${memberId}`,body),
   // POST /addMember  (body: { name, age, gender, phone, ... })
   addMember: (body) => api.post("/dashboard/addMember", body),
 

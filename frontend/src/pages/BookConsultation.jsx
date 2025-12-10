@@ -237,26 +237,50 @@ export default function BookConsultation() {
     if (filtered.length === 0) startAddMember();
   }
 
+  // add this function in BookConsultation.jsx (near other handlers)
+async function handleStep1Continue() {
+  setStepLoading(true);
+  setStepError(null);
+
+  try {
+    // local persistence already handled by useEffect/local state
+    // call backend to save consultingType (mode) for the selected member
+    if (!selectedMemberId) throw new Error("Select a member first");
+
+    const payload = { consultingType: mode }; // backend expects consultingType in body
+    await memberAPI.addMode(selectedMemberId, payload);
+
+    // advance UI
+    setStep(2);
+  } catch (err) {
+    console.error("Failed to save consulting mode:", err);
+    setStepError(err?.response?.data?.message || err.message || "Could not save mode");
+  } finally {
+    setStepLoading(false);
+  }
+}
+
   // Step transitions integrated with backend
   // Move from Step 1 -> Step 2: just front-end change
   // Move from Step 2 -> Step 3: send symptoms to backend
   async function handleStep2Continue() {
-    setStepLoading(true);
-    setStepError(null);
-    try {
-      const payload = {
-        memberId: selectedMemberId,
-        symptoms: selectedSymptoms,
-      };
-      await consultationAPI.addSymptoms(payload);
-      setStep(3);
-    } catch (err) {
-      console.error("Failed to send symptoms:", err);
-      setStepError(err?.response?.data?.message || err.message || "Failed to send symptoms");
-    } finally {
-      setStepLoading(false);
-    }
+  setStepLoading(true);
+  setStepError(null);
+  try {
+    if (!selectedMemberId) throw new Error("Member not selected");
+    const payload = {
+      memberId: selectedMemberId,
+      symptoms: selectedSymptoms,
+    };
+    await consultationAPI.addSymptoms(payload); // existing API call
+    setStep(3);
+  } catch (err) {
+    console.error("Failed to send symptoms:", err);
+    setStepError(err?.response?.data?.message || err.message || "Failed to send symptoms");
+  } finally {
+    setStepLoading(false);
   }
+}
 
   // Final step: select specialist -> backend returns payment info (rzp order) OR appointment id
   // Then we open Razorpay and on success call /payment to verify.
@@ -270,7 +294,7 @@ async function handleConfirm() {
       memberId: selectedMemberId,
       specialty: selectedSpecialty,
       symptoms: selectedSymptoms,
-      doctorId: selectedDoctor?.id || null,
+    //   doctorId: selectedDoctor?.id || null,
       mode,
       phone,
     };
@@ -642,7 +666,7 @@ async function handleConfirm() {
                   {step < 3 ? (
                     <button
                       onClick={() => {
-                        if (step === 1) setStep(2);
+                        if (step === 1) handleStep1Continue();
                         else if (step === 2) handleStep2Continue();
                       }}
                       className="bg-sky-600 text-white px-4 py-2 rounded"
