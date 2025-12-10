@@ -84,10 +84,10 @@ export const labTestAPI = {
 // ----------------------------
 export const memberAPI = {
   // POST /addMember  (body: { name, age, gender, phone, ... })
-  addMember: (body) => api.post("/addMember", body),
+  addMember: (body) => api.post("/dashboard/addMember", body),
 
   // GET /getMember  (returns list of members for logged-in user)
-  getMembers: () => api.get("/getMember"),
+  getMembers: () => api.get("/dashboard/getMember"),
 };
 
 // ----------------------------
@@ -95,26 +95,19 @@ export const memberAPI = {
 // ----------------------------
 export const consultationAPI = {
   // POST /symptoms  (body: { userId?, memberId?, symptoms: [...] })
-  addSymptoms: (body) => api.post("/symptoms", body),
+  addSymptoms: (body) => api.post("/dashboard/symptoms", body),
 
   // POST /specialists  (body: { userId?, memberId?, specialty, symptoms, ... })
-  selectSpecialist: (body) => api.post("/specialists", body),
+  selectSpecialist: (body) => api.post("/dashboard/specialists", body),
 };
 
-// ----------------------------
-// DASHBOARD APIs
-// ----------------------------
-export const dashboardAPI = {
-  // GET /dashboard
-  getDashboard: () => api.get("/dashboard"),
-};
 
 // ----------------------------
 // PAYMENT APIs
 // ----------------------------
 export const paymentAPI = {
   // POST /payment  (verify payment payload or initiate backend-side verification)
-  verifyPayment: (payload) => api.post("/payment", payload),
+  verifyPayment: (payload) => api.post("/dashboard/payment", payload),
 };
 
 // ----------------------------
