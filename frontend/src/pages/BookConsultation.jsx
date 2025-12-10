@@ -403,56 +403,88 @@ useEffect(() => {
   }
 
   // Final step: select specialist -> backend returns payment info (rzp order) OR appointment id
-  async function handleConfirm() {
-    setStepLoading(true);
-    setStepError(null);
+async function handleConfirm() {
+  setStepLoading(true);
+  setStepError(null);
 
-    try {
-      const payload = {
-        memberId: selectedMemberId,
-        specialization: selectedSpecialty,
-        symptoms: selectedSymptoms,
-        mode,
-        phone,
-      };
+  try {
+    const payload = {
+      memberId: selectedMemberId,
+      specialization: selectedSpecialty,
+      symptoms: selectedSymptoms,
+      mode,
+      phone,
+    };
 
-      // 1) send selection to backend
-      const res = await consultationAPI.selectSpecialist(payload);
-      const data = res.data ?? {};
-      setAppointmentResult(data);
+    console.log("Sending booking request:", payload);
 
-      // If backend returned rzpOrder -> redirect to payment page (pass data via state)
-      if (data.rzpOrder) {
-        const appointmentId = data.appointmentId ?? data.id ?? data.rzpOrder?.notes?.appointmentId ?? null;
-        navigate("/payment", {
-          state: {
-            rzpOrder: data.rzpOrder,
-            appointmentId,
-            specialty: selectedSpecialty,
-            memberId: selectedMemberId,
-            doctor: data.doctor ?? selectedDoctor,
-            amount: data.rzpOrder.amount ?? (selectedDoctor?.consultationFee || 0),
-          },
-        });
-        return;
-      }
+    // 1) Create appointment with backend
+    const res = await consultationAPI.selectSpecialist(payload);
+    const data = res.data ?? {};
+    setAppointmentResult(data);
 
-      // If backend did not return rzpOrder but created appointment
-      if (data.appointmentId) {
-        // navigate to appointment list or to the appointment details
-        navigate("/appointments");
-        return;
-      }
+    console.log("Backend response:", data);
 
-      // fallback
-      navigate("/appointments");
-    } catch (err) {
-      console.error("Failed to select specialist:", err);
-      setStepError(err?.response?.data?.message || err.message || "Failed to complete booking");
-    } finally {
-      setStepLoading(false);
+    // Check if we need to show payment gateway
+    if (data.rzpOrder) {
+      // We have Razorpay order - show payment gateway
+      const appointmentId = data.appointmentId ?? data.id ?? data.rzpOrder?.notes?.appointmentId ?? null;
+      
+      console.log("Opening Razorpay payment gateway...");
+      
+      // Load and open Razorpay
+      await openRazorpayAndVerify(data.rzpOrder, appointmentId);
+      
+    } else if (data.paymentRequired === false) {
+      // If payment is not required (free consultation), go directly to appointments
+      console.log("Payment not required, redirecting to appointments");
+      navigate("/appointments", { 
+        state: { 
+          appointmentId: data.appointmentId,
+          message: "Appointment booked successfully!"
+        } 
+      });
+      
+    } else if (data.appointmentId) {
+      // If appointment was created but no payment info, show payment page
+      console.log("Appointment created, redirecting to payment page");
+      navigate("/payment", {
+        state: {
+          appointmentId: data.appointmentId,
+          specialty: selectedSpecialty,
+          memberId: selectedMemberId,
+          doctor: data.doctor ?? selectedDoctor,
+          amount: data.amount ?? (selectedDoctor?.consultationFee || 0),
+        },
+      });
+      
+    } else {
+      // Fallback - show payment page with basic info
+      console.log("No payment info, showing generic payment page");
+      navigate("/payment", {
+        state: {
+          specialty: selectedSpecialty,
+          memberId: selectedMemberId,
+          doctor: data.doctor ?? selectedDoctor,
+          amount: data.amount ?? (selectedDoctor?.consultationFee || 299), // Default amount
+        },
+      });
     }
+
+  } catch (err) {
+    console.error("Failed to complete booking:", err);
+    console.error("Error details:", err.response?.data);
+    
+    // Show specific error message
+    if (err.response?.data?.message) {
+      setStepError(`Error: ${err.response.data.message}`);
+    } else {
+      setStepError(err?.message || "Failed to complete booking. Please try again.");
+    }
+  } finally {
+    setStepLoading(false);
   }
+}
 
   // Dynamically load Razorpay script
   function loadRazorpayScript() {
@@ -470,64 +502,97 @@ useEffect(() => {
 
   // Open Razorpay and then call backend /payment to verify
   async function openRazorpayAndVerify(rzpOrder, appointmentId = null) {
-    try {
-      await loadRazorpayScript();
-    } catch (err) {
-      setStepError("Could not load payment gateway. Please try again.");
-      console.error(err);
-      return;
-    }
-
-    return new Promise((resolve, reject) => {
-      const options = {
-        key: window.__RAZORPAY_KEY__ || rzpOrder.key || "", // you can inject your key on page or backend can supply
-        amount: rzpOrder.amount, // in paise (e.g., 29900)
-        currency: rzpOrder.currency || "INR",
-        name: "CareMitra",
-        description: "Consultation Payment",
-        order_id: rzpOrder.id, // razorpay order id from backend
-        prefill: {
-          name: members.find(m => m.id === selectedMemberId)?.name || user?.name || "",
-          contact: phone || members.find(m => m.id === selectedMemberId)?.phone || ""
-        },
-        handler: async function (response) {
-          // response contains razorpay_payment_id, razorpay_order_id, razorpay_signature
-          try {
-            const verifyPayload = {
-              ...response,
-              appointmentId,
-              memberId: selectedMemberId,
-              specialty: selectedSpecialty,
-              doctorId: selectedDoctor?.id || null,
-            };
-
-            // call backend to verify payment server-side
-            const verifyRes = await paymentAPI.verifyPayment(verifyPayload);
-            // adapt: backend should return success details
-            const verifyData = verifyRes.data ?? {};
-
-            // success: navigate to appointments or show success modal
-            navigate("/appointments");
-            resolve(verifyData);
-          } catch (err) {
-            console.error("Payment verification failed:", err);
-            setStepError(err?.response?.data?.message || err.message || "Payment verification failed");
-            reject(err);
-          }
-        },
-        modal: {
-          ondismiss: function () {
-            setStepError("Payment cancelled");
-            reject(new Error("Payment cancelled"));
-          }
-        }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    });
+  try {
+    await loadRazorpayScript();
+  } catch (err) {
+    setStepError("Could not load payment gateway. Please try again.");
+    console.error(err);
+    return;
   }
 
+  return new Promise((resolve, reject) => {
+    const options = {
+      key: window.__RAZORPAY_KEY__ || rzpOrder.key || "rzp_test_YOUR_KEY", // Add your Razorpay key
+      amount: rzpOrder.amount, // in paise
+      currency: rzpOrder.currency || "INR",
+      name: "CareMitra",
+      description: `Consultation with ${selectedSpecialty}`,
+      order_id: rzpOrder.id,
+      image: "https://your-logo-url.com/logo.png", // Add your logo
+      prefill: {
+        name: members.find(m => m.id === selectedMemberId)?.name || user?.name || "",
+        email: user?.email || "",
+        contact: phone || members.find(m => m.id === selectedMemberId)?.phone || ""
+      },
+      notes: {
+        appointmentId: appointmentId,
+        memberId: selectedMemberId,
+        specialty: selectedSpecialty,
+        mode: mode
+      },
+      theme: {
+        color: "#0ea5e9" // sky-600 color
+      },
+      handler: async function (response) {
+        console.log("Payment successful:", response);
+        
+        try {
+          const verifyPayload = {
+            ...response,
+            appointmentId,
+            memberId: selectedMemberId,
+            specialty: selectedSpecialty,
+            doctorId: selectedDoctor?.id || null,
+          };
+
+          // Verify payment with backend
+          const verifyRes = await paymentAPI.verifyPayment(verifyPayload);
+          console.log("Payment verification successful:", verifyRes.data);
+
+          // Show success message and navigate
+          navigate("/appointments", { 
+            state: { 
+              appointmentId: appointmentId,
+              paymentId: response.razorpay_payment_id,
+              message: "Payment successful! Appointment booked.",
+              success: true
+            } 
+          });
+          
+          resolve(verifyRes.data);
+          
+        } catch (err) {
+          console.error("Payment verification failed:", err);
+          
+          // Even if verification fails, show a message
+          navigate("/appointments", {
+            state: {
+              message: "Payment completed but verification pending. Please check your appointments.",
+              warning: true
+            }
+          });
+          
+          reject(err);
+        }
+      },
+      modal: {
+        ondismiss: function () {
+          console.log("Payment cancelled by user");
+          setStepError("Payment was cancelled. You can try again.");
+          
+          // Don't navigate away - let user retry
+          reject(new Error("Payment cancelled"));
+        }
+      },
+      "callback_url": "http://localhost:5000/api/payment/verify", // Optional: backend callback URL
+    };
+
+    console.log("Opening Razorpay with options:", options);
+    
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  });
+}
   // close suggestions when clicking outside
   useEffect(() => {
     function onDocClick(e) {
@@ -826,6 +891,7 @@ useEffect(() => {
                       {stepLoading ? "Processing..." : "Confirm"}
                     </button>
                   )}
+                  
                 </div>
               </div>
             </div>
