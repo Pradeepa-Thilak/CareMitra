@@ -17,6 +17,7 @@ import {
   ShoppingCart,
   FileText,
 } from "lucide-react";
+import { searchAPI } from "../../utils/api";
 
 const Navbar = () => {
   const { user, role, logout, token } = useContext(AuthContext);
@@ -135,7 +136,7 @@ const Navbar = () => {
                 <ProductSearchBar 
                 placeholder="Search medicines, brands, symptoms..." 
                 mode = "auto"
-                searchAPI={productAPI}
+                searchAPI={searchAPI.basic}
                 />
               </div>
             </div>
