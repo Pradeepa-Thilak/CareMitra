@@ -6,24 +6,6 @@ import DoctorCard from "../components/user/DoctorCard";
 import { useAuth } from "../hooks/useAuth";
 import { memberAPI, consultationAPI, paymentAPI } from "../utils/api";
 
-/**
- * BookConsultation page (backend integrated)
- *
- * Routes used:
- * - GET /getMember           -> memberAPI.getMembers()
- * - POST /addMember          -> memberAPI.addMember(payload)
- * - POST /symptoms           -> consultationAPI.addSymptoms(payload)
- * - POST /specialists        -> consultationAPI.selectSpecialist(payload)
- * - POST /payment            -> paymentAPI.verifyPayment(payload)
- *
- * Notes:
- * - The backend /specialists should ideally return a Razorpay order object (or a payment token).
- *   Expected shape used below (adapt if your backend returns different keys):
- *   { rzpOrder: { id, amount, currency, receipt, notes }, appointmentId, ... }
- *
- * - If your backend returns a different structure, update the places marked with "ADAPT HERE".
- */
-
 const SPECIALTIES = [
   "General Physician","Gynaecologist","Skin & Hair Specialist","Bone & Joint Specialist","Chest Physician",
   "Child Specialist","Dentist","Diabetes Specialist","Dietician","ENT Specialist","Endocrinology","Eye Specialist",
@@ -210,133 +192,153 @@ export default function BookConsultation() {
     setStepLoading(true);
     setStepError(null);
     try {
-      const res = await memberAPI.addMember(payload);
-      // adapt to server response: expected created member in res.data.member or res.data
-      const saved = res.data.member ?? res.data;
-      // ensure id exists (backend should return)
-      if (!saved?.id && saved?.memberId) {
-        saved.id = saved.memberId;
-      }
+      if (editingMember) {
+        // Edit existing member
+        const res = await memberAPI.editMember(editingMember.id, payload);
+        // adapt to server response: expected updated member in res.data.member or res.data
+        const saved = res.data.member ?? res.data;
+        
+        setMembers((prev) => 
+          prev.map(m => m.id === editingMember.id ? { ...m, ...saved } : m)
+        );
+        // Update selected member if we were editing the currently selected one
+        if (selectedMemberId === editingMember.id) {
+          setSelectedMemberId(editingMember.id);
+        }
+      } else {
+        // Add new member
+        const res = await memberAPI.addMember(payload);
+        const saved = res.data.member ?? res.data;
+        // ensure id exists (backend should return)
+        if (!saved?.id && saved?.memberId) {
+          saved.id = saved.memberId;
+        }
 
-      setMembers((prev) => [...prev, saved]);
-      setSelectedMemberId(saved.id);
+        setMembers((prev) => [...prev, saved]);
+        setSelectedMemberId(saved.id);
+      }
       setIsEditingMember(false);
       setEditingMember(null);
     } catch (err) {
-      console.error("Failed to add member:", err);
-      setStepError(err?.response?.data?.message || err.message || "Failed to add member");
+      console.error("Failed to save member:", err);
+      setStepError(err?.response?.data?.message || err.message || "Failed to save member");
     } finally {
       setStepLoading(false);
     }
   }
 
-  function removeMember(id) {
-    const filtered = members.filter((m) => m.id !== id);
-    setMembers(filtered);
-    if (selectedMemberId === id) setSelectedMemberId(filtered[0]?.id || null);
-    if (filtered.length === 0) startAddMember();
+  // Delete member from backend
+  async function removeMember(id) {
+    if (!window.confirm("Are you sure you want to remove this member?")) return;
+    
+    setStepLoading(true);
+    try {
+      await memberAPI.deleteMember(id);
+      const filtered = members.filter((m) => m.id !== id);
+      setMembers(filtered);
+      if (selectedMemberId === id) setSelectedMemberId(filtered[0]?.id || null);
+      if (filtered.length === 0) startAddMember();
+    } catch (err) {
+      console.error("Failed to delete member:", err);
+      setStepError(err?.response?.data?.message || err.message || "Failed to delete member");
+    } finally {
+      setStepLoading(false);
+    }
   }
 
-  // add this function in BookConsultation.jsx (near other handlers)
-async function handleStep1Continue() {
-  setStepLoading(true);
-  setStepError(null);
+  async function handleStep1Continue() {
+    setStepLoading(true);
+    setStepError(null);
 
-  try {
-    // local persistence already handled by useEffect/local state
-    // call backend to save consultingType (mode) for the selected member
-    if (!selectedMemberId) throw new Error("Select a member first");
+    try {
+      // local persistence already handled by useEffect/local state
+      // call backend to save consultingType (mode) for the selected member
+      if (!selectedMemberId) throw new Error("Select a member first");
 
-    const payload = { consultingType: mode }; // backend expects consultingType in body
-    await memberAPI.addMode(selectedMemberId, payload);
+      const payload = { consultingType: mode }; // backend expects consultingType in body
+      await memberAPI.addMode(selectedMemberId, payload);
 
-    // advance UI
-    setStep(2);
-  } catch (err) {
-    console.error("Failed to save consulting mode:", err);
-    setStepError(err?.response?.data?.message || err.message || "Could not save mode");
-  } finally {
-    setStepLoading(false);
+      // advance UI
+      setStep(2);
+    } catch (err) {
+      console.error("Failed to save consulting mode:", err);
+      setStepError(err?.response?.data?.message || err.message || "Could not save mode");
+    } finally {
+      setStepLoading(false);
+    }
   }
-}
 
   // Step transitions integrated with backend
-  // Move from Step 1 -> Step 2: just front-end change
-  // Move from Step 2 -> Step 3: send symptoms to backend
   async function handleStep2Continue() {
-  setStepLoading(true);
-  setStepError(null);
-  try {
-    if (!selectedMemberId) throw new Error("Member not selected");
-    const payload = {
-      memberId: selectedMemberId,
-      symptoms: selectedSymptoms,
-    };
-    await consultationAPI.addSymptoms(payload); // existing API call
-    setStep(3);
-  } catch (err) {
-    console.error("Failed to send symptoms:", err);
-    setStepError(err?.response?.data?.message || err.message || "Failed to send symptoms");
-  } finally {
-    setStepLoading(false);
+    setStepLoading(true);
+    setStepError(null);
+    try {
+      if (!selectedMemberId) throw new Error("Member not selected");
+      const payload = {
+        memberId: selectedMemberId,
+        symptoms: selectedSymptoms,
+      };
+      await consultationAPI.addSymptoms(payload);
+      setStep(3);
+    } catch (err) {
+      console.error("Failed to send symptoms:", err);
+      setStepError(err?.response?.data?.message || err.message || "Failed to send symptoms");
+    } finally {
+      setStepLoading(false);
+    }
   }
-}
 
   // Final step: select specialist -> backend returns payment info (rzp order) OR appointment id
-  // Then we open Razorpay and on success call /payment to verify.
-  // Replace this existing function in BookConsultation.jsx
-async function handleConfirm() {
-  setStepLoading(true);
-  setStepError(null);
+  async function handleConfirm() {
+    setStepLoading(true);
+    setStepError(null);
 
-  try {
-    const payload = {
-      memberId: selectedMemberId,
-      specialty: selectedSpecialty,
-      symptoms: selectedSymptoms,
-    //   doctorId: selectedDoctor?.id || null,
-      mode,
-      phone,
-    };
+    try {
+      const payload = {
+        memberId: selectedMemberId,
+        specialty: selectedSpecialty,
+        symptoms: selectedSymptoms,
+        mode,
+        phone,
+      };
 
-    // 1) send selection to backend
-    const res = await consultationAPI.selectSpecialist(payload);
-    const data = res.data ?? {};
-    setAppointmentResult(data);
+      // 1) send selection to backend
+      const res = await consultationAPI.selectSpecialist(payload);
+      const data = res.data ?? {};
+      setAppointmentResult(data);
 
-    // If backend returned rzpOrder -> redirect to payment page (pass data via state)
-    if (data.rzpOrder) {
-      const appointmentId = data.appointmentId ?? data.id ?? data.rzpOrder?.notes?.appointmentId ?? null;
-      navigate("/payment", {
-        state: {
-          rzpOrder: data.rzpOrder,
-          appointmentId,
-          specialty: selectedSpecialty,
-          memberId: selectedMemberId,
-          doctor: data.doctor ?? selectedDoctor,
-          amount: data.rzpOrder.amount ?? (selectedDoctor?.consultationFee || 0),
-        },
-      });
-      return;
-    }
+      // If backend returned rzpOrder -> redirect to payment page (pass data via state)
+      if (data.rzpOrder) {
+        const appointmentId = data.appointmentId ?? data.id ?? data.rzpOrder?.notes?.appointmentId ?? null;
+        navigate("/payment", {
+          state: {
+            rzpOrder: data.rzpOrder,
+            appointmentId,
+            specialty: selectedSpecialty,
+            memberId: selectedMemberId,
+            doctor: data.doctor ?? selectedDoctor,
+            amount: data.rzpOrder.amount ?? (selectedDoctor?.consultationFee || 0),
+          },
+        });
+        return;
+      }
 
-    // If backend did not return rzpOrder but created appointment
-    if (data.appointmentId) {
-      // navigate to appointment list or to the appointment details
+      // If backend did not return rzpOrder but created appointment
+      if (data.appointmentId) {
+        // navigate to appointment list or to the appointment details
+        navigate("/appointments");
+        return;
+      }
+
+      // fallback
       navigate("/appointments");
-      return;
+    } catch (err) {
+      console.error("Failed to select specialist:", err);
+      setStepError(err?.response?.data?.message || err.message || "Failed to complete booking");
+    } finally {
+      setStepLoading(false);
     }
-
-    // fallback
-    navigate("/appointments");
-  } catch (err) {
-    console.error("Failed to select specialist:", err);
-    setStepError(err?.response?.data?.message || err.message || "Failed to complete booking");
-  } finally {
-    setStepLoading(false);
   }
-}
-
 
   // Dynamically load Razorpay script
   function loadRazorpayScript() {
@@ -474,17 +476,46 @@ async function handleConfirm() {
                         <div className="space-y-3">
                           {membersLoading && <div className="text-xs text-gray-500">Loading members...</div>}
                           {members.map((m) => (
-                            <div key={m.id} className={`p-3 rounded border ${selectedMemberId === m.id ? "border-sky-600 bg-sky-50" : "border-gray-200"}`}>
+                            <div 
+                              key={m.id} 
+                              className={`p-3 rounded border cursor-pointer transition-colors ${
+                                selectedMemberId === m.id 
+                                  ? "border-sky-600 bg-sky-50" 
+                                  : "border-gray-200 hover:border-sky-300 hover:bg-sky-50/50"
+                              }`}
+                              onClick={() => {
+                                setSelectedMemberId(m.id);
+                                setPhone(m.phone || "");
+                              }}
+                            >
                               <div className="flex justify-between items-center">
                                 <div>
                                   <div className="font-semibold">{m.name}</div>
                                   <div className="text-xs text-gray-500">{m.age} • {m.gender}</div>
+                                  {selectedMemberId === m.id && (
+                                    <div className="text-xs text-sky-600 mt-1">✓ Currently selected</div>
+                                  )}
                                 </div>
 
                                 <div className="flex items-center gap-2">
-                                  <button onClick={() => { setSelectedMemberId(m.id); setPhone(m.phone || ""); }} className="text-xs px-2 py-1 rounded border text-gray-600">Select</button>
-                                  <button onClick={() => startEditMember(m)} className="text-xs text-sky-600">Edit</button>
-                                  <button onClick={() => removeMember(m.id)} className="text-xs text-red-600">Remove</button>
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      startEditMember(m);
+                                    }} 
+                                    className="text-xs text-sky-600 px-2 py-1 hover:bg-sky-100 rounded"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      removeMember(m.id);
+                                    }} 
+                                    className="text-xs text-red-600 px-2 py-1 hover:bg-red-50 rounded"
+                                  >
+                                    Remove
+                                  </button>
                                 </div>
                               </div>
                             </div>
@@ -522,7 +553,7 @@ async function handleConfirm() {
                           <div className="flex gap-2">
                             <button onClick={() => { setIsEditingMember(false); setEditingMember(null); }} className="border rounded px-4 py-2">Cancel</button>
                             <button onClick={saveMember} className="bg-sky-600 text-white px-4 py-2 rounded">
-                              {stepLoading ? "Saving..." : "Save"}
+                              {stepLoading ? "Saving..." : editingMember ? "Update" : "Save"}
                             </button>
                           </div>
 

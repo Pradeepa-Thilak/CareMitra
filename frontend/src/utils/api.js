@@ -89,6 +89,11 @@ export const memberAPI = {
 
   // GET /getMember  (returns list of members for logged-in user)
   getMembers: () => api.get("/dashboard/getMember"),
+
+  // POST /delete/${memberId} 
+  deleteMember: (memberId,body) => api.get(`/dashboard/delete/${memberId}`,body),
+
+  editMember: (memberId,body) => api.get(`/dashboard/edit/${memberId}`,body),
 };
 
 // ----------------------------
