@@ -147,7 +147,12 @@ const ProductSearchBarNav = ({
   const submitSearch = () => {
     if (!q.trim()) return;
     navigate(`/search?q=${encodeURIComponent(q.trim())}`);
+    // 👇 Clear input
+    setQ("");
+
+    // 👇 Close dropdown
     setOpen(false);
+    setFocused(-1);
   };
 
   // ---------- Keyboard navigation ----------
