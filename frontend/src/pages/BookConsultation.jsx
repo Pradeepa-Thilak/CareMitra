@@ -113,28 +113,64 @@ export default function BookConsultation() {
   }, [selectedMemberId, members]);
 
   // load members from backend on mount
-  useEffect(() => {
-    let mounted = true;
-    async function loadMembers() {
-      setMembersLoading(true);
-      try {
-        const res = await memberAPI.getMembers();
-        // adapt: server could return [] or { members: [...] }
-        const list = Array.isArray(res.data) ? res.data : res.data.members ?? [];
-        if (mounted && list.length) {
-          setMembers(list);
-          setSelectedMemberId(list[0]?.id ?? list[0]?.memberId ?? selectedMemberId);
-        }
-      } catch (err) {
-        console.warn("Could not fetch members, continuing with local copy", err?.message || err);
-        setMembersError(err?.response?.data?.message || err.message || "Failed to fetch members");
-      } finally {
-        if (mounted) setMembersLoading(false);
+ // load members from backend on mount
+useEffect(() => {
+  let mounted = true;
+  async function loadMembers() {
+    setMembersLoading(true);
+    try {
+      const res = await memberAPI.getMembers();
+      console.log("DEBUG - Get Members Response:", res.data);
+
+      // adapt: server could return [] or { members: [...] }
+      let list = Array.isArray(res.data) ? res.data : res.data.members ?? [];
+
+      // If list is still empty, check other possible structures
+      if (list.length === 0 && res.data && typeof res.data === 'object') {
+        // Try to find an array in the response
+        Object.keys(res.data).forEach(key => {
+          if (Array.isArray(res.data[key])) {
+            list = res.data[key];
+          }
+        });
       }
+
+      console.log("DEBUG - Extracted list:", list);
+
+      // Transform each member to ensure they have proper IDs
+      const transformedList = list.map((member, index) => {
+        // Extract ID from multiple possible field names
+        const memberId = member.id || member.memberId || member._id || member.userId ||
+                        `member_${Date.now()}_${index}`;
+
+        return {
+          id: memberId,
+          name: member.name || member.fullName || member.patientName || `Member ${index + 1}`,
+          age: member.age || member.patientAge || 0,
+          gender: member.gender || member.sex || "Other",
+          phone: member.phone || member.phoneNumber || member.contact || "",
+          // Store original for debugging
+          _original: member
+        };
+      });
+
+      console.log("DEBUG - Transformed members:", transformedList);
+
+      if (mounted && transformedList.length) {
+        setMembers(transformedList);
+        setSelectedMemberId(transformedList[0]?.id || null);
+      }
+    } catch (err) {
+      console.warn("Could not fetch members, continuing with local copy", err?.message || err);
+      console.error("Error details:", err.response?.data);
+      setMembersError(err?.response?.data?.message || err.message || "Failed to fetch members");
+    } finally {
+      if (mounted) setMembersLoading(false);
     }
-    loadMembers();
-    return () => { mounted = false; };
-  }, []); // run once
+  }
+  loadMembers();
+  return () => { mounted = false; };
+}, []); // run once
 
   // symptom suggestions: when input focused show many (filtered), when not focused and empty show none (we show MOST_SEARCHED chips separately)
   const symptomSuggestions = useMemo(() => {
@@ -180,71 +216,148 @@ export default function BookConsultation() {
   }
 
   // Save member using backend POST /addMember
-  async function saveMember() {
-    if (!formName || !formAge) return;
-    const payload = {
-      name: formName,
-      age: Number(formAge),
-      gender: formGender,
-      phone: formPhone,
-    };
+ async function saveMember() {
+  if (!formName || !formAge) return;
 
-    setStepLoading(true);
-    setStepError(null);
-    try {
-      if (editingMember) {
-        // Edit existing member
-        const res = await memberAPI.editMember(editingMember.id, payload);
-        // adapt to server response: expected updated member in res.data.member or res.data
-        const saved = res.data.member ?? res.data;
-        
-        setMembers((prev) => 
-          prev.map(m => m.id === editingMember.id ? { ...m, ...saved } : m)
+  const payload = {
+    name: formName,
+    age: Number(formAge),
+    gender: formGender,
+    phone: formPhone,
+  };
+
+  setStepLoading(true);
+  setStepError(null);
+  try {
+    if (editingMember) {
+      // ============================================
+      // DEBUG: Check what ID we have
+      // ============================================
+      console.log("DEBUG - Editing Member ID:", editingMember.id);
+      console.log("DEBUG - Editing Member Object:", editingMember);
+
+      // Make sure we have a valid ID before calling API
+      if (!editingMember.id || editingMember.id === "m_you" || editingMember.id.startsWith('temp_')) {
+        console.log("DEBUG - Invalid or temporary ID detected, treating as ADD instead of EDIT");
+        // Fall back to adding as new member
+        const res = await memberAPI.addMember(payload);
+        console.log("DEBUG - Add Member Response:", res.data);
+
+        // Extract the saved member from response
+        const saved = res.data?.member || res.data?.data || res.data;
+
+        // Try to get ID from multiple possible field names
+        const newId = saved?.id || saved?.memberId || saved?._id || saved?.userId ||
+                     `member_${Date.now()}`;
+
+        const newMember = {
+          id: newId,
+          name: saved?.name || formName,
+          age: saved?.age || Number(formAge),
+          gender: saved?.gender || formGender,
+          phone: saved?.phone || formPhone,
+        };
+
+        // Replace the temporary member with the real one from backend
+        setMembers((prev) =>
+          prev.map(m => m.id === editingMember.id ? newMember : m)
         );
-        // Update selected member if we were editing the currently selected one
+        setSelectedMemberId(newId);
+      } else {
+        // We have a valid ID, proceed with edit
+        const res = await memberAPI.editMember(editingMember.id, payload);
+        console.log("DEBUG - Edit Member Response:", res.data);
+
+        const saved = res.data?.member || res.data?.data || res.data;
+
+        setMembers((prev) =>
+          prev.map(m => m.id === editingMember.id ? {
+            ...m,
+            ...saved,
+            // Ensure we keep the ID
+            id: editingMember.id
+          } : m)
+        );
+
         if (selectedMemberId === editingMember.id) {
           setSelectedMemberId(editingMember.id);
         }
-      } else {
-        // Add new member
-        const res = await memberAPI.addMember(payload);
-        const saved = res.data.member ?? res.data;
-        // ensure id exists (backend should return)
-        if (!saved?.id && saved?.memberId) {
-          saved.id = saved.memberId;
-        }
-
-        setMembers((prev) => [...prev, saved]);
-        setSelectedMemberId(saved.id);
       }
-      setIsEditingMember(false);
-      setEditingMember(null);
-    } catch (err) {
-      console.error("Failed to save member:", err);
-      setStepError(err?.response?.data?.message || err.message || "Failed to save member");
-    } finally {
-      setStepLoading(false);
-    }
-  }
+    } else {
+      // Add new member
+      const res = await memberAPI.addMember(payload);
+      console.log("DEBUG - Add Member Response:", res.data);
 
-  // Delete member from backend
-  async function removeMember(id) {
-    if (!window.confirm("Are you sure you want to remove this member?")) return;
-    
-    setStepLoading(true);
-    try {
-      await memberAPI.deleteMember(id);
-      const filtered = members.filter((m) => m.id !== id);
-      setMembers(filtered);
-      if (selectedMemberId === id) setSelectedMemberId(filtered[0]?.id || null);
-      if (filtered.length === 0) startAddMember();
-    } catch (err) {
-      console.error("Failed to delete member:", err);
-      setStepError(err?.response?.data?.message || err.message || "Failed to delete member");
-    } finally {
-      setStepLoading(false);
+      const saved = res.data?.member || res.data?.data || res.data;
+
+      // ============================================
+      // CRITICAL: Extract ID from multiple possible fields
+      // ============================================
+      const newId = saved?.id || saved?.memberId || saved?._id || saved?.userId ||
+                   `member_${Date.now()}`;
+
+      console.log("DEBUG - Extracted ID:", newId);
+      console.log("DEBUG - Full saved object:", saved);
+
+      const newMember = {
+        id: newId,
+        name: saved?.name || formName,
+        age: saved?.age || Number(formAge),
+        gender: saved?.gender || formGender,
+        phone: saved?.phone || formPhone,
+      };
+
+      setMembers((prev) => [...prev, newMember]);
+      setSelectedMemberId(newId);
     }
+
+    setIsEditingMember(false);
+    setEditingMember(null);
+  } catch (err) {
+    console.error("Failed to save member:", err);
+    console.error("Error response data:", err.response?.data);
+    setStepError(err?.response?.data?.message || err.message || "Failed to save member");
+  } finally {
+    setStepLoading(false);
   }
+}
+
+  async function removeMember(id) {
+  if (!window.confirm("Are you sure you want to remove this member?")) return;
+
+  setStepLoading(true);
+  try {
+    // Only call API if it's not a temporary ID
+    if (!id.startsWith('temp_') && id !== "m_you") {
+      await memberAPI.deleteMember(id);
+    }
+
+    const filtered = members.filter((m) => m.id !== id);
+    setMembers(filtered);
+
+    if (selectedMemberId === id) {
+      setSelectedMemberId(filtered[0]?.id || null);
+    }
+
+    if (filtered.length === 0) {
+      // Add a default member
+      const defaultMember = {
+        id: `temp_${Date.now()}`,
+        name: user?.name ? `${user.name}` : "You",
+        age: 28,
+        gender: "Female",
+        phone: ""
+      };
+      setMembers([defaultMember]);
+      setSelectedMemberId(defaultMember.id);
+    }
+  } catch (err) {
+    console.error("Failed to delete member:", err);
+    setStepError(err?.response?.data?.message || err.message || "Failed to delete member");
+  } finally {
+    setStepLoading(false);
+  }
+}
 
   async function handleStep1Continue() {
     setStepLoading(true);
@@ -256,7 +369,8 @@ export default function BookConsultation() {
       if (!selectedMemberId) throw new Error("Select a member first");
 
       const payload = { consultingType: mode }; // backend expects consultingType in body
-      await memberAPI.addMode(selectedMemberId, payload);
+      console.log(payload, typeof(payload.consultingType));
+      await memberAPI.addMode(selectedMemberId, payload.consultingType.toLowerCase());
 
       // advance UI
       setStep(2);
@@ -296,7 +410,7 @@ export default function BookConsultation() {
     try {
       const payload = {
         memberId: selectedMemberId,
-        specialty: selectedSpecialty,
+        specialization: selectedSpecialty,
         symptoms: selectedSymptoms,
         mode,
         phone,

@@ -83,7 +83,9 @@ export const labTestAPI = {
 // MEMBER APIs
 // ----------------------------
 export const memberAPI = {
-  addMode: (memberId,body) => api.get(`/dashboard/${memberId}`,body),
+  
+  addMode: (memberId,body) => api.put(`/dashboard/type/${memberId}`,body),
+
   // POST /addMember  (body: { name, age, gender, phone, ... })
   addMember: (body) => api.post("/dashboard/addMember", body),
 
@@ -91,9 +93,11 @@ export const memberAPI = {
   getMembers: () => api.get("/dashboard/getMember"),
 
   // POST /delete/${memberId} 
-  deleteMember: (memberId,body) => api.get(`/dashboard/delete/${memberId}`,body),
+ deleteMember: (memberId, body) => 
+  api.delete(`/dashboard/delete/${memberId}`, { data: body }),
+ 
+editMember: (memberId, body) => api.put(`/dashboard/edit/${memberId}`, body)
 
-  editMember: (memberId,body) => api.get(`/dashboard/edit/${memberId}`,body),
 };
 
 // ----------------------------
