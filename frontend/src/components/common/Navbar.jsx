@@ -5,7 +5,8 @@ import { AuthContext } from "../../contexts/AuthContext";
 import { useCart } from "../../hooks/useCart";
 // import { useWishlist } from "../../hooks/useWishlist"; 
 import AuthModal from "../modals/AuthModal";
-import ProductSearchBar from "../../components/product/ProductSearchBar";
+import ProductSearchBar from "./ProductSearchBarNav";
+import { productAPI } from "../../utils/api"; 
 import {
   Heart,
   LogOut,
@@ -131,7 +132,11 @@ const Navbar = () => {
             {/* Search - compact on small screens, full on md+ */}
             <div className="hidden md:flex items-center">
               <div className="w-[360px]">
-                <ProductSearchBar placeholder="Search medicines, brands, symptoms..." />
+                <ProductSearchBar 
+                placeholder="Search medicines, brands, symptoms..." 
+                mode = "auto"
+                searchAPI={productAPI}
+                />
               </div>
             </div>
 
