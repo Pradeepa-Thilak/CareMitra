@@ -345,7 +345,7 @@ useEffect(() => {
         id: `temp_${Date.now()}`,
         name: user?.name ? `${user.name}` : "You",
         age: 28,
-        gender: "Female",
+        gender: "Select a value",
         phone: ""
       };
       setMembers([defaultMember]);
@@ -719,7 +719,7 @@ async function handleConfirm() {
                             <div className="w-2/3">
                               <label className="text-sm text-gray-600 block mb-1">Gender</label>
                               <select value={formGender} onChange={(e) => setFormGender(e.target.value)} className="border rounded px-3 py-2 w-full">
-                                <option>Select gender</option><option>Female</option><option>Male</option><option>Other</option>
+                                <option value="">Select gender</option><option>Female</option><option>Male</option><option>Other</option>
                               </select>
                             </div>
                           </div>

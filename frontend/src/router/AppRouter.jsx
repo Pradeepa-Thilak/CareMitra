@@ -11,14 +11,16 @@ import Navbar from "../components/common/Navbar";
 import Medicines from "../pages/Medicines";
 import ProductDetails from "../pages/ProductDetails";
 
-import Cart from "../pages/Cart";          // your change
-import Doctors from "../pages/Doctors";    // your change
+import Cart from "../pages/Cart";          
+import Doctors from "../pages/Doctors";    
 
-import LabTests from "../pages/LabTests";  // teammate's change
+import LabTests from "../pages/LabTests"; 
 import Footer from "../components/common/Footer";
 import BookConsultation from "../pages/BookConsultation";
 import Wishlist from "../pages/Wishlist";
 import Payment from "../pages/Payment";
+import LabStaff from "../pages/LabStaff";
+import DoctorRegistrationForm from "../components/forms/DoctorRegistrationForm";
 
 const AppRouter = () => {
   return (
@@ -81,6 +83,9 @@ const AppRouter = () => {
           <Route path="/consultation" element={<BookConsultation />} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/payments" element={<Payment />} />
+          <Route path="/appointments" element={<ProtectedRoute><Appointment /></ProtectedRoute>} />
+          <Route path="/labstaff" element={<ProtectedRoute><LabStaff /></ProtectedRoute>} />
+          <Route path="/doctor-register" element={<DoctorRegistrationForm />} />
         </Routes>
       </main>
       <Footer />

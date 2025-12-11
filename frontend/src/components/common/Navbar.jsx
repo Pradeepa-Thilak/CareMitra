@@ -254,6 +254,13 @@ const Navbar = () => {
                         <FileText size={16} /> Orders
                       </Link>
 
+                        <Link
+                        to="/appointments"
+                        className="flex items-center px-4 py-2 hover:bg-gray-100 text-sm gap-2"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        <FileText size={16} /> Appointments
+                      </Link>
                       {role === "doctor" && (
                         <Link
                           to="/doctor/dashboard"

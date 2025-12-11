@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+// src/pages/Home.jsx
+import React from "react";
 import { motion } from "framer-motion";
 import CategorySection from "../components/product/CategorySection";
 import ProductSearchBar from "../components/product/ProductSearchBar";
@@ -6,6 +7,8 @@ import BrandSection from "../components/product/BrandSection";
 import ProductCard from "../components/product/ProductCard";
 // Optional API helper - use your existing api instance if present
 import api from "../utils/api";
+import { useNavigate } from "react-router-dom";
+import { useProduct } from "../hooks/useProduct"; // <-- use product context
 
 const QuickStat = ({ label, value }) => (
   <div className="flex flex-col items-center p-3 bg-white/60 backdrop-blur rounded-2xl shadow-sm min-w-[110px]">
@@ -15,49 +18,9 @@ const QuickStat = ({ label, value }) => (
 );
 
 const Home = () => {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  // Fallback sample products (used if API is not available)
-  const sampleProducts = Array.from({ length: 8 }).map((_, i) => ({
-    id: `sample-${i}`,
-    _id: `sample-${i}`,
-    name: `Sample Medicine ${i + 1}`,
-    price: 199 + i * 25,
-    discountedPrice: i % 2 === 0 ? 149 + i * 20 : undefined,
-    brand: { name: i % 2 ? "HealthCo" : "MediPlus" },
-    category: { name: "General" },
-    rating: 4.2 - (i % 3) * 0.3,
-    reviews: 10 + i * 3,
-    images: [],
-    stock: i % 4 === 0 ? 0 : 20,
-  }));
-
-  useEffect(() => {
-    let mounted = true;
-    // Try to fetch products from backend; fallback to sampleProducts on error
-    const fetchProducts = async () => {
-      setLoading(true);
-      try {
-        // If you don't have an API, this will throw and use the fallback.
-        const res = await api.get("/products?limit=24"); // adapt endpoint as needed
-        if (!mounted) return;
-        const data = res.data?.products || res.data || [];
-        setProducts(Array.isArray(data) ? data : sampleProducts);
-      } catch (err) {
-        // fallback
-        setProducts(sampleProducts);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    fetchProducts();
-    return () => {
-      mounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const navigate = useNavigate();
+  // use product context (it already fetches from backend)
+  const { filteredProducts, loading } = useProduct();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50 py-8">
@@ -80,9 +43,9 @@ const Home = () => {
                 Find medicines, lab tests and healthcare products quickly. Trusted sellers, verified medical information and fast delivery.
               </p>
 
-              <div className="mt-3">
+              {/* <div className="mt-3">
                 <ProductSearchBar className="shadow-md" />
-              </div>
+              </div> */}
 
               {/* Quick stats */}
               <div className="mt-6 flex gap-3">
@@ -121,8 +84,8 @@ const Home = () => {
                 <p className="text-sm text-gray-600 mt-2">Curated list of medicines and wellness products recommended by pharmacists.</p>
 
                 <div className="mt-4 flex gap-3">
-                  <button className="px-4 py-2 rounded-full border border-sky-200 text-sky-700 text-sm">Shop Medicines</button>
-                  <button className="px-4 py-2 rounded-full bg-sky-700 text-white text-sm">Book Lab Test</button>
+                  <button className="px-4 py-2 rounded-full border border-sky-200 text-sky-700 text-sm" onClick={() => navigate('/medicines')}>Shop Medicines</button>
+                  <button className="px-4 py-2 rounded-full bg-sky-700 text-white text-sm" onClick={() => navigate('/lab-tests')}>Book Lab Test</button>
                 </div>
               </div>
             </div>
@@ -139,11 +102,11 @@ const Home = () => {
         <section className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-800">Popular right now</h2>
-            <div className="text-sm text-gray-500">{loading ? "Loading..." : `${products.length} items`}</div>
+            <div className="text-sm text-gray-500">{loading ? "Loading..." : `${filteredProducts.length} items`}</div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {products.map((p) => (
+            {filteredProducts.map((p) => (
               <ProductCard key={p._id || p.id} product={p} />
             ))}
           </div>

@@ -3,6 +3,7 @@ import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import ConsultationHero from "../components/common/ConsultationHero";
 import DoctorCard from "../components/user/DoctorCard";
+import DoctorRegistrationForm from "../components/forms/DoctorRegistrationForm";
 
 const mockDoctors = [
   {
@@ -136,7 +137,44 @@ export default function Doctors() {
             </div>
           </div>
         </div>
-      </div>
+
+        {/* // inside Doctors.jsx, after the Reviews block (below the reviews </div>) */}
+        <div className="mt-12">
+  <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-blue-200 rounded-xl p-6 shadow-sm text-center">
+    
+    <h3 className="text-xl font-semibold text-gray-800 mb-2">
+      Are you a Healthcare Professional?
+    </h3>
+
+    <p className="text-gray-600 max-w-2xl mx-auto mb-4">
+      Join <span className="font-semibold text-blue-700">CareMitra</span> and connect with thousands of patients 
+      across India. Grow your practice, offer online consultations, and be part of a trusted healthcare platform.
+    </p>
+
+    <button
+      onClick={() => navigate("/doctor-register")}
+      className="group inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-blue-700 hover:shadow-lg transition-all duration-200"
+    >
+      <span className="text-lg font-medium">Become a CareMitra Doctor</span>
+      <svg
+        className="w-5 h-5 transform group-hover:translate-x-1 transition-all duration-200"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        viewBox="0 0 24 24"
+      >
+        <path d="M5 12h14"></path>
+        <path d="M12 5l7 7-7 7"></path>
+      </svg>
+    </button>
+
+  </div>
+</div>
+
+
+        </div>
     </div>
   );
 }
