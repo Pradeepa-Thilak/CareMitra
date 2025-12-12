@@ -21,8 +21,18 @@ const Cart = () => {
   const finalTotal = cartTotal - discount;
 
   const handleCheckout = () => {
-    if (!isAuthenticated) navigate("/login");
-    else navigate("/checkout");
+    if (!isAuthenticated) {
+      navigate("/login");
+    } else {
+      // Navigate to Payment page (NOT the /checkout page).
+      // Pass cart snapshot so Payment page can present items/amount and ask address/payment method.
+      navigate("/payment", {
+        state: {
+          items: cartItems,
+          amount: cartTotal,
+        },
+      });
+    }
   };
 
   if (cartItems.length === 0)
@@ -59,7 +69,7 @@ const Cart = () => {
                       <h3 className="font-semibold text-dark mb-1">{product.name}</h3>
                       <p className="text-sm text-gray-600 mb-2">₹{product.price}</p>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => updateQuantity(product._id, item.quantity - 1)} className="p-1 border border-gray-300 rounded hover:bg-light transition"><Minus className="w-4 h-4" /></button>
+                        <button onClick={() => updateQuantity(product._id, Math.max(1, item.quantity - 1))} className="p-1 border border-gray-300 rounded hover:bg-light transition"><Minus className="w-4 h-4" /></button>
                         <span className="w-8 text-center font-medium">{item.quantity}</span>
                         <button onClick={() => updateQuantity(product._id, item.quantity + 1)} className="p-1 border border-gray-300 rounded hover:bg-light transition"><Plus className="w-4 h-4" /></button>
                       </div>
