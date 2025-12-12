@@ -3,17 +3,22 @@ import React, { useState } from "react";
 import { Heart, ShoppingCart, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "../../hooks/useCart";
-import { toast } from "react-hot-toast"; // optional
+import { toast } from "react-hot-toast";
 
 const ProductCard = ({ product }) => {
   const [wishlisted, setWishlisted] = useState(false);
   const navigate = useNavigate();
   const { addToCart } = useCart();
 
-  // normalize id and price
-  const normalizedId = product.id ?? product._id ?? String(product._id ?? Math.random());
+  // Normalize ID & prices
+  const normalizedId =
+    product._id ||
+    product.id ||
+    String(product._id ?? Math.random());
+
   const price = Number(product.discountedPrice ?? product.price ?? 0);
   const original = Number(product.price ?? price);
+
   const discount =
     Number.isFinite(product.discount) && product.discount > 0
       ? product.discount
@@ -22,42 +27,27 @@ const ProductCard = ({ product }) => {
       : 0;
 
   const goToDetails = (e) => {
-    // e may be undefined when called programmatically
     e?.stopPropagation();
     navigate(`/medicine/${normalizedId}`);
   };
 
-  const handleAddToCart = (e) => {
-    e.stopPropagation(); // important — prevent any ancestor click handlers
-    console.log("ProductCard: handleAddToCart clicked for", normalizedId);
-
-    const normalized = {
-      ...product,
-      id: normalizedId,
-      quantity: product.quantity ?? 1,
-      price: Number(product.discountedPrice ?? product.price ?? 0),
-    };
+  // FINAL FIXED FUNCTION
+  const handleAddToCart = async (e) => {
+    e.stopPropagation();
+    console.log("Add to Cart clicked:", normalizedId);
 
     try {
-      if (addToCart) {
-        addToCart(normalized);
-        toast?.success?.("Added to cart");
-      } else {
-        console.warn("addToCart not available", addToCart);
-        toast?.error?.("Cart unavailable");
-      }
+      await addToCart(normalizedId, 1); // <-- CORRECT FORMAT
+      toast.success("Added to cart");
     } catch (err) {
-      console.error("Add to cart failed", err);
-      toast?.error?.("Could not add to cart");
+      console.error("Add to cart failed:", err);
+      toast.error("Could not add to cart");
     }
   };
 
   return (
-    <div
-      className="card p-4 rounded-lg border hover:shadow-md transition cursor-default bg-white"
-      // note: cursor-default to avoid implying whole-card clickable
-    >
-      {/* Image (clickable only on the image) */}
+    <div className="card p-4 rounded-lg border hover:shadow-md transition cursor-default bg-white">
+      {/* Product Image */}
       <div className="relative mb-3 h-40 bg-gray-100 rounded-lg overflow-hidden">
         <img
           src={
@@ -70,6 +60,7 @@ const ProductCard = ({ product }) => {
           onClick={goToDetails}
         />
 
+        {/* Wishlist Button */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -84,6 +75,7 @@ const ProductCard = ({ product }) => {
           />
         </button>
 
+        {/* Discount Badge */}
         {discount > 0 && (
           <span className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
             {discount}% OFF
@@ -91,7 +83,7 @@ const ProductCard = ({ product }) => {
         )}
       </div>
 
-      {/* Product Details */}
+      {/* Product Info */}
       <h3
         className="font-semibold text-dark line-clamp-2 text-sm mb-1 cursor-pointer"
         onClick={goToDetails}
@@ -124,11 +116,13 @@ const ProductCard = ({ product }) => {
       <div className="flex items-center gap-2 mb-3">
         <span className="text-lg font-bold text-primary">₹{price}</span>
         {original && (
-          <span className="text-sm text-gray-400 line-through">₹{original}</span>
+          <span className="text-sm text-gray-400 line-through">
+            ₹{original}
+          </span>
         )}
       </div>
 
-      {/* Buttons (explicitly stop event propagation) */}
+      {/* Buttons */}
       <div className="flex gap-2">
         <button
           onClick={(e) => {
@@ -149,6 +143,7 @@ const ProductCard = ({ product }) => {
         </button>
       </div>
 
+      {/* Stock */}
       {product.stock !== undefined && (
         <p className="text-xs mt-2">
           {product.stock > 0 ? (

@@ -109,6 +109,9 @@ export const consultationAPI = {
 
   // POST /specialists  (body: { userId?, memberId?, specialty, symptoms, ... })
   selectSpecialist: (body) => api.post("/dashboard/specialists", body),
+
+  createOrder: (body) => api.post("dashboard/create-order", body),     // ✅ Add this
+ 
 };
 
 
@@ -117,7 +120,7 @@ export const consultationAPI = {
 // ----------------------------
 export const paymentAPI = {
   // POST /payment  (verify payment payload or initiate backend-side verification)
-  verifyPayment: (payload) => api.post("/dashboard/payment", payload),
+  verifyPayment: (body) => api.post("dashboard/verify-payment", body),
 };
 
 // ----------------------------
