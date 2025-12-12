@@ -30,6 +30,13 @@ export default function AddressModal({ isOpen, initialData = null, onClose, onCo
   const [city, setCity] = useState("");
   const [stateVal, setStateVal] = useState("");
   const [pincode, setPincode] = useState("");
+
+  // pincode verification state
+  const [pincodeVerified, setPincodeVerified] = useState(false);
+  const [pincodeMsg, setPincodeMsg] = useState("");
+  const [pincodeSuggs, setPincodeSuggs] = useState([]);
+  const [verifying, setVerifying] = useState(false);
+
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -51,6 +58,9 @@ export default function AddressModal({ isOpen, initialData = null, onClose, onCo
       setPincode("");
     }
     setErrors({});
+    setPincodeVerified(false);
+    setPincodeMsg("");
+    setPincodeSuggs([]);
   }, [initialData, isOpen]);
 
   if (!isOpen) return null;
@@ -64,13 +74,19 @@ export default function AddressModal({ isOpen, initialData = null, onClose, onCo
     if (!city.trim()) e.city = "City is required";
     if (!stateVal.trim()) e.state = "State is required";
     if (!pincode.trim()) e.pincode = "Pincode is required";
-    else if (!/^\d{4,7}$/.test(pincode)) e.pincode = "Enter a valid pincode";
+    else if (!/^\d{6}$/.test(pincode)) e.pincode = "Enter a valid 6-digit pincode";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleConfirm = () => {
     if (!validate()) return;
+    if (!pincodeVerified) {
+      // optional: force verification before saving
+      setPincodeMsg("Please verify pincode before saving.");
+      return;
+    }
+
     const addressObj = {
       fullName: fullName.trim(),
       phone: phone.trim(),
@@ -82,6 +98,50 @@ export default function AddressModal({ isOpen, initialData = null, onClose, onCo
     };
     localStorage.setItem("shippingAddress", JSON.stringify(addressObj));
     onConfirm(addressObj);
+  };
+
+  const verifyPincode = async (pin) => {
+    if (!/^\d{6}$/.test(pin)) {
+      setPincodeVerified(false);
+      setPincodeMsg("Enter a valid 6-digit pincode to verify.");
+      setPincodeSuggs([]);
+      return;
+    }
+
+    setVerifying(true);
+    setPincodeMsg("");
+    setPincodeSuggs([]);
+    setPincodeVerified(false);
+
+    try {
+      const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+      const data = await res.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        setPincodeVerified(false);
+        setPincodeMsg("Unable to verify pincode at the moment.");
+        return;
+      }
+
+      const first = data[0];
+      if (first.Status !== "Success" || !Array.isArray(first.PostOffice) || first.PostOffice.length === 0) {
+        setPincodeVerified(false);
+        setPincodeMsg("Pincode not serviceable.");
+        return;
+      }
+
+      const postOffices = first.PostOffice;
+      const sugg = postOffices.map((po) => `${po.Name}, ${po.District}, ${po.State}`);
+      setPincodeSuggs(sugg);
+      setPincodeVerified(true);
+      setPincodeMsg("Pincode is serviceable.");
+    } catch (err) {
+      console.error("pincode verify error", err);
+      setPincodeVerified(false);
+      setPincodeMsg("Error verifying pincode.");
+    } finally {
+      setVerifying(false);
+    }
   };
 
   return (
@@ -158,7 +218,52 @@ export default function AddressModal({ isOpen, initialData = null, onClose, onCo
 
             <div>
               <label className="block text-sm font-medium mb-1">Pincode</label>
-              <input value={pincode} onChange={(e) => setPincode(e.target.value)} className="input-field w-full" />
+              <div className="flex gap-2">
+                <input
+                  value={pincode}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                    setPincode(val);
+                    // reset verification when user edits
+                    setPincodeVerified(false);
+                    setPincodeMsg("");
+                    setPincodeSuggs([]);
+                  }}
+                  className="input-field flex-1"
+                  placeholder="6-digit pincode"
+                />
+                <button
+                  type="button"
+                  onClick={() => verifyPincode(pincode)}
+                  className="px-3 py-2 rounded-lg border text-sm"
+                  disabled={verifying || !/^\d{6}$/.test(pincode)}
+                >
+                  {verifying ? "Verifying..." : pincodeVerified ? "Verified" : "Verify"}
+                </button>
+              </div>
+
+              {pincodeMsg && (
+                <p className={`text-sm mt-1 ${pincodeVerified ? 'text-green-600' : 'text-red-600'}`}>
+                  {pincodeMsg}
+                </p>
+              )}
+
+              {pincodeSuggs.length > 0 && (
+                <ul className="mt-2 text-sm list-disc pl-5 max-h-40 overflow-auto">
+                  {pincodeSuggs.map((s, idx) => (
+                    <li key={idx} className="cursor-pointer hover:underline" onClick={() => {
+                      // allow user to pick a suggestion to auto-fill city/state
+                      const parts = s.split(',').map(p => p.trim());
+                      // Name, District, State
+                      setCity(parts[1] || city);
+                      setStateVal(parts[2] || stateVal);
+                    }}>
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
               {errors.pincode && <p className="text-red-600 text-sm mt-1">{errors.pincode}</p>}
             </div>
           </div>

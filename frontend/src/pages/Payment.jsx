@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { paymentAPI } from "../utils/api";
-import PaymentSuccessModal from "../components/modals/PaymentSuccessModal";
+import PaymentSuccessModalOrder from "../components/modals/PaymentSuccessModalOrder";
 import AddressModal from "../components/modals/AddressModal"; // if present in your project
 import { toast } from "react-hot-toast";
 
@@ -280,7 +280,7 @@ export default function PaymentPage() {
         </div>
       </div>
 
-      <PaymentSuccessModal
+      <PaymentSuccessModalOrder
         open={successOpen}
         onClose={onSuccessClose}
         data={successData}
