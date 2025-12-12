@@ -21,7 +21,9 @@ const Cart = () => {
   const finalTotal = cartTotal - discount;
 
   const handleCheckout = () => {
-    if (!isAuthenticated) navigate("/login");
+    const token = localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
+    const isLoggedIn = Boolean(isAuthenticated || token);
+    if (!isLoggedIn) navigate("/login");
     else navigate("/checkout");
   };
 
