@@ -15,8 +15,6 @@ export default function PaymentSuccessModal({ open, onClose, data }) {
     amount, 
     doctor, 
     specialty,
-    type = "appointment", // Add type: "appointment" or "order"
-    orderDetails // Add order details for product orders
   } = data || {};
 
   function handlePrint() {
@@ -24,11 +22,7 @@ export default function PaymentSuccessModal({ open, onClose, data }) {
   }
 
   const handleViewDetails = () => {
-    if (type === "appointment") {
-      navigate("/appointments");
-    } else {
-      navigate("/orders");
-    }
+    navigate("/appointments");
     onClose();
   };
 
@@ -45,9 +39,7 @@ export default function PaymentSuccessModal({ open, onClose, data }) {
             <div>
               <h3 className="text-lg font-semibold">Payment successful</h3>
               <p className="text-sm text-gray-500">
-                {type === "appointment" 
-                  ? "Your consultation is confirmed." 
-                  : "Your order is confirmed."}
+                Your Consultation is confirmed
               </p>
             </div>
           </div>
@@ -58,8 +50,6 @@ export default function PaymentSuccessModal({ open, onClose, data }) {
         </div>
 
         <div className="mt-4 space-y-3 text-sm">
-          {type === "appointment" ? (
-            <>
               <div>
                 <div className="text-xs text-gray-500">Appointment ID</div>
                 <div className="font-medium">{appointmentId ?? "N/A"}</div>
@@ -76,25 +66,6 @@ export default function PaymentSuccessModal({ open, onClose, data }) {
                   <div className="font-medium">{specialty}</div>
                 </div>
               )}
-            </>
-          ) : (
-            <>
-              <div>
-                <div className="text-xs text-gray-500">Order ID</div>
-                <div className="font-medium">{orderId ?? "N/A"}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500">Payment ID</div>
-                <div className="font-medium">{paymentId ?? "N/A"}</div>
-              </div>
-              {orderDetails?.items && (
-                <div>
-                  <div className="text-xs text-gray-500">Items</div>
-                  <div className="font-medium">{orderDetails.items.length} item(s)</div>
-                </div>
-              )}
-            </>
-          )}
 
           <div>
             <div className="text-xs text-gray-500">Amount</div>
@@ -108,7 +79,7 @@ export default function PaymentSuccessModal({ open, onClose, data }) {
           </button>
 
           <button onClick={handleViewDetails} className="bg-emerald-600 text-white px-4 py-2 rounded">
-            {type === "appointment" ? "View Appointments" : "View Orders"}
+            View appointments
           </button>
         </div>
       </div>
