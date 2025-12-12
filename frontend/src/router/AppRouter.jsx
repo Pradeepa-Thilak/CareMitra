@@ -21,7 +21,6 @@ import LabStaff from "../pages/LabStaff";
 import DoctorRegistrationForm from "../components/forms/DoctorRegistrationForm";
 import Checkout from "../pages/Checkout";
 
-
 const AppRouter = () => {
   return (
     <Router>

@@ -44,6 +44,7 @@ const Cart = () => {
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="container-custom">
         <h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
+        <Link to="/medicines" className="text-primary hover:underline mt-4 inline-block">← Continue Shopping</Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items */}
@@ -73,7 +74,6 @@ const Cart = () => {
                 );
               })}
             </div>
-            <Link to="/medicines" className="text-primary hover:underline mt-4 inline-block">← Continue Shopping</Link>
           </div>
 
           {/* Summary */}

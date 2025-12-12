@@ -1,83 +1,175 @@
-import React, { createContext, useState, useCallback, useEffect } from 'react';
+// src/contexts/CartContext.jsx
+import React, { createContext, useState, useCallback, useEffect } from "react";
+import { cartAPI } from "../utils/api";
+import toast from "react-hot-toast";
 
 export const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   const [cartTotal, setCartTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
 
-  // Initialize cart from localStorage
+  const persistLocal = (items) => {
+    try {
+      localStorage.setItem("cart", JSON.stringify(items));
+    } catch (e) {
+      console.warn("Could not persist cart to localStorage", e);
+    }
+  };
+
   useEffect(() => {
-    const storedCart = localStorage.getItem('cart');
+    const storedCart = localStorage.getItem("cart");
     if (storedCart) {
-      setCartItems(JSON.parse(storedCart));
+      try {
+        setCartItems(JSON.parse(storedCart));
+      } catch (e) {
+        console.warn("Invalid cart in localStorage", e);
+      }
     }
   }, []);
 
-  // Calculate total whenever cart items change
   useEffect(() => {
     const total = cartItems.reduce((sum, item) => {
-      return sum + (item.price * item.quantity);
+      const price =
+        (item.productId && (item.productId.discountedPrice || item.productId.price)) ||
+        item.price ||
+        0;
+      return sum + price * item.quantity;
     }, 0);
+
     setCartTotal(total);
-    localStorage.setItem('cart', JSON.stringify(cartItems));
+    persistLocal(cartItems);
   }, [cartItems]);
 
-  const addToCart = useCallback((product) => {
-    setCartItems((prevItems) => {
-      const existingItem = prevItems.find((item) => item.id === product.id);
-      
-      if (existingItem) {
-        return prevItems.map((item) =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + (product.quantity || 1) }
-            : item
-        );
+  // Fetch cart
+  const fetchCart = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data } = await cartAPI.getCart();
+      if (data?.success) {
+        setCartItems(data.cart?.items || []);
       }
-      
-      return [...prevItems, { ...product, quantity: product.quantity || 1 }];
-    });
-  }, []);
-
-  const removeFromCart = useCallback((productId) => {
-    setCartItems((prevItems) => prevItems.filter((item) => item.id !== productId));
-  }, []);
-
-  const updateQuantity = useCallback((productId, quantity) => {
-    if (quantity <= 0) {
-      removeFromCart(productId);
-      return;
+    } catch (err) {
+      if (err.response?.status !== 404) {
+        console.error("Fetch cart failed:", err);
+        toast.error("Failed to load cart");
+      }
+    } finally {
+      setLoading(false);
     }
-    
-    setCartItems((prevItems) =>
-      prevItems.map((item) =>
-        item.id === productId ? { ...item, quantity } : item
-      )
-    );
-  }, [removeFromCart]);
+  }, []);
 
-  const clearCart = useCallback(() => {
-    setCartItems([]);
-    localStorage.removeItem('cart');
+  // Add to cart
+  const addToCart = useCallback(
+    async (productId, quantity = 1) => {
+      try {
+        setLoading(true);
+        const { data } = await cartAPI.addToCart(productId, quantity);
+        if (data?.success) {
+          setCartItems(data.cart.items || []);
+          toast.success("Added to cart");
+          return true;
+        } else {
+          toast.error(data?.message || "Could not add to cart");
+          return false;
+        }
+      } catch (err) {
+        console.error("Add to cart failed:", err);
+        const errorMsg = err.response?.data?.message || "Could not add to cart";
+        toast.error(errorMsg);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  // Update quantity
+  const updateQuantity = useCallback(
+    async (productId, quantity) => {
+      if (quantity < 0) return;
+      try {
+        setLoading(true);
+        const { data } = await cartAPI.updateQuantity(productId, quantity);
+        if (data?.success) {
+          setCartItems(data.cart.items || []);
+          if (quantity === 0) toast.success("Item removed from cart");
+        } else {
+          toast.error(data?.message || "Could not update cart");
+        }
+      } catch (err) {
+        console.error("Update quantity failed:", err);
+        toast.error("Could not update quantity");
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  // Remove item
+  const removeFromCart = useCallback(
+    async (productId) => {
+      try {
+        setLoading(true);
+        const { data } = await cartAPI.removeFromCart(productId);
+        if (data?.success) {
+          setCartItems(data.cart.items || []);
+          toast.success("Removed from cart");
+        } else {
+          toast.error(data?.message || "Could not remove item");
+        }
+      } catch (err) {
+        console.error("Remove from cart failed:", err);
+        toast.error("Could not remove item");
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  // Clear cart
+  const clearCart = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data } = await cartAPI.clearCart();
+      if (data?.success) {
+        setCartItems([]);
+        localStorage.removeItem("cart");
+        toast.success("Cart cleared");
+      } else {
+        toast.error(data?.message || "Could not clear cart");
+      }
+    } catch (err) {
+      console.error("Clear cart failed:", err);
+      toast.error("Could not clear cart");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const getCartItemCount = useCallback(() => {
-    return cartItems.reduce((count, item) => count + item.quantity, 0);
+    return cartItems.reduce((count, item) => count + (item.quantity || 0), 0);
   }, [cartItems]);
+
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
 
   const value = {
     cartItems,
     cartTotal,
+    loading,
     addToCart,
     removeFromCart,
     updateQuantity,
     clearCart,
+    fetchCart,
     getCartItemCount,
   };
 
-  return (
-    <CartContext.Provider value={value}>
-      {children}
-    </CartContext.Provider>
-  );
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };
