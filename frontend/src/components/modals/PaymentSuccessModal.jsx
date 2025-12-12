@@ -1,4 +1,3 @@
-// src/components/modals/PaymentSuccessModal.jsx
 import React from "react";
 import { CheckCircle, X, Printer } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -7,7 +6,6 @@ export default function PaymentSuccessModal({ open, onClose, data }) {
   const navigate = useNavigate();
   
   if (!open) return null;
-
   const { 
     appointmentId, 
     paymentId, 
@@ -15,8 +13,8 @@ export default function PaymentSuccessModal({ open, onClose, data }) {
     amount, 
     doctor, 
     specialty,
-    type = "appointment", // Add type: "appointment" or "order"
-    orderDetails // Add order details for product orders
+    type = "appointment",
+    orderDetails 
   } = data || {};
 
   function handlePrint() {
