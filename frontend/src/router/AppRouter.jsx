@@ -21,6 +21,7 @@ import LabStaff from "../pages/LabStaff";
 import DoctorRegistrationForm from "../components/forms/DoctorRegistrationForm";
 import Checkout from "../pages/Checkout";
 import Success from "../pages/Success";
+import Orders from "../pages/Orders";
 
 const AppRouter = () => {
   return (
@@ -139,6 +140,7 @@ const AppRouter = () => {
           <Route path="/labstaff" element={<ProtectedRoute><LabStaff /></ProtectedRoute>} />
           <Route path="/doctor-register" element={<DoctorRegistrationForm />} />
           <Route path="/success" element={<Success />} />
+          <Route path="/orders" element={<Orders />} />
         </Routes>
       </main>
 
