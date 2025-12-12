@@ -20,6 +20,7 @@ const LabStaff = () => {
         gender: "Male",
       },
       notes: "Fasting required",
+      location: "Chennai",
     },
     {
       id: "t2",
@@ -102,6 +103,19 @@ const LabStaff = () => {
                   }
                 >
                   {test.status}
+                </span>
+              </p>
+
+              <p className="text-sm mt-1">
+                Loaction:{" "}
+                <span
+                  className={
+                    test.status === "done"
+                      ? "text-green-600 font-semibold"
+                      : "text-orange-600 font-semibold"
+                  }
+                >
+                  {test.location || "Not specified"}
                 </span>
               </p>
 
