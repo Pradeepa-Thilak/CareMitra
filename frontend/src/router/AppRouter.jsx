@@ -20,7 +20,6 @@ import Payment from "../pages/Payment";
 import LabStaff from "../pages/LabStaff";
 import DoctorRegistrationForm from "../components/forms/DoctorRegistrationForm";
 import Checkout from "../pages/Checkout";
-import Payment from "../pages/Payment";
 
 const AppRouter = () => {
   return (

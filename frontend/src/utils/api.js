@@ -123,17 +123,27 @@ export const paymentAPI = {
   verifyPayment: (body) => api.post("dashboard/verify-payment", body),
 };
 
-// ----------------------------
-// OPTIONAL: Doctor/Admin/Premium APIs (uncomment/adapt if you add these routes)
-// ----------------------------
-// export const doctorAPI = {
-//   getAll: (params = {}) => api.get("/doctors", { params }),
-//   getPending: () => api.get("/doctors/pending"),
-//   verifyApplication: (doctorId, body = {}) => api.put(`/doctors/${doctorId}/verify`, body),
-//   registerDoctor: (formData) => api.post("/register", formData),
-//   getDoctorForPremium: (doctorId) => api.get(`/doctors/${doctorId}/premium-info`),
-//   selectPremiumPlan: (doctorId, planBody) => api.post(`/doctors/${doctorId}/select-plan`, planBody),
-// };
 
-// Default export the axios instance (useful if you need axios directly)
+// ----------------------------
+// CART APIs
+// ----------------------------
+export const cartAPI = {
+  // GET /cart
+  getCart: () => api.get("/cart"),
+
+  // POST /cart/add/:productId  (optional body: { quantity })
+  addToCart: (productId, quantity = 1) =>
+    api.post(`/cart/add/${productId}`, { quantity }),
+
+  // PUT /cart/update/:productId  (body: { quantity })
+  updateQuantity: (productId, quantity) =>
+    api.put(`/cart/update/${productId}`, { quantity }),
+
+  // DELETE /cart/remove/:productId
+  removeFromCart: (productId) => api.delete(`/cart/remove/${productId}`),
+
+  // DELETE /cart/clear
+  clearCart: () => api.delete("/cart/clear"),
+};
+
 export default api;
