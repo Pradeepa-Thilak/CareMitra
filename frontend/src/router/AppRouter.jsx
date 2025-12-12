@@ -11,14 +11,15 @@ import Navbar from "../components/common/Navbar";
 import Medicines from "../pages/Medicines";
 import ProductDetails from "../pages/ProductDetails";
 
-import Cart from "../pages/Cart";          // your change
-import Doctors from "../pages/Doctors";    // your change
+import Cart from "../pages/Cart";
+import Doctors from "../pages/Doctors";
 
-import LabTests from "../pages/LabTests";  // teammate's change
+import LabTests from "../pages/LabTests";
 import Footer from "../components/common/Footer";
 import BookConsultation from "../pages/BookConsultation";
 import Wishlist from "../pages/Wishlist";
 import Payment from "../pages/Payment";
+import Checkout from "../pages/Checkout";
 
 const AppRouter = () => {
   return (
@@ -27,10 +28,12 @@ const AppRouter = () => {
 
       <main style={{ paddingTop: "var(--nav-offset, 5rem)" }}>
         <Routes>
+          {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
+          {/* Patient Dashboard */}
           <Route
             path="/patient/dashboard"
             element={
@@ -40,6 +43,7 @@ const AppRouter = () => {
             }
           />
 
+          {/* Doctor Dashboard */}
           <Route
             path="/doctor/dashboard"
             element={
@@ -49,6 +53,7 @@ const AppRouter = () => {
             }
           />
 
+          {/* User Profile */}
           <Route
             path="/profile"
             element={
@@ -58,6 +63,7 @@ const AppRouter = () => {
             }
           />
 
+          {/* Appointment */}
           <Route
             path="/appointment"
             element={
@@ -67,6 +73,7 @@ const AppRouter = () => {
             }
           />
 
+          {/* Public shop pages */}
           <Route path="/medicines" element={<Medicines />} />
           <Route path="/medicine/:id" element={<ProductDetails />} />
 
@@ -75,14 +82,58 @@ const AppRouter = () => {
           <Route path="/labtests" element={<Navigate to="/lab-tests" replace />} />
           <Route path="/lab-tests/:key" element={<LabTests />} />
 
-          {/* Your new routes */}
-          <Route path="/cart" element={<Cart />} />
+          {/* PROTECTED SHOPPING ROUTES */}
+          <Route
+            path="/cart"
+            element={
+              <ProtectedRoute>
+                <Cart />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/wishlist"
+            element={
+              <ProtectedRoute>
+                <Wishlist />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/consultation"
+            element={
+              <ProtectedRoute>
+                <BookConsultation />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/payments"
+            element={
+              <ProtectedRoute>
+                <Payment />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Checkout */}
+          <Route
+            path="/checkout"
+            element={
+              <ProtectedRoute>
+                <Checkout />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Doctors Page (Public or protected based on your logic) */}
           <Route path="/doctors" element={<Doctors />} />
-          <Route path="/consultation" element={<BookConsultation />} />
-          <Route path="/wishlist" element={<Wishlist />} />
-          <Route path="/payments" element={<Payment />} />
         </Routes>
       </main>
+
       <Footer />
     </Router>
   );
