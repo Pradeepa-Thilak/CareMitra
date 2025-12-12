@@ -60,6 +60,20 @@ export default function PaymentPage() {
   // BUT we will only call this if: paymentMethod === "card" AND rzpOrder exists.
   // Your requirement: "if user clicks upi mode means only the checkout page should open the razorpay otherwise the success modal should order confirmed"
   // So for UPI we redirect to /checkout (do not call startPayment here).
+
+    useEffect(() => {
+    const savedAddress = localStorage.getItem("shippingAddress");
+    if (savedAddress) {
+      try {
+        const parsedAddress = JSON.parse(savedAddress);
+        setSelectedAddress(parsedAddress);
+      } catch (err) {
+        console.error("Failed to parse saved address:", err);
+        localStorage.removeItem("shippingAddress"); // Clear invalid data
+      }
+    }
+  }, []);
+  
   async function startPayment() {
     setLoading(true);
     setError(null);
@@ -152,13 +166,19 @@ export default function PaymentPage() {
 
     setError(null);
 
-    if (paymentMethod === "upi") {
-      // REQUIREMENT: only the checkout page should open the razorpay
-      // So redirect to /checkout. We pass a small state object so checkout can access amount/items if needed.
-      // (We did not change checkout's functions; checkout will still call its /cart/create-order and open Razorpay.)
-      navigate("/checkout", { state: { returnTo: "/orders" } });
-      return;
-    }
+     if (paymentMethod === "upi") {
+    // Pass context to checkout page
+    navigate("/checkout", { 
+      state: { 
+        returnTo: "/orders",
+        context: state?.context || "order", // Pass context from cart
+        items: state?.items, // Pass cart items if available
+        amount: state?.amount, // Pass amount if available
+        address: selectedAddress // Pass selected address
+      } 
+    });
+    return;
+  }
 
     if (paymentMethod === "cod") {
       // Simulate success (no Razorpay)

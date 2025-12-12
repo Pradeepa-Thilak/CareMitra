@@ -20,6 +20,7 @@ import Payment from "../pages/Payment";
 import LabStaff from "../pages/LabStaff";
 import DoctorRegistrationForm from "../components/forms/DoctorRegistrationForm";
 import Checkout from "../pages/Checkout";
+import Success from "../pages/Success";
 
 const AppRouter = () => {
   return (
@@ -137,6 +138,7 @@ const AppRouter = () => {
           <Route path="/appointments" element={<ProtectedRoute><Appointment /></ProtectedRoute>} />
           <Route path="/labstaff" element={<ProtectedRoute><LabStaff /></ProtectedRoute>} />
           <Route path="/doctor-register" element={<DoctorRegistrationForm />} />
+          <Route path="/success" element={<Success />} />
         </Routes>
       </main>
 

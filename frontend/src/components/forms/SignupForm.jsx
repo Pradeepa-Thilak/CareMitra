@@ -126,7 +126,7 @@ const SignupForm = ({
         </form>
       )}
 
-      {/* Stage 3 — User Details + Role Selection */}
+      {/* Stage 3 — User Details*/}
       {stage === 3 && (
         <form onSubmit={handleCompleteSignup} className="space-y-5">
           <div>
@@ -149,7 +149,7 @@ const SignupForm = ({
 
           {/* Phone number */}
           <div>
-            <label className="block text-sm text-gray-700 mb-1">Role</label>
+            <label className="block text-sm text-gray-700 mb-1">Phone Number</label>
             <input
               type="text"
               maxLength="10"

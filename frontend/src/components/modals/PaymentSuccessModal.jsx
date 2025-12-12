@@ -1,16 +1,36 @@
 // src/components/modals/PaymentSuccessModal.jsx
 import React from "react";
 import { CheckCircle, X, Printer } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function PaymentSuccessModal({ open, onClose, data }) {
-  // data: { appointmentId, paymentId, orderId, amount, doctor, specialty }
+  const navigate = useNavigate();
+  
   if (!open) return null;
 
-  const { appointmentId, paymentId, orderId, amount, doctor, specialty } = data || {};
+  const { 
+    appointmentId, 
+    paymentId, 
+    orderId, 
+    amount, 
+    doctor, 
+    specialty,
+    type = "appointment", // Add type: "appointment" or "order"
+    orderDetails // Add order details for product orders
+  } = data || {};
 
   function handlePrint() {
     window.print();
   }
+
+  const handleViewDetails = () => {
+    if (type === "appointment") {
+      navigate("/appointments");
+    } else {
+      navigate("/orders");
+    }
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -24,7 +44,11 @@ export default function PaymentSuccessModal({ open, onClose, data }) {
             </div>
             <div>
               <h3 className="text-lg font-semibold">Payment successful</h3>
-              <p className="text-sm text-gray-500">Your consultation is confirmed.</p>
+              <p className="text-sm text-gray-500">
+                {type === "appointment" 
+                  ? "Your consultation is confirmed." 
+                  : "Your order is confirmed."}
+              </p>
             </div>
           </div>
 
@@ -34,34 +58,48 @@ export default function PaymentSuccessModal({ open, onClose, data }) {
         </div>
 
         <div className="mt-4 space-y-3 text-sm">
-          <div>
-            <div className="text-xs text-gray-500">Appointment</div>
-            <div className="font-medium">{appointmentId ?? "N/A"}</div>
-          </div>
-
-          <div>
-            <div className="text-xs text-gray-500">Payment ID</div>
-            <div className="font-medium">{paymentId ?? orderId ?? "N/A"}</div>
-          </div>
+          {type === "appointment" ? (
+            <>
+              <div>
+                <div className="text-xs text-gray-500">Appointment ID</div>
+                <div className="font-medium">{appointmentId ?? "N/A"}</div>
+              </div>
+              {doctor && (
+                <div>
+                  <div className="text-xs text-gray-500">Doctor</div>
+                  <div className="font-medium">{doctor.name}</div>
+                </div>
+              )}
+              {specialty && (
+                <div>
+                  <div className="text-xs text-gray-500">Specialty</div>
+                  <div className="font-medium">{specialty}</div>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div>
+                <div className="text-xs text-gray-500">Order ID</div>
+                <div className="font-medium">{orderId ?? "N/A"}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500">Payment ID</div>
+                <div className="font-medium">{paymentId ?? "N/A"}</div>
+              </div>
+              {orderDetails?.items && (
+                <div>
+                  <div className="text-xs text-gray-500">Items</div>
+                  <div className="font-medium">{orderDetails.items.length} item(s)</div>
+                </div>
+              )}
+            </>
+          )}
 
           <div>
             <div className="text-xs text-gray-500">Amount</div>
             <div className="font-medium">₹{amount ? (amount/100).toFixed(2) : "0.00"}</div>
           </div>
-
-          {doctor && (
-            <div>
-              <div className="text-xs text-gray-500">Doctor</div>
-              <div className="font-medium">{doctor.name}</div>
-            </div>
-          )}
-
-          {specialty && (
-            <div>
-              <div className="text-xs text-gray-500">Specialty</div>
-              <div className="font-medium">{specialty}</div>
-            </div>
-          )}
         </div>
 
         <div className="mt-6 flex gap-2 justify-end">
@@ -69,8 +107,8 @@ export default function PaymentSuccessModal({ open, onClose, data }) {
             <Printer size={14} /> Print
           </button>
 
-          <button onClick={() => window.location.href = "/appointments"} className="bg-emerald-600 text-white px-4 py-2 rounded">
-            View Appointments
+          <button onClick={handleViewDetails} className="bg-emerald-600 text-white px-4 py-2 rounded">
+            {type === "appointment" ? "View Appointments" : "View Orders"}
           </button>
         </div>
       </div>

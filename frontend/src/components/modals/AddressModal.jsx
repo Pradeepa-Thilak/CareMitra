@@ -80,6 +80,7 @@ export default function AddressModal({ isOpen, initialData = null, onClose, onCo
       state: stateVal.trim(),
       pincode: pincode.trim(),
     };
+    localStorage.setItem("shippingAddress", JSON.stringify(addressObj));
     onConfirm(addressObj);
   };
 

@@ -20,20 +20,23 @@ const Cart = () => {
 
   const finalTotal = cartTotal - discount;
 
-  const handleCheckout = () => {
-    if (!isAuthenticated) {
-      navigate("/login");
-    } else {
-      // Navigate to Payment page (NOT the /checkout page).
-      // Pass cart snapshot so Payment page can present items/amount and ask address/payment method.
-      navigate("/payment", {
-        state: {
-          items: cartItems,
-          amount: cartTotal,
-        },
-      });
-    }
-  };
+ const handleCheckout = () => {
+  const token = localStorage.getItem("authToken");
+  const isLogged = Boolean(token) || Boolean(isAuthenticated);
+  if (!isLogged) {
+    navigate("/login");
+  } else {
+    // Pass context: "order" for product purchases
+    navigate("/payments", {
+      state: {
+        items: cartItems,
+        amount: cartTotal,
+        context: "order", // Add this to identify it's a product order
+        source: "cart" // Add source info
+      },
+    });
+  }
+};
 
   if (cartItems.length === 0)
     return (
