@@ -1,18 +1,14 @@
-// src/pages/Medicines.jsx
-import React, { useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Search, Filter, X } from 'lucide-react';
-import ProductList from '../components/product/ProductList';
-import ProductSearchBar from '../components/product/ProductSearchBar';
-import { useProduct } from '../hooks/useProduct';
-import LoadingSpinner from '../components/LoadSpinner';
+import React, { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useProduct } from "../hooks/useProduct";
+import ProductList from "../components/product/ProductList";
+import ProductSearchBar from "../components/product/ProductSearchBar";
+import LoadingSpinner from "../components/LoadSpinner";
 
 const Medicines = () => {
   const {
-    categories,            // available categories
+    categories,
     loading,
-    searchTerm,
-    setSearchTerm,
     selectedCategory,
     setSelectedBrand,
     setSelectedCategory,
@@ -22,15 +18,14 @@ const Medicines = () => {
   } = useProduct();
 
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
 
- useEffect(() => {
-    const initialCategory = searchParams.get('category');
-    const initialBrand = searchParams.get('brand');
+  useEffect(() => {
+    const initialCategory = searchParams.get("category");
+    const initialBrand = searchParams.get("brand");
     if (initialCategory) setSelectedCategory(initialCategory);
     if (initialBrand) setSelectedBrand(initialBrand);
   }, [searchParams, setSelectedCategory, setSelectedBrand]);
-  
+
   if (loading) return <LoadingSpinner fullPage />;
 
   return (
@@ -38,22 +33,21 @@ const Medicines = () => {
       <div className="container-custom">
         <h1 className="text-3xl font-bold mb-6">Medicines</h1>
 
-        {/* Search + Filters */}
         <div className="mb-6">
-          <ProductSearchBar placeholder="Search medicines or brands..." />
+          <ProductSearchBar placeholder="Search medicines, brands or uses..." />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          <div className="hidden lg:block">
-            <div className="card p-6 sticky top-20">
+          {/* Filters */}
+          <aside className="hidden lg:block">
+            <div className="card p-6 sticky top-20 rounded-2xl shadow-sm border bg-white">
               <h3 className="text-lg font-bold mb-4">Filters</h3>
 
-              {/* Categories */}
               <div className="mb-6">
                 <h4 className="font-semibold text-dark mb-3">Category</h4>
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="category" value="All" checked={selectedCategory === 'All'} onChange={() => setSelectedCategory('All')} />
+                    <input type="radio" name="category" value="All" checked={selectedCategory === "All"} onChange={() => setSelectedCategory("All")} />
                     <span className="text-sm">All</span>
                   </label>
                   {categories.map((cat) => (
@@ -71,7 +65,6 @@ const Medicines = () => {
                 </div>
               </div>
 
-              {/* Price Range */}
               <div className="mb-6">
                 <h4 className="font-semibold text-dark mb-3">Price Range</h4>
                 <div className="flex items-center gap-2">
@@ -81,10 +74,9 @@ const Medicines = () => {
                 </div>
               </div>
 
-              {/* Sort */}
               <div>
                 <h4 className="font-semibold text-dark mb-3">Sort By</h4>
-                <select value={''} onChange={(e) => setSortBy(e.target.value)} className="input-field text-sm w-full">
+                <select defaultValue="" onChange={(e) => setSortBy(e.target.value)} className="input-field text-sm w-full">
                   <option value="popular">Most Popular</option>
                   <option value="rating">Highest Rated</option>
                   <option value="price-low">Price: Low to High</option>
@@ -92,16 +84,16 @@ const Medicines = () => {
                 </select>
               </div>
             </div>
-          </div>
+          </aside>
 
-          {/* Products Grid */}
-          <div className="lg:col-span-3">
-            <div className="mb-4">
+          {/* Products */}
+          <main className="lg:col-span-3">
+            <div className="mb-4 flex justify-between items-center">
               <p className="text-gray-600">Showing {filteredProducts.length} results</p>
             </div>
 
             <ProductList />
-          </div>
+          </main>
         </div>
       </div>
     </div>

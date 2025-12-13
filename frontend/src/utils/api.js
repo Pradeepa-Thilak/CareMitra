@@ -146,4 +146,17 @@ export const cartAPI = {
   clearCart: () => api.delete("/cart/clear"),
 };
 
+// ----------------------------
+// LAB-STAFF APIs
+// ----------------------------
+
+export const labStaffAPI = {
+   
+  // GET /admin/staff/order/{id}
+  test: (staffId) => api.get(`/admin/staff/order/${staffId}`),
+
+  // PATCH /admin/staff/order/${id}`, { status: "done" }
+  markComplete: () => api.patch(`/admin/staff/order/${id}`, { status: "done" }),
+}
+
 export default api;

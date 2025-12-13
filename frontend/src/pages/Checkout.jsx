@@ -1,6 +1,8 @@
+// src/pages/Checkout.jsx
 import React, { useState, useEffect } from "react";
 import api from "../utils/api";
 import { useLocation, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
 const Checkout = () => {
   const [amount, setAmount] = useState(0);
@@ -10,16 +12,13 @@ const Checkout = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Check if context is passed from payment page
     const context = location.state?.context || "cart";
     setOrderType(context);
-    
+
     if (location.state?.amount) {
-      // If amount is passed from payment page, use it
       setAmount(location.state.amount);
       setLoading(false);
     } else {
-      // Otherwise load from cart
       loadSummary();
     }
   }, [location.state]);
@@ -50,18 +49,13 @@ const Checkout = () => {
 
   const handlePayment = async () => {
     try {
-      // Use different API endpoints based on order type
       const endpoint = orderType === "appointment" 
         ? "/appointments/create-payment-order" 
         : "/cart/create-order";
       
       const res = await api.post(endpoint);
       const { order } = res.data;
-
-      const razorpayLoaded = await loadRazorpay(
-        "https://checkout.razorpay.com/v1/checkout.js"
-      );
-
+      const razorpayLoaded = await loadRazorpay("https://checkout.razorpay.com/v1/checkout.js");
       if (!razorpayLoaded) {
         alert("Failed to load Razorpay");
         return;
@@ -74,47 +68,25 @@ const Checkout = () => {
         name: "CareMitra",
         description: orderType === "appointment" ? "Consultation Payment" : "Order Payment",
         order_id: order.id,
-
         handler: async function (response) {
           try {
-            const verifyEndpoint = orderType === "appointment"
-              ? "/appointments/verify-payment"
-              : "/cart/verify-payment";
-              
+            const verifyEndpoint = orderType === "appointment" ? "/appointments/verify-payment" : "/cart/verify-payment";
             const verifyRes = await api.post(verifyEndpoint, {
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
-              // Pass additional data if needed
               address: location.state?.address,
-              items: location.state?.items
+              items: location.state?.items,
             });
 
             if (verifyRes.data.success) {
-              if (orderType === "appointment") {
-                // For appointments, show modal and redirect to appointments
-                navigate("/success", { 
-                  state: { 
-                    type: "appointment",
-                    data: verifyRes.data 
-                  } 
-                });
-              } else {
-                // For orders, show modal and redirect to orders
-                navigate("/success", { 
-                  state: { 
-                    type: "order",
-                    data: verifyRes.data 
-                  } 
-                });
-              }
+              navigate("/success", { state: { type: orderType === "appointment" ? "appointment" : "order", data: verifyRes.data } });
             }
           } catch (err) {
             console.error("Payment verification failed:", err);
             alert("Payment verification failed");
           }
         },
-
         theme: { color: "#0d6efd" },
       };
 
@@ -127,22 +99,20 @@ const Checkout = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex justify-center items-center text-xl">
-        Loading Summary...
+      <div className="min-h-screen flex items-center justify-center text-lg">
+        Loading summary...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex justify-center items-center bg-gray-50">
-      <div className="card p-8 w-[450px] shadow-md bg-white rounded-lg">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card p-8 w-full max-w-lg bg-white rounded-2xl shadow">
         <h1 className="text-2xl font-bold mb-4">Checkout</h1>
-        
+
         <div className="mb-4 p-3 bg-blue-50 rounded">
           <p className="text-sm text-blue-700">
-            {orderType === "appointment" 
-              ? "Consultation Payment" 
-              : "Product Order Payment"}
+            {orderType === "appointment" ? "Pay for Consultation" : "Product Order Payment"}
           </p>
         </div>
 
@@ -150,13 +120,14 @@ const Checkout = () => {
           Total Amount: <span className="text-blue-600">₹{amount}</span>
         </p>
 
-        <button
-          className="btn-primary w-full py-3 bg-blue-600 text-white rounded-lg"
-          onClick={handlePayment}
-        >
+        <button className="btn-primary w-full py-3 rounded-lg" onClick={handlePayment}>
           {orderType === "appointment" ? "Pay for Consultation" : "Pay for Order"}
         </button>
-      </div>
+
+        <div className="mt-4 text-center text-sm text-gray-500">
+          By proceeding you agree to our <button className="underline">terms</button>.
+        </div>
+      </motion.div>
     </div>
   );
 };
