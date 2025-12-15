@@ -49,9 +49,7 @@ const Checkout = () => {
 
   const handlePayment = async () => {
     try {
-      const endpoint = orderType === "appointment" 
-        ? "/appointments/create-payment-order" 
-        : "/cart/create-order";
+      const endpoint = "/cart/create-order";
       
       const res = await api.post(endpoint);
       const { order } = res.data;
@@ -66,11 +64,11 @@ const Checkout = () => {
         amount: order.amount,
         currency: "INR",
         name: "CareMitra",
-        description: orderType === "appointment" ? "Consultation Payment" : "Order Payment",
+        description: orderType ===  "Order Payment",
         order_id: order.id,
         handler: async function (response) {
           try {
-            const verifyEndpoint = orderType === "appointment" ? "/appointments/verify-payment" : "/cart/verify-payment";
+            const verifyEndpoint = "/cart/verify-payment";
             const verifyRes = await api.post(verifyEndpoint, {
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
@@ -80,7 +78,7 @@ const Checkout = () => {
             });
 
             if (verifyRes.data.success) {
-              navigate("/success", { state: { type: orderType === "appointment" ? "appointment" : "order", data: verifyRes.data } });
+              navigate("/success", { state: { type: "order", data: verifyRes.data } });
             }
           } catch (err) {
             console.error("Payment verification failed:", err);
@@ -121,7 +119,7 @@ const Checkout = () => {
         </p>
 
         <button className="btn-primary w-full py-3 rounded-lg" onClick={handlePayment}>
-          {orderType === "appointment" ? "Pay for Consultation" : "Pay for Order"}
+          Pay for Order
         </button>
 
         <div className="mt-4 text-center text-sm text-gray-500">
