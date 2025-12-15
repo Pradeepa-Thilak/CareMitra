@@ -1,6 +1,8 @@
+// src/pages/Checkout.jsx
 import React, { useState, useEffect } from "react";
 import api from "../utils/api";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
 const Checkout = () => {
   const [amount, setAmount] = useState(0);
@@ -8,8 +10,16 @@ const Checkout = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadSummary();
-  }, []);
+    const context = location.state?.context || "cart";
+    setOrderType(context);
+
+    if (location.state?.amount) {
+      setAmount(location.state.amount);
+      setLoading(false);
+    } else {
+      loadSummary();
+    }
+  }, [location.state]);
 
   const loadSummary = async () => {
     try {
@@ -39,13 +49,13 @@ const Checkout = () => {
 
   const handlePayment = async () => {
     try {
-      const res = await api.post("/cart/create-order");
+      const endpoint = orderType === "appointment" 
+        ? "/appointments/create-payment-order" 
+        : "/cart/create-order";
+      
+      const res = await api.post(endpoint);
       const { order } = res.data;
-
-      const razorpayLoaded = await loadRazorpay(
-        "https://checkout.razorpay.com/v1/checkout.js"
-      );
-
+      const razorpayLoaded = await loadRazorpay("https://checkout.razorpay.com/v1/checkout.js");
       if (!razorpayLoaded) {
         alert("Failed to load Razorpay");
         return;
@@ -58,44 +68,25 @@ const Checkout = () => {
         name: "CareMitra",
         description: "Order Payment",
         order_id: order.id,
+        handler: async function (response) {
+          try {
+            const verifyEndpoint = orderType === "appointment" ? "/appointments/verify-payment" : "/cart/verify-payment";
+            const verifyRes = await api.post(verifyEndpoint, {
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+              address: location.state?.address,
+              items: location.state?.items,
+            });
 
-        // In Checkout.jsx, update the handler function:
-handler: async function (response) {
-  try {
-    const verifyRes = await api.post("/cart/verify-payment", {
-      razorpayOrderId: response.razorpay_order_id,
-      razorpayPaymentId: response.razorpay_payment_id,
-      razorpaySignature: response.razorpay_signature,
-      address: address,
-      items: cartItems,
-      amount: amount
-    });
-
-    if (verifyRes.data.success) {
-      // Clear cart after successful payment
-      await api.delete("/cart/clear");
-      localStorage.removeItem("cartCount");
-      
-      // Instead of navigating to /success, redirect directly to /orders
-      navigate("/orders", { 
-        state: { 
-          showSuccess: true,
-          orderData: {
-            orderId: response.razorpay_order_id,
-            paymentId: response.razorpay_payment_id,
-            amount: amount,
-            items: cartItems
+            if (verifyRes.data.success) {
+              navigate("/success", { state: { type: orderType === "appointment" ? "appointment" : "order", data: verifyRes.data } });
+            }
+          } catch (err) {
+            console.error("Payment verification failed:", err);
+            alert("Payment verification failed");
           }
-        } 
-      });
-    }
-  } catch (err) {
-    console.error("Payment verification failed:", err);
-    // Even if verification fails, still navigate to orders
-    navigate("/orders",{state: { showError: true }});
-  }
-},
-
+        },
         theme: { color: "#0d6efd" },
       };
 
@@ -108,28 +99,35 @@ handler: async function (response) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex justify-center items-center text-xl">
-        Loading Summary...
+      <div className="min-h-screen flex items-center justify-center text-lg">
+        Loading summary...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex justify-center items-center bg-gray-50">
-      <div className="card p-8 w-[450px] shadow-md bg-white rounded-lg">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card p-8 w-full max-w-lg bg-white rounded-2xl shadow">
         <h1 className="text-2xl font-bold mb-4">Checkout</h1>
+
+        <div className="mb-4 p-3 bg-blue-50 rounded">
+          <p className="text-sm text-blue-700">
+            {orderType === "appointment" ? "Pay for Consultation" : "Product Order Payment"}
+          </p>
+        </div>
 
         <p className="text-lg font-semibold mb-4">
           Total Amount: <span className="text-blue-600">₹{amount}</span>
         </p>
 
-        <button
-          className="btn-primary w-full py-3 bg-blue-600 text-white rounded-lg"
-          onClick={handlePayment}
-        >
-          Pay Now
+        <button className="btn-primary w-full py-3 rounded-lg" onClick={handlePayment}>
+          {orderType === "appointment" ? "Pay for Consultation" : "Pay for Order"}
         </button>
-      </div>
+
+        <div className="mt-4 text-center text-sm text-gray-500">
+          By proceeding you agree to our <button className="underline">terms</button>.
+        </div>
+      </motion.div>
     </div>
   );
 };

@@ -22,14 +22,14 @@ import DoctorRegistrationForm from "../components/forms/DoctorRegistrationForm";
 import Checkout from "../pages/Checkout";
 import Success from "../pages/Success";
 import Orders from "../pages/Orders";
+import AdminRoutes from "../admin/routes/AdminRoutes";
+import UserLayout from "../pages/UserLayout";
 
 const AppRouter = () => {
   return (
     <Router>
-      <Navbar />
-
-      <main style={{ paddingTop: "var(--nav-offset, 5rem)" }}>
         <Routes>
+          <Route element={<UserLayout />}>
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
@@ -141,10 +141,11 @@ const AppRouter = () => {
           <Route path="/doctor-register" element={<DoctorRegistrationForm />} />
           <Route path="/success" element={<Success />} />
           <Route path="/orders" element={<Orders />} />
-        </Routes>
-      </main>
+          </Route> 
 
-      <Footer />
+        { AdminRoutes}
+        </Routes>
+
     </Router>
   );
 };

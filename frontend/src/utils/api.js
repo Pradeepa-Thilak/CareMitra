@@ -147,20 +147,16 @@ export const cartAPI = {
 };
 
 // ----------------------------
-// ORDER APIs
+// LAB-STAFF APIs
 // ----------------------------
 
-export const orderAPI = {
+export const labStaffAPI = {
+   
+  // GET /admin/staff/order/{id}
+  test: (staffId) => api.get(`/admin/staff/order/${staffId}`),
 
+  // PATCH /admin/staff/order/${id}`, { status: "done" }
+  markComplete: () => api.patch(`/admin/staff/order/${id}`, { status: "done" }),
 }
 
-
-// ----------------------------
-// DOCTOR APIs
-// ----------------------------
-
-export const doctorAPI = {
-  // POST 
-  register: (body) => api.post("doctor/register/doctor",body),
-}
 export default api;
