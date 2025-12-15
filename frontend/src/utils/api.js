@@ -146,4 +146,21 @@ export const cartAPI = {
   clearCart: () => api.delete("/cart/clear"),
 };
 
+// ----------------------------
+// ORDER APIs
+// ----------------------------
+
+export const orderAPI = {
+
+}
+
+
+// ----------------------------
+// DOCTOR APIs
+// ----------------------------
+
+export const doctorAPI = {
+  // POST 
+  register: (body) => api.post("doctor/register/doctor",body),
+}
 export default api;
