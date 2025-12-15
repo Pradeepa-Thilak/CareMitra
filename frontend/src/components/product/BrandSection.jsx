@@ -7,7 +7,7 @@ import { useBrands } from '../../hooks/useBrands';
 const BrandCard = ({ brand, onClick }) => (
   <button
     onClick={onClick}
-    className="flex flex-col items-center justify-center p-3 bg-white rounded shadow-sm hover:shadow-md transition"
+    className="flex flex-col items-center justify-center p-3 bg-white rounded shadow-sm hover:shadow-md transition min-w-[140] flex-shrink-0  "
     aria-label={`See products from ${brand.name}`}
   >
     <div className="h-16 w-full flex items-center justify-center overflow-hidden">
@@ -39,7 +39,7 @@ const BrandSection = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
+      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
         {brands.map((brand) => (
           <BrandCard
             key={brand._id ?? brand.key ?? brand.name}

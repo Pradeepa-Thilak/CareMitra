@@ -37,6 +37,9 @@ function AdminNavbar() {
         <NavLink to='/admin/orders' end className={linkClass}>
           Orders
         </NavLink>
+        <NavLink to='/admin/consultations' end className={linkClass}>
+          Consultations
+        </NavLink>
       </div>
     </nav>
   )

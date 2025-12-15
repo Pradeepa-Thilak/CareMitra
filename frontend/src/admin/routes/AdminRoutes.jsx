@@ -8,6 +8,7 @@ import Patients from '../pages/Patients';
 import LabStaff from '../../pages/LabStaff';
 import Medicines from '../pages/Medicines';
 import Orders from '../pages/Orders';
+import Consultations from '../pages/Consultations';
 
 const AdminRoutes = (
 
@@ -22,6 +23,7 @@ const AdminRoutes = (
         <Route path='lab-staff' element={ <LabStaff />} />
         <Route path='medicines' element={<Medicines />} />
         <Route path='orders' element={<Orders />} />
+        <Route path='consultations' element={<Consultations />} />
     </Route>
 );
 

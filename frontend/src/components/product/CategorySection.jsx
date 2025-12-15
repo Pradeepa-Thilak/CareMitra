@@ -7,7 +7,7 @@ import { useCategories } from '../../hooks/useCategories';
 const CategoryCard = ({ category, onClick }) => (
   <div
     onClick={onClick}
-    className="category-card cursor-pointer rounded-md overflow-hidden border hover:shadow-md transition p-2"
+    className="category-card cursor-pointer rounded-md overflow-hidden border hover:shadow-md transition p-2 min-w-[180px] flex-shrink-0 bg-white"
   >
     <div className="h-36 w-full mb-3 bg-gray-100 flex items-center justify-center overflow-hidden rounded">
       <img
@@ -50,7 +50,7 @@ const CategorySection = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
         {categories.map((cat) => (
           <CategoryCard
             key={cat._id ?? cat.key}

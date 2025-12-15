@@ -9,13 +9,49 @@ import {
   Download,
   FlaskConical,
 } from "lucide-react";
+import AddEditLabTestForm from "../components/forms/LabTestCreateForm";
 
 /* ---------------- MOCK DATA ---------------- */
 
 const mockCatalog = [
-  { id: 1, name: "Complete Blood Count", price: 450, active: true },
-  { id: 2, name: "Thyroid Profile", price: 1200, active: true },
-  { id: 3, name: "Lipid Profile", price: 900, active: false },
+  {
+  id: 1,
+  name: "CBC",
+  price: 450,
+  discountedPrice: 400,
+  isActive: true,
+  sampleType: "Blood",
+  reportTime: "6–8 hrs"
+},
+{
+  id: 2,
+  name: "CBC",
+  price: 450,
+  discountedPrice: 400,
+  isActive: true,
+  sampleType: "Blood",
+  reportTime: "6–8 hrs"
+},
+{
+  id: 3,
+  name: "CBC",
+  price: 450,
+  discountedPrice: 400,
+  isActive: true,
+  sampleType: "Blood",
+  reportTime: "6–8 hrs"
+},
+{
+  id: 4,
+  name: "CBC",
+  price: 450,
+  discountedPrice: 400,
+  isActive: true,
+  sampleType: "Blood",
+  reportTime: "6–8 hrs"
+}
+
+
 ];
 
 const mockOrders = [
@@ -43,19 +79,29 @@ export default function LabTests() {
   const [activeTab, setActiveTab] = useState("Catalog");
   const [catalog, setCatalog] = useState(mockCatalog);
   const [orders, setOrders] = useState(mockOrders);
-
+  const [showForm, setShowForm] = useState(false);
+  const [selectedTest, setSelectedTest] = useState(null);
   /* --------- CATALOG ACTIONS --------- */
 
   const toggleActive = (id) => {
     setCatalog((prev) =>
       prev.map((t) =>
-        t.id === id ? { ...t, active: !t.active } : t
+        t.id === id ? { ...t, isActive: !t.isActive } : t
       )
     );
   };
 
   const deleteTest = (id) => {
     setCatalog((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const save = (data) => {
+    setCatalog( (prev) => {
+      const exist = prev.find( (t) => t.id === data.id);
+      return exist ? 
+        prev.map((t) => (t.id === data.id ? data : t))
+        : [...prev,data];
+    });
   };
 
   /* --------- ORDER ACTIONS --------- */
@@ -112,9 +158,13 @@ export default function LabTests() {
             {/* Add Card */}
             <motion.div
               whileHover={{ scale: 1.03 }}
+              onClick={() => {
+                setSelectedTest(null);
+                setShowForm(true);
+              }}
               className="border-2 border-dashed border-blue-400 rounded-xl flex items-center justify-center h-48 cursor-pointer"
             >
-              <div className="text-center text-blue-600">
+              <div className="text-center text-blue-600" >
                 <Plus size={32} />
                 <p className="mt-2 font-medium">Add New Test</p>
               </div>
@@ -132,13 +182,13 @@ export default function LabTests() {
                     {test.name}
                   </h3>
                   <span
-                    className={`text-xs px-3 py-1 rounded-full ${
-                      test.active
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    {test.active ? "Active" : "Inactive"}
+                      className={`text-xs px-3 py-1 rounded-full ${
+                        test.isActive
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {test.isActive ? "Active" : "Inactive"}
                   </span>
                 </div>
 
@@ -153,7 +203,14 @@ export default function LabTests() {
                   </button>
 
                   <div className="flex gap-3">
-                    <Pencil size={16} className="text-gray-600 cursor-pointer" />
+                    <Pencil 
+                    size={16} 
+                    className="text-gray-600 cursor-pointer"
+                    onClick={() => {
+                      setSelectedTest(test);
+                      setShowForm(true);
+                    }}
+                    />
                     <Trash2
                       size={16}
                       onClick={() => deleteTest(test.id)}
@@ -224,6 +281,31 @@ export default function LabTests() {
                 </div>
               </motion.div>
             ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 bg-black/30"
+            onClick={() => setShowForm(false)}
+          >
+            {/* Stop click inside form */}
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              className="h-full"
+            >
+              <AddEditLabTestForm
+                initialData={selectedTest}
+                onSave={save}
+                onClose={() => setShowForm(false)}
+              />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

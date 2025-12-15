@@ -39,6 +39,8 @@ export default function PaymentPage() {
   const [successOpen, setSuccessOpen] = useState(false);
   const [successData, setSuccessData] = useState(null);
 
+
+
   useEffect(() => {
     const savedAddress = localStorage.getItem("shippingAddress");
     if (savedAddress) {
@@ -152,20 +154,12 @@ export default function PaymentPage() {
       return;
     }
 
-    if (paymentMethod === "cod") {
-      const orderId = `COD_${Date.now()}`;
-      const result = {
-        orderId,
-        paymentId: orderId,
-        amount,
-        items: state?.items ?? [],
-        address: selectedAddress,
-        cod: true,
-      };
-      setSuccessData(result);
-      setSuccessOpen(true);
+    if (!selectedAddress && paymentMethod !== "cod") {
+      setError("Please add a delivery address to continue.");
+      setIsAddrOpen(true); // 🔥 open modal
       return;
     }
+
 
     if (paymentMethod === "card") {
       if (!rzpOrder) {
@@ -245,9 +239,11 @@ export default function PaymentPage() {
 
       <PaymentSuccessModalOrder open={successOpen} onClose={onSuccessClose} data={successData} />
 
-      {typeof AddressModal !== "undefined" && (
-        <AddressModal isOpen={isAddrOpen} onClose={() => setIsAddrOpen(false)} onConfirm={handleAddressConfirm} />
-      )}
+      <AddressModal
+        isOpen={isAddrOpen}
+        onClose={() => setIsAddrOpen(false)}
+        onConfirm={handleAddressConfirm}
+      />
     </>
   );
 }
