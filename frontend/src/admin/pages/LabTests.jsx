@@ -98,7 +98,9 @@ export default function LabTests() {
     try {
       setLoading(true);
       const res = await labTestAPI.getLabTest();
-      setCatalog(res.data); // backend must return array
+      const labTests = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      console.log("Lab Tests fetched:", res.data);
+      setCatalog(labTests); // backend must return array
     } catch (err) {
       console.error("Failed to load lab tests", err);
     } finally {
@@ -317,7 +319,8 @@ const paginatedCatalog = filteredCatalog.slice(
                       size={16}
                       onClick={(e) => {
                         e.stopPropagation();
-                        deleteTest(test.id)}}
+                        deleteTest(test.id)
+                      }}
                       className="text-red-600 cursor-pointer"
                     />
                   </div>

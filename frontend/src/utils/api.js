@@ -159,4 +159,12 @@ export const labStaffAPI = {
   markComplete: () => api.patch(`/admin/staff/order/${id}`, { status: "done" }),
 }
 
+// ----------------------------
+// DOCTOR APIs
+// ----------------------------
+
+export const doctorAPI = {
+  register: (body) => api.post('/doctor/register/doctor', body),
+}
+
 export default api;

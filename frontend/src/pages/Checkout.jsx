@@ -7,7 +7,9 @@ import { motion } from "framer-motion";
 const Checkout = () => {
   const [amount, setAmount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [orderType, setOrderType] = useState("cart");
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const context = location.state?.context || "cart";
@@ -24,12 +26,10 @@ const Checkout = () => {
   const loadSummary = async () => {
     try {
       const res = await api.get("/cart");
-
       let total = 0;
       res.data.cart?.items.forEach((item) => {
         total += item.productId.price * item.quantity;
       });
-
       setAmount(total);
     } catch (err) {
       console.error("Failed to load cart summary:", err);

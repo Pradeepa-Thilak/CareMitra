@@ -1,8 +1,7 @@
 // src/pages/Success.jsx
 import React, { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import PaymentSuccessModal from "../components/modals/PaymentSuccessModal";
-
+import PaymentSuccessModalOrder from "../components/modals/PaymentSuccessModalOrder";
 const Success = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -10,10 +9,10 @@ const Success = () => {
   const [modalData, setModalData] = React.useState(null);
 
   useEffect(() => {
-    if (location.state) {
+    if (location.state?.data) {
       setModalData({
         ...location.state.data,
-        type: location.state.type || "order"
+        type:"order"
       });
     } else {
       // No data, redirect to home
@@ -23,16 +22,13 @@ const Success = () => {
 
   const handleModalClose = () => {
     setModalOpen(false);
-    if (modalData?.type === "appointment") {
-      navigate("/appointments");
-    } else {
       navigate("/orders");
-    }
+    
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <PaymentSuccessModal
+      <PaymentSuccessModalOrder
         open={modalOpen}
         onClose={handleModalClose}
         data={modalData}
