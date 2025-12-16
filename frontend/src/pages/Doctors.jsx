@@ -81,7 +81,7 @@ export default function Doctors() {
       />
 
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Filters */}
+        {/* Filters
         <div className="bg-white p-6 rounded shadow mb-6">
           <div className="flex flex-col md:flex-row gap-4 items-center">
             <input
@@ -103,14 +103,14 @@ export default function Doctors() {
               ))}
             </select>
           </div>
-        </div>
+        </div> */}
 
-        {/* Doctors grid */}
+        {/* Doctors grid
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((d) => (
             <DoctorCard key={d.id} doctor={d} onBook={() => openBookingForDoctor(d)} />
           ))}
-        </div>
+        </div> */}
 
         {/* Reviews */}
         <div className="mt-10 bg-white p-6 rounded shadow-sm">

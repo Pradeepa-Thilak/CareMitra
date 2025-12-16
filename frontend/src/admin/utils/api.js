@@ -1,6 +1,5 @@
 // src/utils/api.js
 import axios from "axios";
-import { labTestAPI } from "../../utils/api";
 
 const api = axios.create({
   baseURL: "http://localhost:5000", // change if your backend host/port differs
@@ -13,7 +12,9 @@ const api = axios.create({
 
 export const  labTestAPI = {
 
-    getLabTest: () => api.get(`admin/lab-tests`),
+    getLabTest: () => api.get(`lab-tests`),
+
+    getLabTestSearch: (id) => api.get(`lab-tests/${id}`),
 
     createLabTest: (data) => api.post('admin/lab-tests/create-test',data),
 
@@ -23,3 +24,5 @@ export const  labTestAPI = {
 
     deleteLabTest: (id,data) => api.delete(`admin/lab-tests/delete-test/${id}`,data)
 }
+
+export default api;

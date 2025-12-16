@@ -819,7 +819,7 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
                       {stepLoading ? "Processing..." : "Confirm"}
                     </button>
                   )}
-                  {/* Add this somewhere in your JSX for testing */}
+                  {/* Add this somewhere in your JSX for testing
                 <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
                   <div className="text-sm font-medium text-yellow-800 mb-2">Development Test</div>
                   <button
@@ -838,7 +838,7 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
                   >
                     Test Payment Gateway
                   </button>
-                </div>
+                </div> */}
               
                 </div>
               </div>

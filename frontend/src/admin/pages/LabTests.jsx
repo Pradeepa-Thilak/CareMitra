@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
@@ -8,9 +8,11 @@ import {
   FileUp,
   Download,
   FlaskConical,
+  Search,
 } from "lucide-react";
 import AddEditLabTestForm from "../components/forms/LabTestCreateForm";
 import LabTestDetailsModal from "../components/modals/LabTestDetailsModal";
+import { labTestAPI } from "../utils/api";
 
 /* ---------------- MOCK DATA ---------------- */
 
@@ -26,7 +28,7 @@ const mockCatalog = [
 },
 {
   id: 2,
-  name: "CBC",
+  name: "Thyroid",
   price: 450,
   discountedPrice: 400,
   isActive: true,
@@ -35,7 +37,7 @@ const mockCatalog = [
 },
 {
   id: 3,
-  name: "CBC",
+  name: "Blood Test",
   price: 450,
   discountedPrice: 400,
   isActive: true,
@@ -83,29 +85,85 @@ export default function LabTests() {
   const [showForm, setShowForm] = useState(false);
   const [selectedTest, setSelectedTest] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 6;
+
 
   /* --------- CATALOG ACTIONS --------- */
 
-  const toggleActive = (id) => {
+  useEffect(() => {
+  const fetchLabTests = async () => {
+    try {
+      setLoading(true);
+      const res = await labTestAPI.getLabTest();
+      setCatalog(res.data); // backend must return array
+    } catch (err) {
+      console.error("Failed to load lab tests", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchLabTests();
+}, []);
+
+
+  const toggleActive = async (id) => {
+  try {
+    const res = await labTestAPI.activeStatus(id);
+
     setCatalog((prev) =>
       prev.map((t) =>
-        t.id === id ? { ...t, isActive: !t.isActive } : t
+        t.id === id ? res.data : t
       )
     );
-  };
+  } catch (err) {
+    console.error("Status update failed", err);
+  }
+};
 
-  const deleteTest = (id) => {
-    setCatalog((prev) => prev.filter((t) => t.id !== id));
-  };
 
-  const save = (data) => {
-    setCatalog( (prev) => {
-      const exist = prev.find( (t) => t.id === data.id);
-      return exist ? 
-        prev.map((t) => (t.id === data.id ? data : t))
-        : [...prev,data];
-    });
-  };
+  const deleteTest = async (id) => {
+  try {
+    await labTestAPI.deleteLabTest(id);
+
+    setCatalog((prev) =>
+      prev.filter((t) => t.id !== id)
+    );
+  } catch (err) {
+    console.error("Delete failed", err);
+  }
+};
+
+
+  const save = async (data) => {
+  try {
+    if (data.id) {
+      // EDIT
+      const res = await labTestAPI.editLabTest(data.id, data);
+
+      setCatalog((prev) =>
+        prev.map((t) =>
+          t.id === data.id ? res.data : t
+        )
+      );
+    } else {
+      // CREATE
+      const res = await labTestAPI.createLabTest(data);
+
+      setCatalog((prev) => [...prev, res.data]);
+    }
+
+    setShowForm(false);
+  } catch (err) {
+    console.error("Save failed", err);
+  }
+};
+
+
+
 
   /* --------- ORDER ACTIONS --------- */
 
@@ -116,6 +174,27 @@ export default function LabTests() {
       )
     );
   };
+
+
+  const filteredCatalog = catalog.filter((test) => {
+    const query = search.toLowerCase();
+
+    return (
+      test.name.toLowerCase().includes(query) ||
+      test.sampleType?.toLowerCase().includes(query) ||
+      test.reportTime?.toLowerCase().includes(query)
+    );
+  });
+
+  const totalPages = Math.ceil(
+  filteredCatalog.length / ITEMS_PER_PAGE
+);
+
+const paginatedCatalog = filteredCatalog.slice(
+  (currentPage - 1) * ITEMS_PER_PAGE,
+  currentPage * ITEMS_PER_PAGE
+);
+
 
   /* ---------------- UI ---------------- */
 
@@ -131,7 +210,22 @@ export default function LabTests() {
           Lab Tests Management
         </h2>
 
-        <div className="flex gap-3">
+        
+      <div className="flex flex-wrap gap-3">
+          <div className="relative">
+          <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+          <input
+            placeholder="Search Tests..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="pl-9 pr-3 py-2 border rounded-lg text-sm"
+          />
+          </div>
+      </div>
+      <div className="flex gap-3">
           {tabs.map((tab) => (
             <button
               key={tab}
@@ -174,7 +268,7 @@ export default function LabTests() {
             </motion.div>
 
             {/* Existing Tests */}
-            {catalog.map((test) => (
+            {paginatedCatalog.map((test) => (
               <motion.div
                 key={test.id}
                 whileHover={{ y: -5 }}
@@ -230,6 +324,43 @@ export default function LabTests() {
                 </div>
               </motion.div>
             ))}
+            {totalPages > 1 && (
+  <div className="flex justify-center items-center gap-2 mt-6">
+    <button
+      disabled={currentPage === 1}
+      onClick={() => setCurrentPage((p) => p - 1)}
+      className="px-3 py-1 border rounded disabled:opacity-50"
+    >
+      Prev
+    </button>
+
+    {[...Array(totalPages)].map((_, i) => {
+          const page = i + 1;
+          return (
+            <button
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              className={`px-3 py-1 rounded border ${
+                currentPage === page
+                  ? "bg-blue-600 text-white"
+                  : "bg-white"
+              }`}
+            >
+              {page}
+            </button>
+          );
+        })}
+
+        <button
+          disabled={currentPage === totalPages}
+          onClick={() => setCurrentPage((p) => p + 1)}
+          className="px-3 py-1 border rounded disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
+    )}
+
           </motion.div>
         )}
 
