@@ -40,7 +40,6 @@ export default function PaymentPage() {
   const [successData, setSuccessData] = useState(null);
 
 
-
   useEffect(() => {
     const savedAddress = localStorage.getItem("shippingAddress");
     if (savedAddress) {

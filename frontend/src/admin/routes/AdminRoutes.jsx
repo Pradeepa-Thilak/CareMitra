@@ -5,7 +5,7 @@ import Doctors from '../pages/Doctors';
 import Dashboard from '../pages/Dashboard';
 import LabTests from '../pages/LabTests';
 import Patients from '../pages/Patients';
-import LabStaff from '../../pages/LabStaff';
+import LabStaffs from '../pages/LabStaffs';
 import Medicines from '../pages/Medicines';
 import Orders from '../pages/Orders';
 import Consultations from '../pages/Consultations';
@@ -20,7 +20,7 @@ const AdminRoutes = (
         <Route path='doctors' element={<Doctors />} />
         <Route path='lab-tests' element={<LabTests />} />
         <Route path='patients' element={<Patients />} />
-        <Route path='lab-staff' element={ <LabStaff />} />
+        <Route path='lab-staff' element={ <LabStaffs />} />
         <Route path='medicines' element={<Medicines />} />
         <Route path='orders' element={<Orders />} />
         <Route path='consultations' element={<Consultations />} />

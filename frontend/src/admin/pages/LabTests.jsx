@@ -10,6 +10,7 @@ import {
   FlaskConical,
 } from "lucide-react";
 import AddEditLabTestForm from "../components/forms/LabTestCreateForm";
+import LabTestDetailsModal from "../components/modals/LabTestDetailsModal";
 
 /* ---------------- MOCK DATA ---------------- */
 
@@ -81,6 +82,8 @@ export default function LabTests() {
   const [orders, setOrders] = useState(mockOrders);
   const [showForm, setShowForm] = useState(false);
   const [selectedTest, setSelectedTest] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+
   /* --------- CATALOG ACTIONS --------- */
 
   const toggleActive = (id) => {
@@ -175,6 +178,10 @@ export default function LabTests() {
               <motion.div
                 key={test.id}
                 whileHover={{ y: -5 }}
+                onClick={() => {
+                  setSelectedTest(test);
+                  setShowDetailsModal(true);
+                }}
                 className="bg-white rounded-xl shadow-sm p-5 space-y-3"
               >
                 <div className="flex justify-between items-center">
@@ -206,14 +213,17 @@ export default function LabTests() {
                     <Pencil 
                     size={16} 
                     className="text-gray-600 cursor-pointer"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setSelectedTest(test);
                       setShowForm(true);
                     }}
                     />
                     <Trash2
                       size={16}
-                      onClick={() => deleteTest(test.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteTest(test.id)}}
                       className="text-red-600 cursor-pointer"
                     />
                   </div>
@@ -307,6 +317,21 @@ export default function LabTests() {
               />
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showDetailsModal && (
+          <LabTestDetailsModal 
+            test = {selectedTest}
+            onClose = { () => setShowDetailsModal(false)}
+            onEdit={(e) => {
+              e.stopPropagation();
+              setShowDetailsModal(false);
+              setShowForm(true);
+            }}
+
+          />
         )}
       </AnimatePresence>
     </div>
