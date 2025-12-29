@@ -99,7 +99,7 @@ const ProductCard = ({ product }) => {
       </p>
 
       {/* Rating */}
-      <div className="flex items-center gap-2 mb-3">
+      {/* <div className="flex items-center gap-2 mb-3">
         {product.rating ? (
           <>
             <div className="flex items-center gap-1">
@@ -115,18 +115,19 @@ const ProductCard = ({ product }) => {
         ) : (
           <span className="text-xs text-gray-400">No rating</span>
         )}
-      </div>
+      </div> */}
 
       {/* Price */}
       <div className="flex items-end justify-between gap-4 mb-3">
         <div>
           <div className="flex items-baseline gap-3">
-            <span className="text-lg font-bold text-primary">₹{price}</span>
+            <span className="text-lg font-bold text-primary">₹{price.toFixed(2)}</span>
             {original && original > price && (
-              <span className="text-sm text-gray-400 line-through">₹{original}</span>
+              <span className="text-sm text-gray-400 line-through">₹{original.toFixed(2)}</span>
             )}
+
           </div>
-          <p className="text-xs text-gray-500 mt-1">Pack: {product.packSize ?? "N/A"}</p>
+          {/* <p className="text-xs text-gray-500 mt-1">Pack: {product.packSize ?? "N/A"}</p> */}
         </div>
 
         <div className="flex items-center gap-2">

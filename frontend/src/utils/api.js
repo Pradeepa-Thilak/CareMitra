@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:5000", // change if your backend host/port differs
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5001", // Use env var or default to backend port
   withCredentials: true,
 });
 
@@ -165,6 +165,38 @@ export const labStaffAPI = {
 
 export const doctorAPI = {
   register: (body) => api.post('/doctor/register/doctor', body),
+  getAllDoctors : () => api.get('dashboard/doctorAll'),
 }
+
+export const chatAPI = {
+  startChat: async (userId, initialMessage = '') => {
+    const response = await api.post('/api/chat/start', { userId, initialMessage });
+    return response.data;
+  },
+  sendMessage: async (sessionId, message, userId) => {
+    if (!sessionId || !userId) throw new Error("sessionId or userId missing");
+    const response = await api.post('/api/chat/send', { sessionId, message, userId });
+    return response.data;
+  },
+  getChatHistory: async (userId, limit = 20, page = 1) => {
+    const response = await api.get(`/api/chat/history/${userId}`, { params: { limit, page } });
+    return response.data.chats;
+  },
+  getChatSession: async (sessionId, userId) => {
+    const response = await api.get(`/api/chat/session/${sessionId}`, { params: { userId } });
+    return response.data.chat;
+  },
+  deleteChat: async (sessionId, userId) => {
+    const response = await api.delete(`/api/chat/${sessionId}`, { data: { userId } });
+    return response.data;
+  }
+};
+
+
+export const startChat = chatAPI.startChat;
+export const sendMessage = chatAPI.sendMessage;
+export const getChatHistory = chatAPI.getChatHistory;
+export const getChatSession = chatAPI.getChatSession;
+export const deleteChat = chatAPI.deleteChat;
 
 export default api;

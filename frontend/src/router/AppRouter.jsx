@@ -24,12 +24,13 @@ import Success from "../pages/Success";
 import Orders from "../pages/Orders";
 import AdminRoutes from "../admin/routes/AdminRoutes";
 import UserLayout from "../pages/UserLayout";
+import ChatBot from "../components/ChatBot"; // Import the ChatBot page
 
 const AppRouter = () => {
   return (
     <Router>
-        <Routes>
-          <Route element={<UserLayout />}>
+      <Routes>
+        <Route element={<UserLayout />}>
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
@@ -131,21 +132,32 @@ const AppRouter = () => {
             }
           />
 
-          {/* Doctors Page (Public or protected based on your logic) */}
+          {/* Doctors Page */}
           <Route path="/doctors" element={<Doctors />} />
-          <Route path="/consultation" element={<BookConsultation />} />
-          <Route path="/wishlist" element={<Wishlist />} />
-          <Route path="/payments" element={<Payment />} />
+          
+          {/* AI ChatBot - Make it accessible to all authenticated users */}
+          <Route
+            path="/ai-chatbot"
+            element={
+              <ProtectedRoute>
+                <ChatBot />
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* AI ChatBot - Alternative: Public access (remove ProtectedRoute) */}
+          {/* <Route path="/ai-chatbot" element={<ChatBotPage />} /> */}
+          
           <Route path="/appointments" element={<ProtectedRoute><Appointment /></ProtectedRoute>} />
           <Route path="/labstaff" element={<ProtectedRoute><LabStaff /></ProtectedRoute>} />
           <Route path="/doctor-register" element={<DoctorRegistrationForm />} />
           <Route path="/success" element={<Success />} />
           <Route path="/orders" element={<Orders />} />
-          </Route> 
+        </Route> 
 
-        { AdminRoutes}
-        </Routes>
-
+        {/* Admin Routes */}
+        {AdminRoutes}
+      </Routes>
     </Router>
   );
 };

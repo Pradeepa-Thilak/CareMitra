@@ -73,12 +73,13 @@ const Checkout = () => {
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
-              address: location.state?.address,
+              // address: location.state?.address,
+              shippingAddress: location.state?.address,
               items: location.state?.items,
             });
 
             if (verifyRes.data.success) {
-              navigate("/success", { state: { type: "order", data: verifyRes.data } });
+              navigate("/success", { state: { type: "order", data: verifyRes.data.order } });
             }
           } catch (err) {
             console.error("Payment verification failed:", err);

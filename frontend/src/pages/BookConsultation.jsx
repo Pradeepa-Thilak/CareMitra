@@ -4,27 +4,42 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import DoctorCard from "../components/user/DoctorCard";
 import { useAuth } from "../hooks/useAuth";
-import { memberAPI, consultationAPI, paymentAPI } from "../utils/api";
+import { memberAPI, consultationAPI, paymentAPI, doctorAPI } from "../utils/api";
 
 const SPECIALTIES = [
-  "General Physician","Cardiology","Gynaecologist","Skin & Hair Specialist","Bone & Joint Specialist","Chest Physician",
-  "Child Specialist","Dentist","Diabetes Specialist","Dietician","ENT Specialist","Endocrinology","Eye Specialist",
-  "Gastroenterologist","Heart Specialist","Nephrologist","Psychiatrist"
+  "General Physician", "Cardiology", "Gynaecologist", "Skin & Hair Specialist", 
+  "Bone & Joint Specialist", "Chest Physician", "Child Specialist", "Dentist", 
+  "Diabetes Specialist", "Dietician", "ENT Specialist", "Endocrinology", 
+  "Eye Specialist", "Gastroenterologist", "Heart Specialist", "Nephrologist", 
+  "Psychiatrist"
 ];
 
 const ALL_SYMPTOMS = [
-  "Fever","Cold","Cough","Sore Throat","Runny Nose","Sneezing","Headache","Migraine","Body Pain","Back Pain",
-  "Neck Pain","Shoulder Pain","Stomach Pain","Acidity","Gas","Bloating","Diarrhea","Constipation","Vomiting","Nausea",
-  "Dizziness","Fatigue","Weakness","Insomnia","Anxiety","Depression","Stress","Palpitations","Shortness of Breath",
-  "Wheezing","Chest Pain","High BP","Low BP","High Sugar","Low Sugar","Joint Pain","Knee Pain","Arthritis","Swelling",
-  "Skin Rash","Itching","Acne","Dark Patches","Hairfall","Dandruff","Dry Skin","Red Eyes","Blurred Vision","Ear Pain",
-  "Hearing Loss","Tinnitus","Frequent Urination","Burning Urine","UTI symptoms","Loss of Appetite","Weight Loss",
-  "Weight Gain","PCOS symptoms","Missed Period","Heavy Period","Irregular Period","Cold & Flu","Covid Symptoms",
-  "Chest Congestion","Sinus","Allergy","Pet-related Concern","Obesity/Weight Management","Acne/Pimples","Hair Loss",
-  "Menstrual Pain","Premature Ejaculation","Unprotected Sex","Night Sweats","Fevers & Chills"
+  "Fever", "Cold", "Cough", "Sore Throat", "Runny Nose", "Sneezing", "Headache", 
+  "Migraine", "Body Pain", "Back Pain", "Neck Pain", "Shoulder Pain", "Stomach Pain", 
+  "Acidity", "Gas", "Bloating", "Diarrhea", "Constipation", "Vomiting", "Nausea",
+  "Dizziness", "Fatigue", "Weakness", "Insomnia", "Anxiety", "Depression", "Stress", 
+  "Palpitations", "Shortness of Breath", "Wheezing", "Chest Pain", "High BP", 
+  "Low BP", "High Sugar", "Low Sugar", "Joint Pain", "Knee Pain", "Arthritis", 
+  "Swelling", "Skin Rash", "Itching", "Acne", "Dark Patches", "Hairfall", 
+  "Dandruff", "Dry Skin", "Red Eyes", "Blurred Vision", "Ear Pain", "Hearing Loss", 
+  "Tinnitus", "Frequent Urination", "Burning Urine", "UTI symptoms", "Loss of Appetite", 
+  "Weight Loss", "Weight Gain", "PCOS symptoms", "Missed Period", "Heavy Period", 
+  "Irregular Period", "Cold & Flu", "Covid Symptoms", "Chest Congestion", "Sinus", 
+  "Allergy", "Pet-related Concern", "Obesity/Weight Management", "Acne/Pimples", 
+  "Hair Loss", "Menstrual Pain", "Premature Ejaculation", "Unprotected Sex", 
+  "Night Sweats", "Fevers & Chills"
 ];
 
-const MOST_SEARCHED = ["Fever","Cough","Headache","Acne","Stomach Pain","Cold"];
+const MOST_SEARCHED = ["Fever", "Cough", "Headache", "Acne", "Stomach Pain", "Cold"];
+
+const CONSULTATION_TYPES = ["video", "audio", "chat"];
+
+const CONSULTATION_DISPLAY = {
+  "video": "Video",
+  "audio": "Audio",
+  "chat": "Chat"
+};
 
 const ls = {
   read: (k, fallback) => {
@@ -44,35 +59,25 @@ export default function BookConsultation() {
 
   const { isAuthenticated, user } = useAuth?.() ?? { isAuthenticated: false, user: null };
 
-  // Demo doctors (keep this until you add /doctors backend)
-  const mockDoctors = [
-    { id: "1", name: "Dr. Rajesh Kumar", specialty: "General Physician", experience: "15 years", consultationFee: 299, image: "https://via.placeholder.com/150x150?text=Dr+1" },
-    { id: "2", name: "Dr. Priya Sharma", specialty: "Heart Specialist", experience: "12 years", consultationFee: 499, image: "https://via.placeholder.com/150x150?text=Dr+2" },
-    { id: "3", name: "Dr. Amit Patel", specialty: "Skin & Hair Specialist", experience: "10 years", consultationFee: 399, image: "https://via.placeholder.com/150x150?text=Dr+3" }
-  ];
-  const selectedDoctor = mockDoctors.find((d) => d.id === doctorId) || null;
+  // State for doctors list
+  const [doctors, setDoctors] = useState([]);
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
 
   // STEP state
   const [step, setStep] = useState(1);
 
-  // Members (persisted). Start with local fallback immediately, then overwrite from server if available
-  const [members, setMembers] = useState(() =>
-    ls.read("caremitra_members_v1", [
-      { id: "m_you", name: user?.name ? `${user.name}` : "You (Sample)", age: 28, gender: "Female", phone: "98xxxx1234" }
-    ])
-  );
+  // Members
+  const [members, setMembers] = useState([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState(null);
 
-  useEffect(() => ls.write("caremitra_members_v1", members), [members]);
+  const [selectedMemberId, setSelectedMemberId] = useState(null);
 
-  const [selectedMemberId, setSelectedMemberId] = useState(members[0]?.id || null);
+  // Phone & consultation type
+  const [phone, setPhone] = useState("");
+  const [consultationType, setConsultationType] = useState("video");
 
-  // phone & mode
-  const [phone, setPhone] = useState(() => members.find(m => m.id === selectedMemberId)?.phone || "");
-  const [mode, setMode] = useState("Video");
-
-  // inline add/edit member form
+  // Member form
   const [isEditingMember, setIsEditingMember] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [formName, setFormName] = useState("");
@@ -80,99 +85,134 @@ export default function BookConsultation() {
   const [formGender, setFormGender] = useState("Female");
   const [formPhone, setFormPhone] = useState("");
 
-  // symptoms
+  // Symptoms
   const [symptomQuery, setSymptomQuery] = useState("");
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
   const symptomInputRef = useRef(null);
   const suggestionRef = useRef(null);
-  const [inputFocused, setInputFocused] = useState(false); // controls showing large dropdown
+  const [inputFocused, setInputFocused] = useState(false);
 
-  // specialty
-  const [selectedSpecialty, setSelectedSpecialty] = useState(selectedDoctor?.specialty || SPECIALTIES[0]);
+  // Specialty
+  const [selectedSpecialty, setSelectedSpecialty] = useState("");
+  const [specialtyDoctors, setSpecialtyDoctors] = useState([]);
 
-  // loading & error states for step actions
+  // Loading & error states
   const [stepLoading, setStepLoading] = useState(false);
   const [stepError, setStepError] = useState(null);
 
-  // payment/appointment result
+  // Payment/appointment result
   const [appointmentResult, setAppointmentResult] = useState(null);
 
-  // re-init when doctorId changes
+  // Load doctors and members on component mount
   useEffect(() => {
-    setStep(1);
-    setSelectedSpecialty(selectedDoctor?.specialty || SPECIALTIES[0]);
-    setSelectedSymptoms([]);
-    setSymptomQuery("");
-    setIsEditingMember(false);
-    setEditingMember(null);
-  }, [doctorId]); // eslint-disable-line
+    loadDoctors();
+    loadMembers();
+  }, []);
 
-  useEffect(() => {
-    const found = members.find((m) => m.id === selectedMemberId);
-    setPhone(found?.phone || "");
-  }, [selectedMemberId, members]);
-
-  // load members from backend on mount
- // load members from backend on mount
-useEffect(() => {
-  let mounted = true;
-  async function loadMembers() {
-    setMembersLoading(true);
+  // Load available doctors
+  const loadDoctors = async () => {
     try {
-      const res = await memberAPI.getMembers();
-      console.log("DEBUG - Get Members Response:", res.data);
-
-      // adapt: server could return [] or { members: [...] }
-      let list = Array.isArray(res.data) ? res.data : res.data.members ?? [];
-
-      // If list is still empty, check other possible structures
-      if (list.length === 0 && res.data && typeof res.data === 'object') {
-        // Try to find an array in the response
-        Object.keys(res.data).forEach(key => {
-          if (Array.isArray(res.data[key])) {
-            list = res.data[key];
+      const res = await doctorAPI.getAllDoctors();
+      if (res.data.success) {
+        setDoctors(res.data.data);
+        
+        // If doctorId is provided in query, set it as selected
+        if (doctorId) {
+          const doctor = res.data.data.find(d => d._id === doctorId);
+          if (doctor) {
+            setSelectedDoctor(doctor);
+            setSelectedSpecialty(doctor.specialization);
           }
-        });
-      }
-
-      console.log("DEBUG - Extracted list:", list);
-
-      // Transform each member to ensure they have proper IDs
-      const transformedList = list.map((member, index) => {
-        // Extract ID from multiple possible field names
-        const memberId = member.id || member.memberId || member._id || member.userId ||
-                        `member_${Date.now()}_${index}`;
-
-        return {
-          id: memberId,
-          name: member.name || member.fullName || member.patientName || `Member ${index + 1}`,
-          age: member.age || member.patientAge || 0,
-          gender: member.gender || member.sex || "Other",
-          phone: member.phone || member.phoneNumber || member.contact || "",
-          // Store original for debugging
-          _original: member
-        };
-      });
-
-      console.log("DEBUG - Transformed members:", transformedList);
-
-      if (mounted && transformedList.length) {
-        setMembers(transformedList);
-        setSelectedMemberId(transformedList[0]?.id || null);
+        }
       }
     } catch (err) {
-      console.warn("Could not fetch members, continuing with local copy", err?.message || err);
-      console.error("Error details:", err.response?.data);
-      setMembersError(err?.response?.data?.message || err.message || "Failed to fetch members");
-    } finally {
-      if (mounted) setMembersLoading(false);
+      console.error("Error loading doctors:", err);
     }
-  }
-  loadMembers();
-  return () => { mounted = false; };
-}, []); // run once
+  };
 
-  // symptom suggestions: when input focused show many (filtered), when not focused and empty show none (we show MOST_SEARCHED chips separately)
+  // Load members from backend
+  const loadMembers = async () => {
+    setMembersLoading(true);
+    setMembersError(null);
+
+    try {
+      const res = await memberAPI.getMembers();
+      
+      if (res.data.success) {
+        // Backend returns { success: true, data: membersArray }
+        const membersList = res.data.data || [];
+        
+        const transformed = membersList.map(member => ({
+          id: member._id,
+          name: member.name,
+          age: member.age,
+          gender: member.gender,
+          phone: member.phoneNumber || member.phone,
+        }));
+
+        // Add self as a member if user exists
+        if (user && !transformed.some(m => m.name.includes("You"))) {
+          transformed.unshift({
+            id: "self",
+            name: `${user.name} (You)`,
+            age: user.age || 30,
+            gender: user.gender || "Female",
+            phone: user.phone || ""
+          });
+        }
+
+        setMembers(transformed);
+        
+        if (transformed.length > 0) {
+          setSelectedMemberId(transformed[0].id);
+          setPhone(transformed[0].phone || "");
+        }
+      } else {
+        setMembersError("Failed to load members");
+      }
+    } catch (err) {
+      console.error("Error loading members:", err);
+      setMembersError("Failed to load members");
+      
+      // Fallback to local storage if API fails
+      const fallbackMembers = ls.read("caremitra_members_v1", []);
+      if (fallbackMembers.length > 0) {
+        setMembers(fallbackMembers);
+        setSelectedMemberId(fallbackMembers[0]?.id);
+        setPhone(fallbackMembers[0]?.phone || "");
+      }
+    } finally {
+      setMembersLoading(false);
+    }
+  };
+
+  // Save to localStorage when members change
+  useEffect(() => {
+    if (members.length > 0) {
+      ls.write("caremitra_members_v1", members);
+    }
+  }, [members]);
+
+  // Update phone when member changes
+  useEffect(() => {
+    const member = members.find(m => m.id === selectedMemberId);
+    if (member) {
+      setPhone(member.phone || "");
+    }
+  }, [selectedMemberId, members]);
+
+  // Filter doctors by specialty
+  useEffect(() => {
+    if (selectedSpecialty) {
+      const filtered = doctors.filter(d => 
+        d.specialization === selectedSpecialty || 
+        d.specialist === selectedSpecialty
+      );
+      setSpecialtyDoctors(filtered);
+    }
+  }, [selectedSpecialty, doctors]);
+
+  // Symptom suggestions
   const symptomSuggestions = useMemo(() => {
     const q = symptomQuery.trim().toLowerCase();
     if (!q) {
@@ -181,8 +221,8 @@ useEffect(() => {
     return ALL_SYMPTOMS.filter((s) => s.toLowerCase().includes(q)).slice(0, 200);
   }, [symptomQuery, inputFocused]);
 
-  // handlers
-  function handleSelectSymptomFromDropdown(sym) {
+  // Handlers
+  const handleSelectSymptomFromDropdown = (sym) => {
     setSelectedSymptoms((prev) => {
       if (prev.includes(sym)) return prev.filter((x) => x !== sym);
       return [...prev, sym];
@@ -190,341 +230,379 @@ useEffect(() => {
     setInputFocused(false);
     setSymptomQuery("");
     symptomInputRef.current?.blur();
-  }
+  };
 
-  function toggleSymptom(sym) {
+  const toggleSymptom = (sym) => {
     setSelectedSymptoms((p) => (p.includes(sym) ? p.filter((x) => x !== sym) : [...p, sym]));
-  }
+  };
 
-  // member handlers
-  function startAddMember() {
+  // Member handlers
+  const startAddMember = () => {
     setIsEditingMember(true);
     setEditingMember(null);
     setFormName("");
     setFormAge("");
     setFormGender("Female");
     setFormPhone("");
-  }
+  };
 
-  function startEditMember(m) {
+  const startEditMember = (m) => {
     setIsEditingMember(true);
     setEditingMember(m);
     setFormName(m.name || "");
     setFormAge(String(m.age || ""));
     setFormGender(m.gender || "Female");
     setFormPhone(m.phone || "");
-  }
-
-  // Save member using backend POST /addMember
- async function saveMember() {
-  if (!formName || !formAge) return;
-
-  const payload = {
-    name: formName,
-    age: Number(formAge),
-    gender: formGender,
-    phone: formPhone,
   };
 
-  setStepLoading(true);
-  setStepError(null);
-  try {
-    if (editingMember) {
-      // ============================================
-      // DEBUG: Check what ID we have
-      // ============================================
-      console.log("DEBUG - Editing Member ID:", editingMember.id);
-      console.log("DEBUG - Editing Member Object:", editingMember);
-
-      // Make sure we have a valid ID before calling API
-      if (!editingMember.id || editingMember.id === "m_you" || editingMember.id.startsWith('temp_')) {
-        console.log("DEBUG - Invalid or temporary ID detected, treating as ADD instead of EDIT");
-        // Fall back to adding as new member
-        const res = await memberAPI.addMember(payload);
-        console.log("DEBUG - Add Member Response:", res.data);
-
-        // Extract the saved member from response
-        const saved = res.data?.member || res.data?.data || res.data;
-
-        // Try to get ID from multiple possible field names
-        const newId = saved?.id || saved?.memberId || saved?._id || saved?.userId ||
-                     `member_${Date.now()}`;
-
-        const newMember = {
-          id: newId,
-          name: saved?.name || formName,
-          age: saved?.age || Number(formAge),
-          gender: saved?.gender || formGender,
-          phone: saved?.phone || formPhone,
-        };
-
-        // Replace the temporary member with the real one from backend
-        setMembers((prev) =>
-          prev.map(m => m.id === editingMember.id ? newMember : m)
-        );
-        setSelectedMemberId(newId);
-      } else {
-        // We have a valid ID, proceed with edit
-        const res = await memberAPI.editMember(editingMember.id, payload);
-        console.log("DEBUG - Edit Member Response:", res.data);
-
-        const saved = res.data?.member || res.data?.data || res.data;
-
-        setMembers((prev) =>
-          prev.map(m => m.id === editingMember.id ? {
-            ...m,
-            ...saved,
-            // Ensure we keep the ID
-            id: editingMember.id
-          } : m)
-        );
-
-        if (selectedMemberId === editingMember.id) {
-          setSelectedMemberId(editingMember.id);
-        }
-      }
-    } else {
-      // Add new member
-      const res = await memberAPI.addMember(payload);
-      console.log("DEBUG - Add Member Response:", res.data);
-
-      const saved = res.data?.member || res.data?.data || res.data;
-
-      // ============================================
-      // CRITICAL: Extract ID from multiple possible fields
-      // ============================================
-      const newId = saved?.id || saved?.memberId || saved?._id || saved?.userId ||
-                   `member_${Date.now()}`;
-
-      console.log("DEBUG - Extracted ID:", newId);
-      console.log("DEBUG - Full saved object:", saved);
-
-      const newMember = {
-        id: newId,
-        name: saved?.name || formName,
-        age: saved?.age || Number(formAge),
-        gender: saved?.gender || formGender,
-        phone: saved?.phone || formPhone,
-      };
-
-      setMembers((prev) => [...prev, newMember]);
-      setSelectedMemberId(newId);
+  // Save member using backend
+  const saveMember = async () => {
+    if (!formName || !formAge) {
+      setStepError("Name and age are required");
+      return;
     }
 
-    setIsEditingMember(false);
-    setEditingMember(null);
-  } catch (err) {
-    console.error("Failed to save member:", err);
-    console.error("Error response data:", err.response?.data);
-    setStepError(err?.response?.data?.message || err.message || "Failed to save member");
-  } finally {
-    setStepLoading(false);
-  }
-}
+    const payload = {
+      name: formName,
+      age: Number(formAge),
+      gender: formGender,
+      phone: formPhone,
+    };
 
-  async function removeMember(id) {
-  if (!window.confirm("Are you sure you want to remove this member?")) return;
-
-  setStepLoading(true);
-  try {
-    // Only call API if it's not a temporary ID
-    if (!id.startsWith('temp_') && id !== "m_you") {
-      await memberAPI.deleteMember(id);
-    }
-
-    const filtered = members.filter((m) => m.id !== id);
-    setMembers(filtered);
-
-    if (selectedMemberId === id) {
-      setSelectedMemberId(filtered[0]?.id || null);
-    }
-
-    if (filtered.length === 0) {
-      // Add a default member
-      const defaultMember = {
-        id: `temp_${Date.now()}`,
-        name: user?.name ? `${user.name}` : "You",
-        age: 28,
-        gender: "Select a value",
-        phone: ""
-      };
-      setMembers([defaultMember]);
-      setSelectedMemberId(defaultMember.id);
-    }
-  } catch (err) {
-    console.error("Failed to delete member:", err);
-    setStepError(err?.response?.data?.message || err.message || "Failed to delete member");
-  } finally {
-    setStepLoading(false);
-  }
-}
-
-  async function handleStep1Continue() {
     setStepLoading(true);
     setStepError(null);
 
     try {
-      // local persistence already handled by useEffect/local state
-      // call backend to save consultingType (mode) for the selected member
-      if (!selectedMemberId) throw new Error("Select a member first");
+      if (!editingMember) {
+        // Add new member
+        const res = await memberAPI.addMember(payload);
+        
+        if (res.data.success) {
+          const newMember = {
+            id: res.data.member._id,
+            name: res.data.member.name,
+            age: res.data.member.age,
+            gender: res.data.member.gender,
+            phone: res.data.member.phoneNumber || formPhone,
+          };
 
-      const payload = { consultingType: mode }; // backend expects consultingType in body
-      console.log(payload, typeof(payload.consultingType));
-      await memberAPI.addMode(selectedMemberId, payload.consultingType.toLowerCase());
+          setMembers(prev => [...prev, newMember]);
+          setSelectedMemberId(newMember.id);
+          setPhone(newMember.phone || "");
+        }
+      } else {
+        // Edit existing member
+        await memberAPI.editMember(editingMember.id, payload);
+        
+        setMembers(prev =>
+          prev.map(m =>
+            m.id === editingMember.id
+              ? { ...m, ...payload }
+              : m
+          )
+        );
+      }
 
-      // advance UI
-      setStep(2);
+      setIsEditingMember(false);
+      setEditingMember(null);
+
     } catch (err) {
-      console.error("Failed to save consulting mode:", err);
-      setStepError(err?.response?.data?.message || err.message || "Could not save mode");
+      console.error("Save member error:", err);
+      setStepError(
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to save member"
+      );
     } finally {
       setStepLoading(false);
     }
-  }
+  };
 
-  // Step transitions integrated with backend
-  async function handleStep2Continue() {
+  const removeMember = async (memberId) => {
+    if (!window.confirm("Are you sure you want to remove this member?")) return;
+
     setStepLoading(true);
     setStepError(null);
+
     try {
-      if (!selectedMemberId) throw new Error("Member not selected");
-      const payload = {
-        memberId: selectedMemberId,
-        symptoms: selectedSymptoms,
-      };
-      await consultationAPI.addSymptoms(payload);
+      // If it's a self-added member (not from backend), just remove locally
+      if (memberId === "self") {
+        setMembers(prev => prev.filter(m => m.id !== memberId));
+        if (selectedMemberId === memberId) {
+          setSelectedMemberId(members[1]?.id || null);
+        }
+      } else {
+        // Remove from backend
+        await memberAPI.deleteMember(memberId);
+        
+        setMembers(prev => prev.filter(m => m.id !== memberId));
+        if (selectedMemberId === memberId) {
+          setSelectedMemberId(members[1]?.id || null);
+        }
+      }
+    } catch (err) {
+      setStepError("Failed to delete member");
+    } finally {
+      setStepLoading(false);
+    }
+  };
+
+  // Step 1: Save consultation type and move to step 2
+async function handleStep1Continue() {
+  setStepLoading(true);
+  setStepError(null);
+
+  try {
+    if (!selectedMemberId) throw new Error("Select a member first");
+
+    // Use consultationType state variable (not 'mode')
+    const payload = { consultingType: consultationType }; // Assuming you have consultationType state
+    
+    console.log("Saving consultation type:", payload);
+
+    // Call the correct endpoint - PUT method
+    await memberAPI.addMode(selectedMemberId, payload);
+
+    // advance UI
+    setStep(2);
+  } catch (err) {
+    console.error("Failed to save consulting mode:", err);
+    setStepError(err?.response?.data?.message || err.message || "Could not save mode");
+  } finally {
+    setStepLoading(false);
+  }
+}
+
+  // Step 2: Save symptoms and move to step 3
+  const handleStep2Continue = async () => {
+    if (!selectedMemberId) {
+      setStepError("Member not selected");
+      return;
+    }
+
+    if (selectedSymptoms.length === 0) {
+      setStepError("Please select at least one symptom");
+      return;
+    }
+
+    setStepLoading(true);
+    setStepError(null);
+
+    try {
+      // For self member, just proceed without API call
+      if (selectedMemberId !== "self") {
+        const payload = {
+          memberId: selectedMemberId,
+          symptoms: selectedSymptoms,
+        };
+        
+        await consultationAPI.addSymptoms(payload);
+      }
+      
       setStep(3);
     } catch (err) {
       console.error("Failed to send symptoms:", err);
-      setStepError(err?.response?.data?.message || err.message || "Failed to send symptoms");
+      setStepError(err?.response?.data?.message || "Failed to send symptoms");
     } finally {
       setStepLoading(false);
     }
-  }
+  };
 
- 
-async function handleConfirm() {
-  setStepLoading(true);
-  setStepError(null);
-
-  try {
-    const specPayload = {
-      memberId: selectedMemberId,
-      specialization: selectedSpecialty,
-    };
-
-    await consultationAPI.selectSpecialist(specPayload);
-
-    const orderPayload = { memberId: selectedMemberId };
-    const orderRes = await consultationAPI.createOrder(orderPayload);
-    const orderData = orderRes.data;
-
-    console.log("Order Data:", orderData);
-
-    // Condition FIXED
-    if (orderData.paymentDetails?.razorpayOrderId) {
-      await openRazorpayAndVerify(orderData.rzpOrder, orderData.appointmentId);
-    } else {
-      navigate("/appointments", {
-        state: {
-          appointmentId: orderData.appointmentId,
-          message: "Appointment booked successfully!",
-          success: true
-        }
-      });
+  // Step 3: Select specialty and proceed to payment
+  const handleStep3Continue = async () => {
+    if (!selectedSpecialty) {
+      setStepError("Please select a specialty");
+      return;
     }
-  } catch (err) {
-    console.log("Booking error:", err);
-    setStepError(err?.response?.data?.message || "Booking failed");
-  } finally {
-    setStepLoading(false);
-  }
-}
 
-  // Dynamically load Razorpay script
-  function loadRazorpayScript() {
-    return new Promise((resolve, reject) => {
-      if (document.querySelector("script[src='https://checkout.razorpay.com/v1/checkout.js']")) {
-        return resolve(true);
+    setStepLoading(true);
+    setStepError(null);
+
+    try {
+      // If doctor is already selected (from query), use that
+      if (selectedDoctor) {
+        await handleConfirm();
+      } else {
+        // If no doctor selected, show specialty doctors
+        if (specialtyDoctors.length === 0) {
+          setStepError(`No doctors available for ${selectedSpecialty}. Please select another specialty.`);
+          return;
+        }
+        
+        // For demo, auto-select first doctor in specialty
+        if (specialtyDoctors.length > 0) {
+          setSelectedDoctor(specialtyDoctors[0]);
+          await handleConfirm();
+        }
       }
+    } catch (err) {
+      console.error("Error in step 3:", err);
+      setStepError(err?.response?.data?.message || "Error proceeding to payment");
+    } finally {
+      setStepLoading(false);
+    }
+  };
+
+  // Final confirmation and payment
+  const handleConfirm = async () => {
+    if (!selectedMemberId || selectedMemberId === "self") {
+      setStepError("Please add a member first");
+      return;
+    }
+
+    setStepLoading(true);
+    setStepError(null);
+
+    try {
+      // 1. Select specialist (assign doctor based on specialty)
+      const specPayload = {
+        memberId: selectedMemberId,
+        specialization: selectedSpecialty,
+      };
+
+      const specialistRes = await consultationAPI.selectSpecialist(specPayload);
+      console.log(specialistRes);
+      if (!specialistRes.data.success) {
+        throw new Error(specialistRes.data.message || "Failed to assign specialist");
+      }
+
+      // 2. Create payment order
+      const orderPayload = { memberId: selectedMemberId };
+      const orderRes = await consultationAPI.createOrder(orderPayload);
+      
+      if (!orderRes.data.success) {
+        throw new Error(orderRes.data.message || "Failed to create order");
+      }
+
+      const orderData = orderRes.data;
+
+      // 3. Process payment if required
+      if (orderData.rzpOrder && orderData.rzpOrder.id) {
+        await openRazorpayAndVerify(orderData.rzpOrder, orderData.appointmentId);
+      } else {
+        // If no payment required, navigate to appointments
+        navigate("/appointments", {
+          state: {
+            appointmentId: orderData.appointmentId,
+            message: "Appointment booked successfully!",
+            success: true
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Booking error:", err);
+      setStepError(
+        err.response?.data?.message || 
+        err.message || 
+        "Booking failed. Please try again."
+      );
+    } finally {
+      setStepLoading(false);
+    }
+  };
+
+  // Razorpay payment integration
+  const loadRazorpayScript = () => {
+    return new Promise((resolve, reject) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      
+      if (document.querySelector("script[src='https://checkout.razorpay.com/v1/checkout.js']")) {
+        // Script is loading, wait for it
+        const checkInterval = setInterval(() => {
+          if (window.Razorpay) {
+            clearInterval(checkInterval);
+            resolve(true);
+          }
+        }, 100);
+        
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          reject(new Error("Timeout loading Razorpay"));
+        }, 5000);
+        return;
+      }
+      
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.onload = () => resolve(true);
       script.onerror = () => reject(new Error("Failed to load Razorpay SDK"));
       document.body.appendChild(script);
     });
-  }
+  };
 
-async function openRazorpayAndVerify(rzpOrder, appointmentId) {
-  if (!rzpOrder?.id) {
-    setStepError("Invalid payment order");
-    return;
-  }
-
-  // Load script
-  await loadRazorpayScript();
-
-  const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
-
-  return new Promise((resolve, reject) => {
-
-    const options = {
-      key: razorpayKey,
-      amount: rzpOrder.amount,
-      currency: rzpOrder.currency,
-      name: "CareMitra",
-      description: `Consultation - ${selectedSpecialty}`,
-      order_id: rzpOrder.id,
-
-      handler: async (response) => {
-        try {
-          const verifyPayload = {
-            razorpay_payment_id: response.razorpay_payment_id || response.razorpay_paymentId,
-            razorpay_order_id: response.razorpay_order_id || response.razorpay_orderId,
-            razorpay_signature: response.razorpay_signature,
-            appointmentId,
-            memberId: selectedMemberId,
-            specialty: selectedSpecialty,
-            doctorId: selectedDoctor?._id || null
-          };
-
-          const verifyRes = await paymentAPI.verifyPayment(verifyPayload);
-
-          navigate("/appointments", {
-            state: {
-              appointmentId,
-              paymentId: verifyPayload.razorpay_payment_id,
-              message: "Payment successful! Appointment confirmed.",
-              success: true
-            }
-          });
-
-          resolve(verifyRes.data);
-
-        } catch (err) {
-          setStepError("Payment verification failed");
-          reject(err);
-        }
-      },
-
-      modal: {
-        ondismiss: () => {
-          setStepError("Payment cancelled");
-          reject("cancelled");
-        }
+  const openRazorpayAndVerify = async (rzpOrder, appointmentId) => {
+    try {
+      await loadRazorpayScript();
+      
+      if (!window.Razorpay) {
+        throw new Error("Razorpay SDK not loaded");
       }
-    };
 
-    const rzp = new window.Razorpay(options);
-    rzp.open();
-  });
-}
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
+      const options = {
+        key: razorpayKey,
+        amount: rzpOrder.amount,
+        currency: rzpOrder.currency || "INR",
+        name: "CareMitra",
+        description: `Consultation - ${selectedSpecialty}`,
+        order_id: rzpOrder.id,
+        handler: async (response) => {
+          try {
+            const verifyPayload = {
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              memberId: selectedMemberId,
+            };
+           console.log(verifyPayload);
+           
+            await paymentAPI.verifyPayment(verifyPayload);
 
-  // close suggestions when clicking outside
+            navigate("/appointments", {
+              state: {
+                appointmentId,
+                paymentId: response.razorpay_payment_id,
+                message: "Payment successful! Appointment confirmed.",
+                success: true
+              }
+            });
+          } catch (verifyErr) {
+            console.error("Payment verification failed:", verifyErr);
+            setStepError("Payment verification failed. Please contact support.");
+          }
+        },
+        prefill: {
+          name: members.find(m => m.id === selectedMemberId)?.name || "",
+          email: user?.email || "",
+          contact: phone || "",
+        },
+        theme: {
+          color: "#0ea5e9"
+        },
+        modal: {
+          ondismiss: () => {
+            setStepError("Payment cancelled. You can try again.");
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      console.error("Razorpay error:", err);
+      setStepError("Payment gateway error. Please try again.");
+    }
+  };
+
+  // Close suggestions when clicking outside
   useEffect(() => {
     function onDocClick(e) {
-      if (suggestionRef.current && !suggestionRef.current.contains(e.target) && symptomInputRef.current && !symptomInputRef.current.contains(e.target)) {
+      if (suggestionRef.current && !suggestionRef.current.contains(e.target) && 
+          symptomInputRef.current && !symptomInputRef.current.contains(e.target)) {
         setInputFocused(false);
       }
     }
@@ -532,12 +610,15 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  // progress bar classes
+  // Progress bar classes
   const progressClasses = (i) => {
     if (i < step) return "bg-emerald-600";
     if (i === step) return "bg-emerald-400";
     return "bg-gray-300";
   };
+
+  // Get selected member name
+  const selectedMember = members.find(m => m.id === selectedMemberId);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20" style={{ paddingTop: "var(--nav-offset)" }}>
@@ -557,7 +638,9 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
           <div className="lg:col-span-2 bg-white rounded shadow p-6" style={{ minHeight: 480, display: "flex", flexDirection: "column" }}>
             <div className="mb-4">
               <h2 className="text-xl font-semibold">
-                {step === 1 ? "Who are you consulting for?" : step === 2 ? "Tell us your symptoms" : "Select your specialty"}
+                {step === 1 ? "Who are you consulting for?" : 
+                 step === 2 ? "Tell us your symptoms" : 
+                 "Select your specialty"}
               </h2>
               <p className="text-sm text-gray-500 mt-1">
                 {step === 1
@@ -569,7 +652,7 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
             </div>
 
             <div style={{ flex: "1 1 auto", overflowY: "auto", paddingRight: 6 }}>
-              {/* Step 1 */}
+              {/* Step 1: Select Member and Consultation Type */}
               {step === 1 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -614,20 +697,27 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
                                   >
                                     Edit
                                   </button>
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      removeMember(m.id);
-                                    }} 
-                                    className="text-xs text-red-600 px-2 py-1 hover:bg-red-50 rounded"
-                                  >
-                                    Remove
-                                  </button>
+                                  {m.id !== "self" && (
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        removeMember(m.id);
+                                      }} 
+                                      className="text-xs text-red-600 px-2 py-1 hover:bg-red-50 rounded"
+                                    >
+                                      Remove
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             </div>
                           ))}
                           {membersError && <div className="text-xs text-red-600">{membersError}</div>}
+                          {members.length === 0 && !membersLoading && (
+                            <div className="text-center py-4 text-gray-500">
+                              No members found. Add a member to continue.
+                            </div>
+                          )}
                         </div>
                       </>
                     ) : (
@@ -636,30 +726,64 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
                         <div className="space-y-3">
                           <div>
                             <label className="text-sm text-gray-600 block mb-1">Full name</label>
-                            <input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g., Priya Sharma" className="border rounded px-3 py-2 w-full" />
+                            <input 
+                              value={formName} 
+                              onChange={(e) => setFormName(e.target.value)} 
+                              placeholder="e.g., Priya Sharma" 
+                              className="border rounded px-3 py-2 w-full" 
+                            />
                           </div>
 
                           <div className="flex gap-2">
                             <div className="w-1/3">
                               <label className="text-sm text-gray-600 block mb-1">Age</label>
-                              <input value={formAge} onChange={(e) => setFormAge(e.target.value)} placeholder="e.g., 29" className="border rounded px-3 py-2 w-full" />
+                              <input 
+                                value={formAge} 
+                                onChange={(e) => setFormAge(e.target.value)} 
+                                placeholder="e.g., 29" 
+                                type="number"
+                                className="border rounded px-3 py-2 w-full" 
+                              />
                             </div>
                             <div className="w-2/3">
                               <label className="text-sm text-gray-600 block mb-1">Gender</label>
-                              <select value={formGender} onChange={(e) => setFormGender(e.target.value)} className="border rounded px-3 py-2 w-full">
-                                <option value="">Select gender</option><option>Female</option><option>Male</option><option>Other</option>
+                              <select 
+                                value={formGender} 
+                                onChange={(e) => setFormGender(e.target.value)} 
+                                className="border rounded px-3 py-2 w-full"
+                              >
+                                <option value="Female">Female</option>
+                                <option value="Male">Male</option>
+                                <option value="Other">Other</option>
                               </select>
                             </div>
                           </div>
 
                           <div>
-                            <label className="text-sm text-gray-600 block mb-1">Phone (example)</label>
-                            <input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="98xxxx1234" className="border rounded px-3 py-2 w-full" />
+                            <label className="text-sm text-gray-600 block mb-1">Phone</label>
+                            <input 
+                              value={formPhone} 
+                              onChange={(e) => setFormPhone(e.target.value)} 
+                              placeholder="98xxxx1234" 
+                              className="border rounded px-3 py-2 w-full" 
+                            />
                           </div>
 
                           <div className="flex gap-2">
-                            <button onClick={() => { setIsEditingMember(false); setEditingMember(null); }} className="border rounded px-4 py-2">Cancel</button>
-                            <button onClick={saveMember} className="bg-sky-600 text-white px-4 py-2 rounded">
+                            <button 
+                              onClick={() => { 
+                                setIsEditingMember(false); 
+                                setEditingMember(null); 
+                              }} 
+                              className="border rounded px-4 py-2"
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              onClick={saveMember} 
+                              className="bg-sky-600 text-white px-4 py-2 rounded"
+                              disabled={stepLoading}
+                            >
                               {stepLoading ? "Saving..." : editingMember ? "Update" : "Save"}
                             </button>
                           </div>
@@ -673,22 +797,40 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
                   <div>
                     <div>
                       <label className="text-sm text-gray-600 block mb-1">Patient phone number</label>
-                      <input className="border rounded px-3 py-2 w-full mb-4" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="98xxxx1234" />
+                      <input 
+                        className="border rounded px-3 py-2 w-full mb-4" 
+                        value={phone} 
+                        onChange={(e) => setPhone(e.target.value)} 
+                        placeholder="98xxxx1234" 
+                      />
                     </div>
 
                     <div>
-                      <label className="text-sm text-gray-600 block mb-2">Preferred mode</label>
+                      <label className="text-sm text-gray-600 block mb-2">Consultation mode</label>
                       <div className="flex gap-2">
-                        {["Video","Audio","Chat"].map((m) => (
-                          <button key={m} onClick={() => setMode(m)} className={`px-3 py-2 rounded border ${mode === m ? "bg-sky-600 text-white" : "bg-gray-100"}`}>{m}</button>
+                        {CONSULTATION_TYPES.map((type) => (
+                          <button 
+                            key={type} 
+                            onClick={() => setConsultationType(type)} 
+                            className={`px-3 py-2 rounded border ${
+                              consultationType === type ? "bg-sky-600 text-white" : "bg-gray-100"
+                            }`}
+                          >
+                            {CONSULTATION_DISPLAY[type]}
+                          </button>
                         ))}
                       </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {consultationType === "video" && "Face-to-face video call with doctor"}
+                        {consultationType === "audio" && "Audio call with doctor"}
+                        {consultationType === "chat" && "Text chat with doctor"}
+                      </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Step 2 */}
+              {/* Step 2: Symptoms */}
               {step === 2 && (
                 <div>
                   <h3 className="font-medium mb-3">Tell us your symptoms</h3>
@@ -713,7 +855,9 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
                               <button
                                 key={s}
                                 onClick={() => handleSelectSymptomFromDropdown(s)}
-                                className={`text-left px-3 py-2 rounded ${sel ? "bg-sky-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
+                                className={`text-left px-3 py-2 rounded text-sm ${
+                                  sel ? "bg-sky-600 text-white" : "bg-gray-100 hover:bg-gray-200"
+                                }`}
                               >
                                 {s}
                               </button>
@@ -728,13 +872,21 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
                     <div className="text-xs text-gray-500 mb-1">Most searched</div>
                     <div className="flex flex-wrap gap-2">
                       {MOST_SEARCHED.map(s => (
-                        <button key={s} onClick={() => toggleSymptom(s)} className={`px-3 py-1 rounded ${selectedSymptoms.includes(s) ? "bg-sky-600 text-white" : "bg-gray-100"}`}>{s}</button>
+                        <button 
+                          key={s} 
+                          onClick={() => toggleSymptom(s)} 
+                          className={`px-3 py-1 rounded text-sm ${
+                            selectedSymptoms.includes(s) ? "bg-sky-600 text-white" : "bg-gray-100"
+                          }`}
+                        >
+                          {s}
+                        </button>
                       ))}
                     </div>
                   </div>
 
                   <div className="mb-4">
-                    <div className="text-xs text-gray-500 mb-2">Selected</div>
+                    <div className="text-xs text-gray-500 mb-2">Selected symptoms</div>
                     <div className="flex flex-wrap gap-2">
                       {selectedSymptoms.map(s => (
                         <div key={s} className="px-2 py-1 bg-sky-50 text-sky-600 rounded flex items-center gap-2 text-sm">
@@ -742,7 +894,9 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
                           <button onClick={() => toggleSymptom(s)} className="text-xs">✕</button>
                         </div>
                       ))}
-                      {!selectedSymptoms.length && <div className="text-xs text-gray-400">No symptoms selected</div>}
+                      {selectedSymptoms.length === 0 && (
+                        <div className="text-xs text-gray-400">No symptoms selected yet</div>
+                      )}
                     </div>
                   </div>
 
@@ -750,19 +904,77 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
                 </div>
               )}
 
-              {/* Step 3 */}
+              {/* Step 3: Specialty Selection */}
               {step === 3 && (
                 <div>
                   <h3 className="font-medium mb-3">Select your specialty</h3>
-                  <div className="max-h-56 overflow-auto border rounded p-3 grid grid-cols-2 gap-2">
-                    {SPECIALTIES.map(sp => (
-                      <div key={sp} onClick={() => setSelectedSpecialty(sp)} className={`p-2 rounded cursor-pointer ${selectedSpecialty === sp ? "bg-sky-600 text-white" : "bg-gray-100"}`}>{sp}</div>
-                    ))}
-                  </div>
+                  
+                  {selectedDoctor ? (
+                    <div className="mb-4 p-3 bg-sky-50 rounded">
+                      <p className="text-sm">
+                        You've selected: <span className="font-semibold">{selectedDoctor.name}</span><br />
+                        Specialty: <span className="font-semibold">{selectedDoctor.specialization}</span>
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="max-h-56 overflow-auto border rounded p-3 grid grid-cols-2 gap-2">
+                        {SPECIALTIES.map(sp => (
+                          <div 
+                            key={sp} 
+                            onClick={() => setSelectedSpecialty(sp)} 
+                            className={`p-2 rounded cursor-pointer ${
+                              selectedSpecialty === sp ? "bg-sky-600 text-white" : "bg-gray-100 hover:bg-gray-200"
+                            }`}
+                          >
+                            {sp}
+                          </div>
+                        ))}
+                      </div>
 
-                  <div className="mt-4 text-sm text-gray-500">
-                    Not sure which specialty? <button className="text-sky-600 underline" onClick={() => setSelectedSpecialty("General Physician")}>Consult a GP</button>
-                  </div>
+                      {selectedSpecialty && specialtyDoctors.length > 0 && (
+                        <div className="mt-4">
+                          <p className="text-sm text-gray-600 mb-2">
+                            Available {selectedSpecialty} doctors:
+                          </p>
+                          <div className="space-y-2">
+                            {specialtyDoctors.slice(0, 3).map(doctor => (
+                              <div 
+                                key={doctor._id}
+                                className={`p-3 border rounded cursor-pointer ${
+                                  selectedDoctor?._id === doctor._id 
+                                    ? "border-sky-600 bg-sky-50" 
+                                    : "border-gray-200 hover:bg-gray-50"
+                                }`}
+                                onClick={() => setSelectedDoctor(doctor)}
+                              >
+                                <div className="font-medium">{doctor.name}</div>
+                                <div className="text-xs text-gray-500">
+                                  Experience: {doctor.experience || "Not specified"}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedSpecialty && specialtyDoctors.length === 0 && (
+                        <div className="mt-4 text-sm text-yellow-600">
+                          No doctors available for {selectedSpecialty}. Please select another specialty.
+                        </div>
+                      )}
+
+                      <div className="mt-4 text-sm text-gray-500">
+                        Not sure which specialty?{' '}
+                        <button 
+                          className="text-sky-600 underline" 
+                          onClick={() => setSelectedSpecialty("General Physician")}
+                        >
+                          Consult a General Physician
+                        </button>
+                      </div>
+                    </>
+                  )}
 
                   {stepError && <div className="text-xs text-red-600 mt-2">{stepError}</div>}
                 </div>
@@ -775,8 +987,8 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
                 <div className="text-sm text-gray-600">
                   <button
                     onClick={() => {
-                      if (typeof step === "number" && step > 1) {
-                        setStep((s) => s - 1);
+                      if (step > 1) {
+                        setStep(step - 1);
                       } else {
                         navigate(-1);
                       }
@@ -786,10 +998,11 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
                     Back
                   </button>
 
-                  {members.find(m => m.id === selectedMemberId) ? (
+                  {selectedMember ? (
                     <>
-                      Booking for <span className="font-medium">{members.find(m => m.id === selectedMemberId)?.name}</span> • {mode} •{" "}
-                      <span className="font-medium">{selectedSpecialty}</span>
+                      Booking for <span className="font-medium">{selectedMember.name}</span> • 
+                      {CONSULTATION_DISPLAY[consultationType]} •{' '}
+                      <span className="font-medium">{selectedSpecialty || "Select specialty"}</span>
                     </>
                   ) : (
                     <span className="text-gray-400">Select patient details</span>
@@ -808,56 +1021,58 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
                         else if (step === 2) handleStep2Continue();
                       }}
                       className="bg-sky-600 text-white px-4 py-2 rounded"
+                      disabled={stepLoading}
                     >
                       {stepLoading ? "Please wait..." : "Continue"}
                     </button>
                   ) : (
                     <button
-                      onClick={handleConfirm}
+                      onClick={handleStep3Continue}
                       className="bg-sky-600 text-white px-4 py-2 rounded"
+                      disabled={stepLoading || !selectedSpecialty}
                     >
-                      {stepLoading ? "Processing..." : "Confirm"}
+                      {stepLoading ? "Processing..." : "Confirm & Proceed to Payment"}
                     </button>
                   )}
-                  {/* Add this somewhere in your JSX for testing
-                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
-                  <div className="text-sm font-medium text-yellow-800 mb-2">Development Test</div>
-                  <button
-                    onClick={async () => {
-                      console.log("Testing payment flow...");
-                      // Simulate a successful payment response
-                      const testRzpOrder = {
-                        id: "order_test_123",
-                        amount: 29900, // 299 INR in paise
-                        currency: "INR",
-                        receipt: "receipt_test_123"
-                      };
-                      await openRazorpayAndVerify(testRzpOrder, "test_appointment_123");
-                    }}
-                    className="text-xs bg-yellow-500 text-white px-3 py-1 rounded"
-                  >
-                    Test Payment Gateway
-                  </button>
-                </div> */}
-              
                 </div>
               </div>
             </div>
-
           </div>
 
           {/* Right column */}
           <div>
             <div className="sticky top-[calc(var(--nav-offset)+16px)]">
               {selectedDoctor ? (
-                <DoctorCard doctor={selectedDoctor} onBook={() => {}} />
+                <DoctorCard 
+                  doctor={selectedDoctor} 
+                  onBook={() => {}} 
+                  showBookButton={false}
+                />
               ) : (
-                <div className="bg-white rounded shadow p-6 text-center">
-                  <div className="text-lg font-semibold mb-2">No doctor selected</div>
-                  <div className="text-sm text-gray-500 mb-4">Choose a doctor after filling symptoms, or return to doctors list.</div>
-                  <div className="flex gap-2 justify-center">
-                    <button onClick={() => navigate("/doctors")} className="border rounded px-3 py-2">Choose doctor</button>
+                <div className="bg-white rounded shadow p-6">
+                  <div className="text-lg font-semibold mb-2">Select a doctor</div>
+                  <div className="text-sm text-gray-500 mb-4">
+                    {selectedSpecialty 
+                      ? `Doctors available for ${selectedSpecialty}: ${specialtyDoctors.length}`
+                      : "Choose a specialty to see available doctors"}
                   </div>
+                  
+                  {selectedSpecialty && specialtyDoctors.length > 0 && (
+                    <div className="space-y-3">
+                      {specialtyDoctors.slice(0, 2).map(doctor => (
+                        <div 
+                          key={doctor._id}
+                          className="p-3 border rounded hover:border-sky-300 cursor-pointer"
+                          onClick={() => setSelectedDoctor(doctor)}
+                        >
+                          <div className="font-medium">{doctor.name}</div>
+                          <div className="text-xs text-gray-500">
+                            {doctor.experience || "Experience not specified"}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -867,6 +1082,8 @@ async function openRazorpayAndVerify(rzpOrder, appointmentId) {
                   <li>Doctor-signed digital prescription</li>
                   <li>Free follow-up for 3 days</li>
                   <li>100% confidential</li>
+                  <li>Video/Audio/Chat consultation</li>
+                  <li>Secure payment</li>
                 </ul>
               </div>
             </div>

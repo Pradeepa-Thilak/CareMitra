@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -8,94 +8,113 @@ import {
   UserX,
   X,
 } from "lucide-react";
-
-/* ---------------- MOCK DATA ---------------- */
-
-const mockLabStaffs = [
-  {
-    id: "LS001",
-    name: "Suresh Kumar",
-    role: "Blood Test Technician",
-    phone: "9876543210",
-    status: "Active",
-    assignedTests: [
-      { id: "LT01", name: "Blood Sugar" },
-      { id: "LT02", name: "CBC" },
-    ],
-  },
-  {
-    id: "LS002",
-    name: "Anitha R",
-    role: "X-Ray Technician",
-    phone: "9123456780",
-    status: "Inactive",
-    assignedTests: [{ id: "LT03", name: "Chest X-Ray" }],
-  },
-  {
-    id: "LS003",
-    name: "Ramesh V",
-    role: "Lab Assistant",
-    phone: "9988776655",
-    status: "Active",
-    assignedTests: [
-      { id: "LT04", name: "Thyroid Test" },
-      { id: "LT05", name: "Lipid Profile" },
-      { id: "LT06", name: "Urine Test" },
-    ],
-  },
-];
-
-/* ---------------- COMPONENT ---------------- */
+import { labStaffAPI } from "../utils/api";
 
 export default function LabStaffs() {
-  const [staffs, setStaffs] = useState(mockLabStaffs);
-
-  // UI states
+  const [staffs, setStaffs] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [page, setPage] = useState(1);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [openAdd, setOpenAdd] = useState(false);
 
-  const ITEMS_PER_PAGE = 2;
+  const ITEMS_PER_PAGE = 5;
+
+  const [newStaff, setNewStaff] = useState({
+    name: "",
+    role: "",
+    phone: "",
+    email: "",
+    address: "",
+    location: null,
+  });
+
+  /* ---------------- FETCH LAB STAFF ---------------- */
+  useEffect(() => {
+    fetchStaffs();
+  }, []);
+
+  const fetchStaffs = async () => {
+    try {
+      const res = await labStaffAPI.listLabStaff();
+      setStaffs(res.data.data || res.data);
+    } catch (err) {
+      console.error("Failed to fetch lab staffs:", err);
+    }
+  };
+
+  /* ---------------- ADD STAFF ---------------- */
+  const handleAddStaff = async (e) => {
+    e.preventDefault();
+    try {
+      await labStaffAPI.createLabStaff(newStaff);
+      setOpenAdd(false);
+      setNewStaff({
+        name: "",
+        role: "",
+        phone: "",
+        email: "",
+        address: "",
+        location: null,
+      });
+      fetchStaffs();
+    } catch (err) {
+      console.error("Failed to create lab staff:", err);
+    }
+  };
+
+  /* ---------------- GET CURRENT LOCATION ---------------- */
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation not supported by your browser.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setNewStaff({
+          ...newStaff,
+          location: {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          },
+        });
+      },
+      (err) => {
+        console.error("Location error:", err);
+        alert("Failed to get location.");
+      }
+    );
+  };
+
+  /* ---------------- TOGGLE STATUS ---------------- */
+  const toggleStatus = async (staff) => {
+    try {
+      await labStaffAPI.updateLabStaff(staff._id, {
+        isActive: !staff.isActive,
+      });
+      fetchStaffs();
+    } catch (err) {
+      console.error("Failed to update status:", err);
+    }
+  };
 
   /* ---------------- FILTER + SEARCH ---------------- */
-
   const filtered = useMemo(() => {
     return staffs.filter((s) => {
       const matchSearch =
         s.name.toLowerCase().includes(search.toLowerCase()) ||
         s.role.toLowerCase().includes(search.toLowerCase());
-
       const matchStatus =
-        statusFilter === "All" || s.status === statusFilter;
-
+        statusFilter === "All" || (s.isActive ? "Active" : "Inactive") === statusFilter;
       return matchSearch && matchStatus;
     });
   }, [staffs, search, statusFilter]);
 
-  /* ---------------- PAGINATION ---------------- */
-
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-
   const paginatedData = filtered.slice(
     (page - 1) * ITEMS_PER_PAGE,
     page * ITEMS_PER_PAGE
   );
-
-  /* ---------------- ACTIONS ---------------- */
-
-  const toggleStatus = (id) => {
-    setStaffs((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? { ...s, status: s.status === "Active" ? "Inactive" : "Active" }
-          : s
-      )
-    );
-  };
-
-  /* ---------------- UI ---------------- */
 
   return (
     <div className="space-y-6">
@@ -144,7 +163,7 @@ export default function LabStaffs() {
       <div className="grid md:grid-cols-2 gap-4">
         {paginatedData.map((staff) => (
           <motion.div
-            key={staff.id}
+            key={staff._id}
             layout
             className="bg-white p-4 rounded-xl shadow-sm space-y-2"
           >
@@ -153,22 +172,21 @@ export default function LabStaffs() {
                 <h3 className="font-semibold">{staff.name}</h3>
                 <p className="text-sm text-gray-600">{staff.role}</p>
                 <p className="text-xs text-gray-500">{staff.phone}</p>
+                <p className="text-xs text-gray-500">{staff.email}</p>
               </div>
 
               <span
                 className={`px-2 py-1 text-xs rounded-full ${
-                  staff.status === "Active"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-red-100 text-red-700"
+                  staff.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
                 }`}
               >
-                {staff.status}
+                {staff.isActive ? "Active" : "Inactive"}
               </span>
             </div>
 
             <div className="flex justify-between items-center pt-2">
               <span className="text-sm text-gray-600">
-                Assigned Tests: {staff.assignedTests.length}
+                Assigned Orders: {staff.assignedOrders?.length || 0}
               </span>
 
               <div className="flex gap-2">
@@ -180,14 +198,10 @@ export default function LabStaffs() {
                 </button>
 
                 <button
-                  onClick={() => toggleStatus(staff.id)}
+                  onClick={() => toggleStatus(staff)}
                   className="p-2 rounded hover:bg-gray-100"
                 >
-                  {staff.status === "Active" ? (
-                    <UserX size={16} />
-                  ) : (
-                    <UserCheck size={16} />
-                  )}
+                  {staff.isActive ? <UserX size={16} /> : <UserCheck size={16} />}
                 </button>
               </div>
             </div>
@@ -214,7 +228,7 @@ export default function LabStaffs() {
         </div>
       )}
 
-      {/* View Assigned Tests Modal */}
+      {/* View Assigned Orders Modal */}
       <AnimatePresence>
         {selectedStaff && (
           <motion.div
@@ -231,7 +245,7 @@ export default function LabStaffs() {
             >
               <div className="flex justify-between mb-4">
                 <h3 className="font-semibold">
-                  {selectedStaff.name} – Assigned Tests
+                  {selectedStaff.name} – Assigned Orders
                 </h3>
                 <button onClick={() => setSelectedStaff(null)}>
                   <X />
@@ -239,12 +253,9 @@ export default function LabStaffs() {
               </div>
 
               <ul className="space-y-2">
-                {selectedStaff.assignedTests.map((t) => (
-                  <li
-                    key={t.id}
-                    className="p-2 border rounded text-sm"
-                  >
-                    {t.name}
+                {selectedStaff.assignedOrders?.map((o) => (
+                  <li key={o._id} className="p-2 border rounded text-sm">
+                    {o.name || `Order ID: ${o._id}`}
                   </li>
                 ))}
               </ul>
@@ -262,22 +273,68 @@ export default function LabStaffs() {
             exit={{ x: 400 }}
             className="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-xl z-50 p-6"
           >
-            <div className="flex justify-between mb-4">
-              <h3 className="font-semibold">Add Lab Staff</h3>
-              <button onClick={() => setOpenAdd(false)}>
-                <X />
-              </button>
-            </div>
+            <form onSubmit={handleAddStaff} className="space-y-3">
+              <div className="flex justify-between mb-4">
+                <h3 className="font-semibold">Add Lab Staff</h3>
+                <button type="button" onClick={() => setOpenAdd(false)}>
+                  <X />
+                </button>
+              </div>
 
-            <div className="space-y-3">
-              <input className="w-full border px-3 py-2 rounded" placeholder="Name" />
-              <input className="w-full border px-3 py-2 rounded" placeholder="Role" />
-              <input className="w-full border px-3 py-2 rounded" placeholder="Phone" />
+              <input
+                className="w-full border px-3 py-2 rounded"
+                placeholder="Name"
+                value={newStaff.name}
+                onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
+                required
+              />
 
-              <button className="w-full bg-blue-600 text-white py-2 rounded">
-                Save (mock)
+              <input
+                className="w-full border px-3 py-2 rounded"
+                placeholder="Role"
+                value={newStaff.role}
+                onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
+                required
+              />
+
+              <input
+                className="w-full border px-3 py-2 rounded"
+                placeholder="Phone"
+                value={newStaff.phone}
+                onChange={(e) => setNewStaff({ ...newStaff, phone: e.target.value })}
+                required
+              />
+
+              <input
+                className="w-full border px-3 py-2 rounded"
+                placeholder="Email"
+                value={newStaff.email}
+                onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
+                required
+              />
+
+              <input
+                className="w-full border px-3 py-2 rounded"
+                placeholder="Address"
+                value={newStaff.address}
+                onChange={(e) => setNewStaff({ ...newStaff, address: e.target.value })}
+              />
+
+              <button
+                type="button"
+                onClick={getCurrentLocation}
+                className="w-full bg-gray-200 py-2 rounded"
+              >
+                Get Current Location
               </button>
-            </div>
+
+              <button
+                type="submit"
+                className="w-full bg-blue-600 text-white py-2 rounded"
+              >
+                Save Staff
+              </button>
+            </form>
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,41 +1,61 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../utils/api"; // your axios instance
+import api from "../utils/api";
 import LoadSpinner from "../components/LoadSpinner";
-import { CreditCard, X, Printer, ArrowRightCircle, Repeat } from "lucide-react";
-
-// Orders page
-// - Fetches /orders (expects an array of order objects)
-// - Shows list with basic meta + status
-// - Allows opening a detail drawer/modal and printing receipt
-// - Minimal, easy to adapt to your backend shape
+import { X, Printer, ArrowRightCircle, Repeat, Package, Clock, CheckCircle, Truck } from "lucide-react";
 
 export default function Orders() {
   const navigate = useNavigate();
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selected, setSelected] = useState(null); // selected order to show details
+  const [selected, setSelected] = useState(null);
   const [filter, setFilter] = useState("all");
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
+  // ✅ DEFINE fetchOrders
   const fetchOrders = async () => {
-    setLoading(true);
-    setError("");
     try {
-      const res = await api.get("/orders");
-      // Expect res.data to be array of orders. Adapt if API returns { data: [...] }
-      setOrders(res.data || []);
+      setLoading(true);
+      setError("");
+
+      const res = await api.get("/cart/my-orders");
+
+      // ✅ always ensure array
+      setOrders(Array.isArray(res.data.orders) ? res.data.orders : []);
     } catch (err) {
-      console.error("Failed to fetch orders", err);
-      setError("Unable to load orders. Try again.");
+      console.error("Fetch orders error:", err);
+      setError("Failed to load orders");
+      setOrders([]);
     } finally {
       setLoading(false);
     }
   };
+
+  // ✅ DEFINE fetchOrdersByStatus
+  const fetchOrdersByStatus = async (status) => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const res = await api.get(`/cart/order/${status}`);
+      setOrders(res.data.data || []);
+    } catch (err) {
+      console.error(err);
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ Call it on page load
+  useEffect(() => {
+    if (filter === "all") {
+      fetchOrders();
+    } else {
+      fetchOrdersByStatus(filter);
+    }
+  }, [filter]);
 
   const printReceipt = (o) => {
     const w = window.open("", "_blank", "width=700,height=900");
@@ -44,26 +64,24 @@ export default function Orders() {
         <head>
           <title>Receipt - ${o.orderId || o.id}</title>
           <style>
-            body{font-family: Arial, sans-serif;padding:20px;color:#111}
-            h1{color:#0ea5e9}
+            body{font-family:Arial;padding:20px}
             table{width:100%;border-collapse:collapse;margin-top:12px}
-            th,td{border:1px solid #ddd;padding:8px;text-align:left}
-            .total{font-weight:700}
+            th,td{border:1px solid #ddd;padding:8px}
           </style>
         </head>
         <body>
-          <h1>Payment Receipt</h1>
-          <div><strong>Order:</strong> ${o.orderId || o.id}</div>
-          <div><strong>Payment:</strong> ${o.paymentId || "—"}</div>
-          <div><strong>Date:</strong> ${new Date(o.createdAt || Date.now()).toLocaleString()}</div>
-          <div><strong>Amount:</strong> ₹${(o.totalAmount ?? o.amount ?? 0).toFixed(2)}</div>
+          <h2>Payment Receipt</h2>
+          <p><b>Order:</b> ${o.orderId || o.id}</p>
+          <p><b>Date:</b> ${new Date(o.createdAt).toLocaleString()}</p>
+          <p><b>Total:</b> ₹${(o.totalAmount ?? 0).toFixed(2)}</p>
           <table>
             <thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead>
             <tbody>
-              ${(o.items || []).map(i => `<tr><td>${i.name}</td><td>${i.quantity ?? 1}</td><td>₹${((i.price||0) * (i.quantity||1)).toFixed(2)}</td></tr>`).join("")}
+              ${(o.items || []).map(i =>
+                `<tr><td>${i.name}</td><td>${i.quantity ?? 1}</td><td>₹${((i.price||0)*(i.quantity||1)).toFixed(2)}</td></tr>`
+              ).join("")}
             </tbody>
           </table>
-          <p style="margin-top:20px">Thank you for shopping with us.</p>
           <script>window.print()</script>
         </body>
       </html>
@@ -72,120 +90,229 @@ export default function Orders() {
     w.document.close();
   };
 
-  const filtered = orders.filter((o) => {
+  const getStatusConfig = (status) => {
+    const statusLower = (status || "").toLowerCase();
+    switch (statusLower) {
+      case "pending":
+        return { icon: Clock, color: "text-amber-600 bg-amber-50 border-amber-200", label: "Pending" };
+      case "paid":
+        return { icon: CheckCircle, color: "text-green-600 bg-green-50 border-green-200", label: "Paid" };
+      case "delivered":
+        return { icon: Truck, color: "text-blue-600 bg-blue-50 border-blue-200", label: "Delivered" };
+      default:
+        return { icon: Package, color: "text-gray-600 bg-gray-50 border-gray-200", label: status || "Unknown" };
+    }
+  };
+
+  const filtered = orders.filter(o => {
     if (filter === "all") return true;
-    return (o.status || "unknown").toLowerCase() === filter;
+    return (o.orderStatus || "").toLowerCase() === filter;
   });
 
   return (
-    <div className="min-h-screen py-12 bg-gray-50">
-      <div className="container-custom">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Your Orders</h1>
-          <div className="flex items-center gap-2">
-            <select value={filter} onChange={(e) => setFilter(e.target.value)} className="border rounded px-3 py-2 text-sm">
-              <option value="all">All</option>
-              <option value="pending">Pending</option>
-              <option value="paid">Paid</option>
-              <option value="shipped">Shipped</option>
-              <option value="delivered">Delivered</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-            <button onClick={fetchOrders} className="btn-outline px-3 py-2"><Repeat className="w-4 h-4" /></button>
+    <div className="min-h-screen py-8 bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="container-custom max-w-5xl mx-auto px-4">
+        {/* Header Section */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Your Orders</h1>
+              <p className="text-gray-500 mt-1">Track and manage your medical orders</p>
+            </div>
+
+            <div className="flex gap-3">
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="border border-gray-300 rounded-lg px-4 py-2.5 bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              >
+                <option value="all">All Orders</option>
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="delivered">Delivered</option>
+              </select>
+
+              <button 
+                onClick={fetchOrders} 
+                className="border border-gray-300 rounded-lg px-4 py-2.5 bg-white hover:bg-gray-50 transition-colors flex items-center gap-2 font-medium text-gray-700"
+              >
+                <Repeat className="w-4 h-4" />
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
+            </div>
           </div>
         </div>
 
+        {/* Orders List */}
         {loading ? (
-          <div className="card p-6 flex items-center justify-center"><LoadSpinner /></div>
+          <div className="bg-white rounded-2xl shadow-sm p-12 flex justify-center">
+            <LoadSpinner />
+          </div>
         ) : error ? (
-          <div className="card p-6 text-red-600">{error}</div>
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-red-700 text-center">
+            <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p className="font-medium">{error}</p>
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="card p-6 text-center">
-            <div className="text-lg font-medium">No orders found</div>
-            <div className="text-sm text-gray-500 mt-2">Looks like you haven't placed any orders yet.</div>
-            <div className="mt-4">
-              <button onClick={() => navigate('/')} className="btn-primary px-4 py-2">Continue Shopping</button>
-            </div>
+          <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+            <Package className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No orders found</h3>
+            <p className="text-gray-500 mb-6">Start shopping to see your orders here</p>
+            <button 
+              onClick={() => navigate("/")} 
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Continue Shopping
+            </button>
           </div>
         ) : (
           <div className="space-y-4">
-            {filtered.map((o) => (
-              <div key={o.id || o.orderId} className="card p-4 flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-sm text-gray-500">{new Date(o.createdAt || Date.now()).toLocaleDateString()}</div>
-                    <div className="font-medium">{o.orderId || o.id}</div>
-                    <div className={`ml-3 px-2 py-1 rounded text-xs ${((o.status||'') === 'paid' || (o.status||'') === 'delivered') ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-800'}`}>
-                      {o.status || 'unknown'}
+            {filtered.map(o => {
+              const statusConfig = getStatusConfig(o.status);
+              const StatusIcon = statusConfig.icon;
+              
+              return (
+                <div 
+                  key={o._id || o.orderId} 
+                  className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100"
+                >
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    {/* Order Info */}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="font-semibold text-gray-900 text-lg">
+                          {o.orderId}
+                        </span>
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border ${statusConfig.color}`}>
+                          <StatusIcon className="w-3.5 h-3.5" />
+                          {statusConfig.label}
+                        </span>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                        <div>
+                          <span className="font-medium">Total:</span>{" "}
+                          <span className="text-gray-900 font-semibold">₹{(o.totalAmount ?? 0).toFixed(2)}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium">Items:</span>{" "}
+                          <span className="text-gray-900">{(o.items || []).length}</span>
+                        </div>
+                        {o.createdAt && (
+                          <div>
+                            <span className="font-medium">Date:</span>{" "}
+                            <span className="text-gray-900">{new Date(o.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => setSelected(o)} 
+                        className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-gray-700"
+                      >
+                        <ArrowRightCircle className="w-4 h-4" />
+                        <span className="hidden sm:inline">Details</span>
+                      </button>
+                      <button 
+                        onClick={() => printReceipt(o)} 
+                        className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                      >
+                        <Printer className="w-4 h-4" />
+                        <span className="hidden sm:inline">Print</span>
+                      </button>
                     </div>
                   </div>
-
-                  <div className="mt-2 text-sm text-gray-600">Items: {(o.items || []).length} • Amount: ₹{(o.totalAmount ?? o.amount ?? 0).toFixed(2)}</div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setSelected(o)} className="btn-outline px-3 py-2 text-sm flex items-center gap-2"><ArrowRightCircle className="w-4 h-4"/> Details</button>
-                  <button onClick={() => printReceipt(o)} className="btn-primary px-3 py-2 text-sm flex items-center gap-2"><Printer className="w-4 h-4"/> Receipt</button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        {/* Detail drawer/modal */}
+        {/* Modal */}
         {selected && (
-          <div className="fixed inset-0 z-60 flex items-end md:items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setSelected(null)} />
-            <div className="relative bg-white rounded-t-2xl md:rounded-2xl shadow-xl w-full md:max-w-2xl p-6">
-              <div className="flex items-start justify-between">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center p-4 z-50">
+            <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+              {/* Modal Header */}
+              <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between rounded-t-2xl">
                 <div>
-                  <div className="text-xs text-gray-500">{new Date(selected.createdAt || Date.now()).toLocaleString()}</div>
-                  <h2 className="text-lg font-semibold mt-1">Order {selected.orderId || selected.id}</h2>
-                  <div className="text-sm text-gray-600 mt-2">Status: <span className="font-medium">{selected.status || '—'}</span></div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Order Details
+                  </h2>
+                  <p className="text-gray-500 mt-1">{selected.orderId}</p>
                 </div>
-                <button onClick={() => setSelected(null)} className="p-2 rounded hover:bg-gray-100"><X /></button>
+                <button 
+                  onClick={() => setSelected(null)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="mt-4 grid md:grid-cols-2 gap-4">
+              {/* Modal Content */}
+              <div className="p-6 space-y-6">
+                {/* Status Badge */}
                 <div>
-                  <h4 className="font-medium mb-2">Items</h4>
-                  <div className="space-y-2">
-                    {(selected.items || []).map((it, idx) => (
-                      <div key={idx} className="flex justify-between items-center border-b last:border-b-0 pb-2">
-                        <div>
-                          <div className="font-medium">{it.name}</div>
-                          <div className="text-xs text-gray-500">Qty: {it.quantity ?? 1}</div>
-                        </div>
-                        <div className="font-medium">₹{((it.price||0) * (it.quantity||1)).toFixed(2)}</div>
-                      </div>
-                    ))}
+                  {(() => {
+                    const statusConfig = getStatusConfig(selected.status);
+                    const StatusIcon = statusConfig.icon;
+                    return (
+                      <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border ${statusConfig.color}`}>
+                        <StatusIcon className="w-4 h-4" />
+                        {statusConfig.label}
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                {/* Order Summary */}
+                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Order Date:</span>
+                    <span className="font-semibold text-gray-900">
+                      {selected.createdAt ? new Date(selected.createdAt).toLocaleString() : "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Items:</span>
+                    <span className="font-semibold text-gray-900">{(selected.items || []).length}</span>
+                  </div>
+                  <div className="flex justify-between text-lg pt-3 border-t border-gray-200">
+                    <span className="font-semibold text-gray-900">Total Amount:</span>
+                    <span className="font-bold text-blue-600">₹{(selected.totalAmount ?? 0).toFixed(2)}</span>
                   </div>
                 </div>
 
-                <div>
-                  <h4 className="font-medium mb-2">Summary</h4>
-                  <div className="text-sm text-gray-700 space-y-2">
-                    <div><strong>Payment ID:</strong> {selected.paymentId || '—'}</div>
-                    <div><strong>Amount:</strong> ₹{(selected.totalAmount ?? selected.amount ?? 0).toFixed(2)}</div>
-                    <div><strong>Address:</strong>
-                      <div className="text-xs text-gray-600 mt-1">
-                        {selected.address ? (
-                          <>
-                            <div>{selected.address.name || selected.address.fullName}</div>
-                            <div>{selected.address.house || selected.address.line1}</div>
-                            <div>{selected.address.city}, {selected.address.state} - {selected.address.pincode || selected.address.postalCode}</div>
-                            {selected.address.phone && <div>Phone: {selected.address.phone}</div>}
-                          </>
-                        ) : <div className="text-gray-400">No address</div>}
-                      </div>
+                {/* Items List */}
+                {selected.items && selected.items.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-3">Order Items</h3>
+                    <div className="space-y-2">
+                      {selected.items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="font-medium text-gray-900">{item.name || "Item"}</p>
+                            <p className="text-sm text-gray-500">Quantity: {item.quantity ?? 1}</p>
+                          </div>
+                          <p className="font-semibold text-gray-900">
+                            ₹{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                          </p>
+                        </div>
+                      ))}
                     </div>
                   </div>
+                )}
 
-                  <div className="mt-4 flex gap-2">
-                    <button onClick={() => printReceipt(selected)} className="btn-outline flex-1 py-2 flex items-center justify-center gap-2"><Printer className="w-4 h-4"/> Print</button>
-                    <button onClick={() => { setSelected(null); navigate('/'); }} className="btn-primary flex-1 py-2">Continue Shopping</button>
-                  </div>
-                </div>
+                {/* Action Button */}
+                <button
+                  onClick={() => printReceipt(selected)}
+                  className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <Printer className="w-5 h-5" />
+                  Print Receipt
+                </button>
               </div>
             </div>
           </div>

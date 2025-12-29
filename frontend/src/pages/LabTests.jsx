@@ -103,7 +103,7 @@ async function openRazorpayCheckout(razorpayOrder, orderFromServer) {
             razorpaySignature: response.razorpay_signature
           });
           
-          console.log("✅ Payment verified:", verifyRes.data);
+          console.log("Payment verified:", verifyRes.data);
           resolve(response);
           
         } catch (verifyError) {

@@ -3,7 +3,7 @@ import React, { useContext, useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useCart } from "../../hooks/useCart";
-import { useWishlist } from "../../hooks/useWishlist"; 
+import { useWishlist } from "../../hooks/useWishlist";
 import AuthModal from "../modals/AuthModal";
 import {
   Heart,
@@ -14,6 +14,10 @@ import {
   ChevronDown,
   ShoppingCart,
   FileText,
+  Bot,
+  Menu,
+  X,
+  Search,
 } from "lucide-react";
 import ProductSearchBarNav from "./ProductSearchBarNav";
 import { searchAPI } from "../../utils/api";
@@ -21,274 +25,280 @@ import { searchAPI } from "../../utils/api";
 const Navbar = () => {
   const { user, role, logout, token } = useContext(AuthContext);
   const { cartItems } = useCart();
-  const { items: wishlistItems } = useWishlist(); // <- added
+  const { items: wishlistItems } = useWishlist();
   const navigate = useNavigate();
 
-  const cartCount = cartItems?.reduce((sum, it) => sum + (it.quantity || 0), 0) ?? 0;
-  const wishlistCount = wishlistItems?.length ?? 0; // number to display
-
-  const navRef = useRef(null);
-  // keeps track of nav height variable for page layout
-  useEffect(() => {
-    const setNavOffset = () => {
-      if (navRef.current) {
-        const h = navRef.current.getBoundingClientRect().height;
-        document.documentElement.style.setProperty("--nav-offset", `${h}px`);
-      }
-    };
-
-    setNavOffset();
-    const ro = new ResizeObserver(setNavOffset);
-    if (navRef.current) ro.observe(navRef.current);
-    window.addEventListener("resize", setNavOffset);
-    return () => {
-      window.removeEventListener("resize", setNavOffset);
-      if (ro && navRef.current) ro.unobserve(navRef.current);
-    };
-  }, []);
-
-  // modal state
+  // UI states
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
 
-  // desktop profile dropdown
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef();
+  // Refs
+  const dropdownRef = useRef(null);
+  const mobileMenuRef = useRef(null);
 
-  // mobile menu
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const mobileMenuRef = useRef();
+  const cartCount = cartItems?.reduce((sum, it) => sum + (it.quantity || 0), 0) ?? 0;
+  const wishlistCount = wishlistItems?.length ?? 0;
 
-  // close dropdown or mobile menu on outside click or Escape
+  // Close dropdown when clicking outside
   useEffect(() => {
-    const handleOutside = (e) => {
-      if (isDropdownOpen && dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setIsDropdownOpen(false);
       }
-      if (isMobileMenuOpen && mobileMenuRef.current && !mobileMenuRef.current.contains(e.target)) {
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isDropdownOpen]);
+
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target) && isMobileMenuOpen) {
         setIsMobileMenuOpen(false);
       }
     };
-    const handleEsc = (e) => {
-      if (e.key === "Escape") {
-        setIsDropdownOpen(false);
-        setIsMobileMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleOutside);
-    document.addEventListener("keydown", handleEsc);
+
+    if (isMobileMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isMobileMenuOpen]);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
     return () => {
-      document.removeEventListener("mousedown", handleOutside);
-      document.removeEventListener("keydown", handleEsc);
+      document.body.style.overflow = "unset";
     };
-  }, [isDropdownOpen, isMobileMenuOpen]);
+  }, [isMobileMenuOpen]);
 
   const handleLogout = () => {
     logout();
-    navigate("/");
     setIsDropdownOpen(false);
+    navigate("/");
+  };
+
+  const handleSearch = (query) => {
+    if (!query || !query.trim()) return;
+    navigate(`/medicines?q=${encodeURIComponent(query)}`);
   };
 
   return (
     <>
-      <nav
-        ref={navRef}
-        className="w-full bg-sky-700 text-white shadow-md fixed top-0 left-0 z-50"
-      >
-        <div className="container-custom flex items-center justify-between px-4 md:px-6 py-3">
-          {/* Left: Logo + mobile hamburger */}
-          <div className="flex items-center gap-3">
-            {/* Mobile menu button */}
+      <nav className="w-full bg-sky-700 text-white shadow-md fixed top-0 left-0 z-50">
+        <div className="w-full max-w-full flex items-center justify-between px-3 sm:px-4 lg:px-6 py-2.5 lg:py-3">
+          
+          {/* Left Section: Mobile Menu + Logo */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            {/* Mobile Hamburger */}
             <button
-              className="md:hidden p-2 rounded-md hover:bg-sky-600/60 focus:outline-none focus:ring-2 focus:ring-white"
+              className="lg:hidden p-1.5 rounded-md hover:bg-sky-600/60 focus:outline-none transition-colors"
               aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
-              aria-expanded={isMobileMenuOpen}
-              onClick={() => setIsMobileMenuOpen((s) => !s)}
+              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
             >
-              {/* simple hamburger icon (three lines) */}
-              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
-            <Link to="/" className="flex items-center gap-2">
-              <Heart className="w-6 h-6 text-white" />
-              <span className="text-2xl font-semibold tracking-wide">CareMitra</span>
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-1.5 sm:gap-2 hover:opacity-90 transition-opacity">
+              <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-white flex-shrink-0" fill="currentColor" />
+              <span className="text-base sm:text-lg lg:text-xl font-bold tracking-wide whitespace-nowrap">
+                CareMitra
+              </span>
             </Link>
           </div>
 
-          {/* Center: Links (hidden on mobile) */}
-          <div className="hidden lg:flex items-center gap-6">
-            <Link to="/" className="hover:text-gray-200 flex items-center gap-1">
-              <HomeIcon size={18} /> <span>Home</span>
+          {/* Center: Desktop Navigation Links */}
+          <div className="hidden lg:flex items-center gap-1 flex-shrink-0">
+            <Link to="/" className="px-2.5 py-1.5 rounded-md hover:bg-sky-600/60 transition-colors text-sm whitespace-nowrap">
+              Home
             </Link>
-            <Link to="/medicines" className="hover:text-gray-200">Medicines</Link>
-            <Link to="/doctors" className="hover:text-gray-200">Consultations</Link>
-            <Link to="/labtests" className="hover:text-gray-200">Lab Tests</Link>
+            <Link to="/medicines" className="px-2.5 py-1.5 rounded-md hover:bg-sky-600/60 transition-colors text-sm whitespace-nowrap">
+              Medicines
+            </Link>
+            <Link to="/doctors" className="px-2.5 py-1.5 rounded-md hover:bg-sky-600/60 transition-colors text-sm whitespace-nowrap">
+              Consultations
+            </Link>
+            <Link to="/labtests" className="px-2.5 py-1.5 rounded-md hover:bg-sky-600/60 transition-colors text-sm whitespace-nowrap">
+              Lab Tests
+            </Link>
+            <Link to="/ai-chatbot" className="px-2.5 py-1.5 rounded-md hover:bg-sky-600/60 transition-colors text-sm whitespace-nowrap flex items-center gap-1.5">
+              <Bot size={16} />
+              <span>AI Assistant</span>
+            </Link>
           </div>
 
-          {/* Right area */}
-          <div className="flex items-center gap-3">
-            {/* Search - compact on small screens, full on md+ */}
-            <div className="hidden md:flex items-center">
-              <div className="w-[360px]">
-                <ProductSearchBarNav 
-                placeholder="Search medicines, brands, symptoms..." 
-                mode = "auto"
-                searchAPI={searchAPI.basic}
-                />
-              </div>
+          {/* Right Section: Search, Cart, Profile */}
+          <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 flex-shrink-0">
+            
+            {/* Desktop Search - Hidden on smaller screens */}
+            <div className="hidden xl:block w-64">
+              <ProductSearchBarNav
+                placeholder="Search medicines..."
+                mode="auto"
+                searchAPI={searchAPI.advanced}
+                onSearch={handleSearch}
+              />
             </div>
 
-            {/* Mobile: small search icon that opens a full width search when tapped */}
-            <div className="md:hidden">
-              <button
-                aria-label="Open search"
-                className="p-2 rounded-md hover:bg-sky-600/60 focus:outline-none focus:ring-2 focus:ring-white"
-                onClick={() => {
-                  // open mobile menu and focus search inside it for convenience
-                  setIsMobileMenuOpen(true);
-                }}
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="2" />
-                </svg>
-              </button>
-            </div>
+            {/* Search Icon for tablets */}
+            <button
+              aria-label="Search"
+              className="hidden lg:flex xl:hidden p-2 rounded-md hover:bg-sky-600/60 transition-colors"
+              onClick={() => setIsMobileMenuOpen(true)}
+            >
+              <Search className="w-5 h-5" />
+            </button>
 
-            {/* Cart - desktop shows label, mobile shows icon */}
-            <div className="hidden md:block relative">
-              <Link
-                to="/cart"
-                className="flex items-center space-x-2 bg-white text-sky-700 px-3 py-1.5 rounded-full hover:bg-gray-100 transition"
-              >
-                <ShoppingCart size={18} />
-                <span className="text-sm font-medium">Cart</span>
-              </Link>
+            {/* Cart */}
+            <Link
+              to="/cart"
+              className="relative flex items-center gap-1.5 bg-white text-sky-700 px-2.5 sm:px-3 py-1.5 rounded-full hover:bg-gray-100 transition-colors"
+              aria-label="Shopping cart"
+            >
+              <ShoppingCart size={18} className="flex-shrink-0" />
+              <span className="hidden sm:inline text-sm font-medium whitespace-nowrap">Cart</span>
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold leading-none text-white bg-red-600 rounded-full">
-                  {cartCount}
+                <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-600 rounded-full">
+                  {cartCount > 99 ? "99+" : cartCount}
                 </span>
               )}
-            </div>
+            </Link>
 
-            <div className="md:hidden relative">
-              <Link
-                to="/cart"
-                className="relative inline-flex items-center justify-center p-2 bg-white text-sky-700 rounded-full hover:bg-gray-100 transition"
-                aria-label="Cart"
-              >
-                <ShoppingCart size={18} />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white bg-red-600 rounded-full">
-                    {cartCount}
-                  </span>
-                )}
-              </Link>
-            </div>
-
-            {/* Auth / profile */}
-            <div className="relative" ref={dropdownRef}>
+            {/* Auth / Profile */}
+            <div className="relative flex-shrink-0" ref={dropdownRef}>
               {!token ? (
                 <button
                   onClick={() => {
                     setIsLogin(true);
                     setShowAuthModal(true);
                   }}
-                  className="bg-white text-sky-700 px-3 py-1 rounded-full hover:bg-gray-100 transition text-sm"
+                  className="bg-white text-sky-700 px-2.5 sm:px-3 lg:px-4 py-1.5 rounded-full hover:bg-gray-100 transition-colors text-xs sm:text-sm font-medium whitespace-nowrap"
                 >
-                  Login / Signup
+                  Login
                 </button>
               ) : (
                 <>
                   <button
                     onClick={() => setIsDropdownOpen((prev) => !prev)}
-                    className="flex items-center space-x-2 bg-white text-sky-700 px-3 py-1.5 rounded-full hover:bg-gray-100 transition"
+                    className="p-1.5 sm:p-2 bg-white text-sky-700 rounded-full hover:bg-gray-100 transition-colors flex-shrink-0"
                     aria-haspopup="menu"
                     aria-expanded={isDropdownOpen}
+                    aria-label="User menu"
                   >
-                    <UserCircle size={20} />
-                    <span className="text-sm font-medium hidden sm:inline">
-                      {user?.name || user?.email?.split("@")[0]}
-                    </span>
-                    <ChevronDown size={14} />
+                    <UserCircle size={20} className="sm:w-6 sm:h-6" />
                   </button>
 
+                  {/* Dropdown Menu */}
                   {isDropdownOpen && (
                     <div
                       role="menu"
-                      aria-label="Profile menu"
-                      className="absolute right-0 top-12 w-56 bg-white text-gray-800 rounded-md shadow-md border border-gray-200 py-2 z-50"
+                      className="absolute right-0 top-full mt-2 w-56 bg-white text-gray-800 rounded-lg shadow-xl border border-gray-200 py-1 z-50"
                     >
-                      <Link
-                        to="/profile"
-                        className="flex items-center px-4 py-2 hover:bg-gray-100 text-sm gap-2"
-                        onClick={() => setIsDropdownOpen(false)}
-                      >
-                        <UserCircle size={16} /> Profile
-                      </Link>
+                      {/* User Info Header */}
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {user?.name || user?.email?.split("@")[0]}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                      </div>
 
-                      {/* Wishlist entry */}
-                      <Link
-                        to="/wishlist"
-                        className="flex items-center px-4 py-2 hover:bg-gray-100 text-sm gap-2 justify-between"
-                        onClick={() => setIsDropdownOpen(false)}
-                      >
-                        <span className="flex items-center gap-2">
-                          <Heart size={16} /> Wishlist
-                        </span>
-                        {wishlistCount > 0 && (
-                          <span className="text-xs bg-sky-700 text-white px-2 py-0.5 rounded-full">
-                            {wishlistCount}
+                      {/* Menu Items */}
+                      <div className="py-1">
+                        <Link
+                          to="/profile"
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm transition-colors"
+                          onClick={() => setIsDropdownOpen(false)}
+                        >
+                          <UserCircle size={18} />
+                          <span>Profile</span>
+                        </Link>
+
+                        <Link
+                          to="/wishlist"
+                          className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 text-sm transition-colors"
+                          onClick={() => setIsDropdownOpen(false)}
+                        >
+                          <span className="flex items-center gap-3">
+                            <Heart size={18} />
+                            <span>Wishlist</span>
                           </span>
+                          {wishlistCount > 0 && (
+                            <span className="text-xs bg-sky-700 text-white px-2 py-0.5 rounded-full font-medium">
+                              {wishlistCount}
+                            </span>
+                          )}
+                        </Link>
+
+                        <Link
+                          to="/orders"
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm transition-colors"
+                          onClick={() => setIsDropdownOpen(false)}
+                        >
+                          <FileText size={18} />
+                          <span>Orders</span>
+                        </Link>
+
+                        <Link
+                          to="/appointments"
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm transition-colors"
+                          onClick={() => setIsDropdownOpen(false)}
+                        >
+                          <FileText size={18} />
+                          <span>Appointments</span>
+                        </Link>
+
+                        <Link
+                          to="/ai-chatbot"
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm transition-colors lg:hidden"
+                          onClick={() => setIsDropdownOpen(false)}
+                        >
+                          <Bot size={18} />
+                          <span>AI Assistant</span>
+                        </Link>
+
+                        {role === "doctor" && (
+                          <Link
+                            to="/doctor/dashboard"
+                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm transition-colors"
+                            onClick={() => setIsDropdownOpen(false)}
+                          >
+                            <Stethoscope size={18} />
+                            <span>Dashboard</span>
+                          </Link>
                         )}
-                      </Link>
 
-                      {/* Orders entry */}
-                      <Link
-                        to="/orders"
-                        className="flex items-center px-4 py-2 hover:bg-gray-100 text-sm gap-2"
-                        onClick={() => setIsDropdownOpen(false)}
-                      >
-                        <FileText size={16} /> Orders
-                      </Link>
+                        {role === "patient" && (
+                          <Link
+                            to="/patient/dashboard"
+                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm transition-colors"
+                            onClick={() => setIsDropdownOpen(false)}
+                          >
+                            <UserCircle size={18} />
+                            <span>Dashboard</span>
+                          </Link>
+                        )}
+                      </div>
 
-                        <Link
-                        to="/appointments"
-                        className="flex items-center px-4 py-2 hover:bg-gray-100 text-sm gap-2"
-                        onClick={() => setIsDropdownOpen(false)}
-                      >
-                        <FileText size={16} /> Appointments
-                      </Link>
-                      {role === "doctor" && (
-                        <Link
-                          to="/doctor/dashboard"
-                          className="flex items-center px-4 py-2 hover:bg-gray-100 text-sm gap-2"
-                          onClick={() => setIsDropdownOpen(false)}
+                      {/* Logout */}
+                      <div className="border-t border-gray-100 py-1">
+                        <button
+                          onClick={handleLogout}
+                          className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-red-50 text-sm text-red-600 transition-colors"
                         >
-                          <Stethoscope size={16} /> Dashboard
-                        </Link>
-                      )}
-
-                      {role === "patient" && (
-                        <Link
-                          to="/patient/dashboard"
-                          className="flex items-center px-4 py-2 hover:bg-gray-100 text-sm gap-2"
-                          onClick={() => setIsDropdownOpen(false)}
-                        >
-                          <UserCircle size={16} /> Dashboard
-                        </Link>
-                      )}
-
-                      <hr className="my-1 border-gray-200" />
-
-                      <button
-                        onClick={handleLogout}
-                        className="flex items-center w-full px-4 py-2 text-left hover:bg-gray-100 text-sm gap-2 text-red-600"
-                      >
-                        <LogOut size={16} /> Logout
-                      </button>
+                          <LogOut size={18} />
+                          <span>Logout</span>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </>
@@ -297,130 +307,194 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* MOBILE SLIDE DOWN MENU */}
-        <div
-          ref={mobileMenuRef}
-          className={`md:hidden bg-sky-700 text-white border-t border-sky-600 transition-all duration-200 overflow-hidden ${
-            isMobileMenuOpen ? "max-h-[400px]" : "max-h-0"
-          }`}
-        >
-          <div className="px-4 py-3">
-            {/* bring search to top of mobile menu */}
-            <div className="mb-3">
-              <ProductSearchBarNav 
-              placeholder="Search medicines, brands, symptoms..." 
-              mode="auto"
-              searchAPI={searchAPI.basic}
-              />
+        {/* Mobile Search Bar - Below Navbar */}
+        <div className="lg:hidden xl:hidden border-t border-sky-600 px-3 py-2">
+          <ProductSearchBarNav
+            placeholder="Search medicines..."
+            mode="auto"
+            searchAPI={searchAPI.basic}
+            onSearch={handleSearch}
+          />
+        </div>
+      </nav>
+
+      {/* MOBILE SIDE MENU */}
+      {isMobileMenuOpen && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="lg:hidden fixed inset-0 bg-black/50 z-40"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          
+          {/* Slide Menu */}
+          <div
+            ref={mobileMenuRef}
+            className="lg:hidden fixed left-0 top-0 bottom-0 w-64 sm:w-72 bg-sky-700 text-white shadow-2xl z-50 overflow-y-auto"
+          >
+            {/* Menu Header */}
+            <div className="flex items-center justify-between p-4 border-b border-sky-600">
+              <div className="flex items-center gap-2">
+                <Heart className="w-6 h-6 text-white" fill="currentColor" />
+                <span className="text-lg font-bold">CareMitra</span>
+              </div>
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-1.5 rounded-md hover:bg-sky-600/60 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <nav className="flex flex-col gap-2">
+            {/* Navigation Links */}
+            <nav className="p-3 space-y-1">
               <Link
                 to="/"
-                className="px-2 py-2 rounded-md hover:bg-sky-600/40"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-sky-600/60 transition-colors"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Home
+                <HomeIcon size={20} />
+                <span>Home</span>
               </Link>
-              <Link
-                to="/doctors"
-                className="px-2 py-2 rounded-md hover:bg-sky-600/40"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Find Doctors
-              </Link>
+
               <Link
                 to="/medicines"
-                className="px-2 py-2 rounded-md hover:bg-sky-600/40"
+                className="block px-3 py-2.5 rounded-md hover:bg-sky-600/60 transition-colors"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Medicines
               </Link>
+
+              <Link
+                to="/doctors"
+                className="block px-3 py-2.5 rounded-md hover:bg-sky-600/60 transition-colors"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Consultations
+              </Link>
+
               <Link
                 to="/labtests"
-                className="px-2 py-2 rounded-md hover:bg-sky-600/40"
+                className="block px-3 py-2.5 rounded-md hover:bg-sky-600/60 transition-colors"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Lab Tests
               </Link>
 
-              <div className="mt-2 border-t border-sky-600 pt-3">
-                {!token ? (
+              <Link
+                to="/ai-chatbot"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-sky-600/60 transition-colors"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <Bot size={20} />
+                <span>AI Assistant</span>
+              </Link>
+            </nav>
+
+            {/* User Section */}
+            {token && (
+              <div className="mt-3 p-3 border-t border-sky-600">
+                <h3 className="text-xs font-semibold text-sky-200 uppercase tracking-wider mb-2 px-3">
+                  My Account
+                </h3>
+                <div className="space-y-1">
+                  <Link
+                    to="/profile"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-sky-600/60 transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <UserCircle size={20} />
+                    <span>Profile</span>
+                  </Link>
+
+                  <Link
+                    to="/wishlist"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-md hover:bg-sky-600/60 transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Heart size={20} />
+                      <span>Wishlist</span>
+                    </span>
+                    {wishlistCount > 0 && (
+                      <span className="text-xs bg-white text-sky-700 px-2 py-0.5 rounded-full font-medium">
+                        {wishlistCount}
+                      </span>
+                    )}
+                  </Link>
+
+                  <Link
+                    to="/orders"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-sky-600/60 transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <FileText size={20} />
+                    <span>Orders</span>
+                  </Link>
+
+                  <Link
+                    to="/appointments"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-sky-600/60 transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <FileText size={20} />
+                    <span>Appointments</span>
+                  </Link>
+
+                  {role === "doctor" && (
+                    <Link
+                      to="/doctor/dashboard"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-sky-600/60 transition-colors"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Stethoscope size={20} />
+                      <span>Dashboard</span>
+                    </Link>
+                  )}
+
+                  {role === "patient" && (
+                    <Link
+                      to="/patient/dashboard"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-sky-600/60 transition-colors"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <UserCircle size={20} />
+                      <span>Dashboard</span>
+                    </Link>
+                  )}
+
                   <button
                     onClick={() => {
-                      setIsLogin(true);
-                      setShowAuthModal(true);
+                      handleLogout();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="w-full text-left px-2 py-2 rounded-md hover:bg-sky-600/40"
+                    className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-md hover:bg-red-600/20 transition-colors text-red-200 mt-2"
                   >
-                    Login / Signup
+                    <LogOut size={20} />
+                    <span>Logout</span>
                   </button>
-                ) : (
-                  <>
-                    <Link
-                      to="/profile"
-                      className="px-2 py-2 rounded-md hover:bg-sky-600/40"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Profile
-                    </Link>
-
-                    {/* Wishlist (mobile) */}
-                    <Link
-                      to="/wishlist"
-                      className="px-2 py-2 rounded-md hover:bg-sky-600/40 flex items-center justify-between"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <span className="flex items-center gap-2"><Heart size={16}/> Wishlist</span>
-                      {wishlistCount > 0 && <span className="text-xs bg-white text-sky-700 px-2 py-0.5 rounded-full">{wishlistCount}</span>}
-                    </Link>
-
-                    {/* Orders (mobile) */}
-                    <Link
-                      to="/orders"
-                      className="px-2 py-2 rounded-md hover:bg-sky-600/40"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Orders
-                    </Link>
-
-                    {role === "doctor" && (
-                      <Link
-                        to="/doctor/dashboard"
-                        className="px-2 py-2 rounded-md hover:bg-sky-600/40"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        Dashboard
-                      </Link>
-                    )}
-
-                    {role === "patient" && (
-                      <Link
-                        to="/patient/dashboard"
-                        className="px-2 py-2 rounded-md hover:bg-sky-600/40"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        Dashboard
-                      </Link>
-                    )}
-
-                    <button
-                      onClick={() => {
-                        handleLogout();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className="w-full text-left px-2 py-2 rounded-md hover:bg-sky-600/40 text-red-200"
-                    >
-                      Logout
-                    </button>
-                  </>
-                )}
+                </div>
               </div>
-            </nav>
+            )}
+
+            {/* Login Button for non-authenticated users */}
+            {!token && (
+              <div className="p-3 border-t border-sky-600">
+                <button
+                  onClick={() => {
+                    setIsLogin(true);
+                    setShowAuthModal(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full px-3 py-2.5 bg-white text-sky-700 rounded-md hover:bg-gray-100 transition-colors font-medium"
+                >
+                  Login / Signup
+                </button>
+              </div>
+            )}
           </div>
-        </div>
-      </nav>
+        </>
+      )}
 
       {/* Auth Modal */}
       <AuthModal

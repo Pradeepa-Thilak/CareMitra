@@ -15,15 +15,6 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-/**
- * DoctorDashboard (enhanced UI)
- * - Search & filter controls
- * - Responsive grid with better card layout + avatar initials
- * - Skeleton loading UI
- * - Accessible reschedule modal (keyboard focus friendly)
- * - Status color mapping and improved badges
- * - Maintains your API structure & optimistic UI updates
- */
 
 const STATUS_STYLES = {
   pending: { bg: "bg-yellow-100", text: "text-yellow-700" },
@@ -45,7 +36,6 @@ const formatDate = (isoDate) => {
 
 const formatTime = (time) => {
   if (!time) return "—";
-  // if time like "14:30", convert to 2:30 PM
   try {
     const [hh, mm] = time.split(":");
     const d = new Date();
@@ -89,14 +79,67 @@ const SkeletonCard = () => (
   </div>
 );
 
+// Premium Plans Modal Component
+const PremiumPlansModal = ({ showPlans, setShowPlans, plans, loadingPlans, selectPlan }) => {
+  if (!showPlans) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex justify-center items-center p-4">
+      <div className="bg-white rounded-xl p-6 w-full max-w-3xl">
+        <h2 className="text-xl font-semibold mb-4">Choose a Premium Plan</h2>
+
+        {loadingPlans ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-4">
+            {Object.entries(plans).map(([key, plan]) => (
+              <div key={key} className="border rounded-lg p-4">
+                <h3 className="text-lg font-semibold">{plan.name}</h3>
+                <p className="text-gray-600">₹{plan.amount} / month</p>
+                <p className="text-sm mt-1">Patients: {plan.patientLimit}</p>
+
+                <ul className="text-sm mt-2 list-disc pl-4">
+                  {plan.features?.map((f, i) => (
+                    <li key={i}>{f}</li>
+                  ))}
+                </ul>
+
+                <button
+                  onClick={() => selectPlan(key)}
+                  className="mt-4 w-full bg-sky-600 text-white py-2 rounded-md hover:bg-sky-700"
+                >
+                  Select Plan
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button
+          onClick={() => setShowPlans(false)}
+          className="mt-6 w-full bg-gray-500 text-white py-2 rounded-md"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // Appointment card component
 const AppointmentCard = ({ appt, onOpenReschedule, onStatusChange }) => {
-  const patientName = appt.patient?.name || "Unknown Patient";
-  const statusKey = appt.status || "unknown";
+  const patient = appt.patient || {};
+  const patientName = patient.name || appt.name || "Unknown Patient";
+
+  const statusKey = appt.status || "scheduled";
   const statusStyle = STATUS_STYLES[statusKey] || STATUS_STYLES.unknown;
 
   return (
     <article className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 hover:shadow-md transition flex flex-col">
+      
+      {/* HEADER */}
       <header className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-3">
           <Avatar name={patientName} />
@@ -104,76 +147,67 @@ const AppointmentCard = ({ appt, onOpenReschedule, onStatusChange }) => {
             <h3 className="text-md font-semibold text-gray-800 flex items-center gap-2">
               <UserCircle2 size={16} /> {patientName}
             </h3>
-            <p className="text-sm text-gray-500">{appt.reason || "No reason provided"}</p>
-            <p className="text-xs text-gray-400 mt-1">{appt.patient?.email || "No email"}</p>
+
+            <p className="text-sm text-gray-500">
+              {appt.reason || appt.symptoms?.join(", ") || "No reason provided"}
+            </p>
+
+            <p className="text-xs text-gray-400 mt-1">
+              {patient.phone || appt.phoneNumber || "No phone"}
+            </p>
           </div>
         </div>
 
         <div className="text-right">
           <span
             className={`inline-flex items-center gap-2 text-xs font-medium px-2 py-1 rounded-full ${statusStyle.bg} ${statusStyle.text}`}
-            aria-live="polite"
           >
             {statusKey}
           </span>
-          <div className="text-gray-400 text-xs mt-2">{appt.patient?.phone || "Not provided"}</div>
+
+          <div className="text-gray-400 text-xs mt-2">
+            {appt.consultingType || "N/A"}
+          </div>
         </div>
       </header>
 
+      {/* FOOTER */}
       <div className="flex items-center justify-between mt-auto gap-3">
         <div>
           <p className="text-sm text-gray-600">
-            <Clock className="inline-block mr-1" size={14} /> {formatTime(appt.time)}
+            <Clock className="inline-block mr-1" size={14} />
+            {formatTime(appt.time)}
           </p>
+
           <p className="text-sm text-gray-600">
-            <CalendarDays className="inline-block mr-1" size={14} /> {formatDate(appt.date)}
+            <CalendarDays className="inline-block mr-1" size={14} />
+            {formatDate(appt.date)}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => onOpenReschedule(appt)}
-            className="bg-purple-600 text-white text-xs px-3 py-1.5 rounded-md hover:bg-purple-700 transition flex items-center gap-1"
-            aria-label={`Reschedule appointment for ${patientName}`}
-          >
-            <Edit size={14} /> Reschedule
-          </button>
-
-          {/* Conditional action buttons */}
-          {appt.status === "pending" && (
+          {/* RESCHEDULE */}
+          {/* {statusKey === "scheduled" && (
             <button
-              onClick={() => onStatusChange(appt.patient._id, "confirmed")}
-              className="bg-sky-600 text-white text-xs px-3 py-1.5 rounded-md hover:bg-sky-700 transition"
+              onClick={() => onOpenReschedule(appt)}
+              className="bg-purple-600 text-white text-xs px-3 py-1.5 rounded-md hover:bg-purple-700 transition flex items-center gap-1"
             >
-              Confirm
+              <Edit size={14} /> Reschedule
             </button>
-          )}
+          )} */}
 
-          {appt.status === "confirmed" && (
+          {/* COMPLETE */}
+                    {statusKey === "scheduled" && (
             <button
-              onClick={() => onStatusChange(appt.patient._id, "completed")}
+             onClick={() => {
+              console.log("CLICKED appointmentId:", appt.id);
+             onStatusChange(appt.id, "completed");
+            }}
               className="bg-green-600 text-white text-xs px-3 py-1.5 rounded-md hover:bg-green-700 transition"
             >
               Complete
             </button>
           )}
-
-          {(appt.status === "pending" || appt.status === "confirmed") && (
-            <button
-              onClick={() => onStatusChange(appt.patient._id, "cancelled")}
-              className="bg-red-600 text-white text-xs px-3 py-1.5 rounded-md hover:bg-red-700 transition"
-            >
-              Cancel
-            </button>
-          )}
-
-          <button
-            title="More"
-            className="p-2 rounded-md hover:bg-gray-100 transition"
-            aria-label={`More actions for ${patientName}`}
-          >
-            <MoreHorizontal size={16} />
-          </button>
         </div>
       </div>
     </article>
@@ -182,7 +216,6 @@ const AppointmentCard = ({ appt, onOpenReschedule, onStatusChange }) => {
 
 // Accessible Modal (reschedule)
 const RescheduleModal = ({ data, onClose, onChange, onSubmit }) => {
-  // trap focus could be added later with focus-trap-react; keep lightweight for now
   if (!data.showModal) return null;
 
   return (
@@ -248,13 +281,16 @@ const RescheduleModal = ({ data, onClose, onChange, onSubmit }) => {
   );
 };
 
-const DoctorDashboard = () => {
+const DoctorDashboard = () => { 
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  const [showPlans, setShowPlans] = useState(false);
+  const [plans, setPlans] = useState({});
+  const [loadingPlans, setLoadingPlans] = useState(false);
+  
   const [rescheduleData, setRescheduleData] = useState({
     showModal: false,
     patientId: null,
@@ -270,28 +306,198 @@ const DoctorDashboard = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [onlyToday, setOnlyToday] = useState(true);
 
-  // Axios instance (keeps same behavior)
+  const doctorId = user?._id;
+
+  // Axios instance
   const api = axios.create({
-    baseURL: "http://localhost:5000",
+    baseURL: "http://localhost:5001",
     headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
   });
 
-  const fetchAppointments = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get("/doctor/appointments");
-      if (response.data?.success) {
-        setAppointments(response.data.data || []);
-      } else {
-        toast.error(response.data?.message || "Failed to load appointments");
+
+
+  const normalizeAppointments = (data) => {
+  return data.map(appt => ({
+    id: appt._id,
+
+    patient: {
+      name: appt.name,
+      phone: appt.phoneNumber,
+      age: appt.age,
+      gender: appt.gender,
+    },
+
+    symptoms: appt.symptoms || [],
+    specialization: appt.specialization,
+    status: appt.status || "scheduled",
+
+    // ✅ appointment date & time
+    date: appt.createdAt?.split("T")[0],
+    time: new Date(appt.createdAt).toLocaleTimeString(),
+
+    // ✅ consulting type
+    consultingType: appt.consultingType || 
+      (appt.meetingLinks?.video ? "video" : "in-person"),
+
+    paymentStatus: appt.paymentDetails?.status || "pending",
+
+    meetingLinks: appt.meetingLinks,
+    doctor: appt.specialistDoctor,
+  }));
+};
+
+
+  // Fetch appointments
+const fetchAppointments = async () => {
+  try {
+    setLoading(true);
+    console.log('Fetching appointments...');
+    
+    const response = await api.get("/doctor/appointments");
+    console.log('API Response:', response.data);
+    
+    if (response.data?.success) {
+      const normalized = normalizeAppointments(response.data.data);
+      console.log('Normalized appointments:', normalized);
+      setAppointments(normalized);
+      
+      if (normalized.length === 0) {
+        toast.info("No appointments found");
       }
-    } catch (error) {
-      console.error("Fetch error:", error);
-      toast.error("Failed to load appointments");
+    } else {
+      toast.error(response.data?.message || "Failed to load appointments");
+      setAppointments([]);
+    }
+  } catch (error) {
+    console.error("Fetch appointments error:", error);
+    console.error("Error response:", error.response?.data);
+    
+    if (error.response?.status === 403) {
+      toast.error("Access denied. Please login as a doctor.");
+    } else if (error.response?.status === 404) {
+      toast.error("Doctor account not found");
+    } else {
+      toast.error(error.response?.data?.message || "Failed to load appointments");
+    }
+    
+    setAppointments([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // Fetch premium plans
+  const fetchPremiumPlans = async () => {
+    try {
+      setLoadingPlans(true);
+      const res = await api.get("/api/payments/plans");
+      if (res.data.success) {
+        setPlans(res.data.data);
+      }
+    } catch (err) {
+      toast.error("Failed to load plans");
     } finally {
-      setLoading(false);
+      setLoadingPlans(false);
     }
   };
+
+  const loadRazorpay = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+
+    document.body.appendChild(script);
+  });
+};
+
+
+  // Select plan and create payment order
+const selectPlan = async (planType) => {
+  try {
+     const loaded = await loadRazorpay();
+
+  if (!loaded) {
+    toast.error("Razorpay SDK failed to load");
+    return;
+  }
+    // 1️⃣ Select plan
+    const res = await api.post(`/api/doctors/select-plan`, { planType });
+
+    if (!res.data.success) {
+      toast.error(res.data.message);
+      return;
+    }
+
+    const amount = res.data.data.amount;
+
+    // 2️⃣ Create Razorpay order
+    const orderRes = await api.post("/api/payments/create-order", {
+      amount,
+    });
+
+    if (!orderRes.data.success) {
+      toast.error("Failed to create order");
+      return;
+    }
+
+    // 3️⃣ Open Razorpay
+    openRazorpay(orderRes.data.order);
+
+  } catch (error) {
+    console.error(error);
+    toast.error("Plan selection failed");
+  }
+};
+  // Open Razorpay payment modal
+const openRazorpay = (order) => {
+  const options = {
+    key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+    amount: order.amount,
+    currency: "INR",
+    name: "CareMitra",
+    description: "Premium Plan Payment",
+    order_id: order.id,
+    handler: async (response) => {
+      await verifyPayment(response);
+    },
+    theme: { color: "#0ea5e9" }
+  };
+
+  new window.Razorpay(options).open();
+};
+
+
+  // Verify payment after completion
+const verifyPayment = async (response) => {
+  try {
+    const res = await api.post("/api/payments/verify-payment", {
+      razorpay_payment_id: response.razorpay_payment_id,
+      razorpay_order_id: response.razorpay_order_id,
+      razorpay_signature: response.razorpay_signature,
+    });
+
+    if (res.data.success) {
+      toast.success("Payment successful! Awaiting admin verification");
+      setShowPlans(false);
+    } else {
+      toast.error(res.data.message || "Payment verification failed");
+    }
+  } catch (err) {
+    console.error("VERIFY PAYMENT ERROR:", err);
+    toast.error(
+      err.response?.data?.message || "Payment verification failed"
+    );
+  }
+};
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -299,37 +505,51 @@ const DoctorDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (showPlans) fetchPremiumPlans();
+  }, [showPlans]);
+
   // safe appointment check
   const isValidAppointment = (appt) => appt && appt.patient && appt.patient._id;
 
   // status change handler (optimistic UI)
-  const handleStatusChange = async (patientId, newStatus) => {
-    if (!patientId) {
-      toast.error("Invalid patient data");
-      return;
-    }
+const handleStatusChange = async (appointmentId, newStatus) => {
+  if (!appointmentId) {
+    toast.error("Invalid appointment data");
+    return;
+  }
 
-    // optimistic UI: snapshot
-    const snapshot = appointments;
+  const snapshot = appointments;
 
-    setAppointments(prev =>
-      prev.map(appt => (appt.patient?._id === patientId ? { ...appt, status: newStatus } : appt))
+  setAppointments(prev =>
+    prev.map(appt =>
+      appt._id === appointmentId
+        ? { ...appt, status: newStatus }
+        : appt
+    )
+  );
+
+  try {
+    const response = await api.patch(
+      `/doctor/appointments/${appointmentId}/status`,
+      { status: newStatus }
     );
 
-    try {
-      const response = await api.patch(`/doctor/appointment/${patientId}/status`, { status: newStatus });
-      if (!response.data?.success) {
-        toast.error(response.data?.message || "Failed to update status");
-        setAppointments(snapshot); // revert
-      } else {
-        toast.success(`Appointment marked ${newStatus}`);
-      }
-    } catch (err) {
-      console.error("Status update error:", err);
-      toast.error("Failed to update status");
-      setAppointments(snapshot); // revert
+    if (!response.data?.success) {
+      toast.error(response.data?.message || "Failed to update status");
+      setAppointments(snapshot);
+    } else {
+      toast.success(`Appointment marked ${newStatus}`);
     }
-  };
+  } catch (err) {
+    console.error("Status update error:", err.response || err);
+    toast.error("Failed to update status");
+    setAppointments(snapshot);
+  }
+};
+
+
+
 
   // reschedule modal management
   const openRescheduleModal = (appt) => {
@@ -415,20 +635,28 @@ const DoctorDashboard = () => {
       if (query.trim()) {
         const q = query.toLowerCase();
         const name = (appt.patient?.name || "").toLowerCase();
-        const reason = (appt.reason || "").toLowerCase();
-        const email = (appt.patient?.email || "").toLowerCase();
-        return name.includes(q) || reason.includes(q) || email.includes(q);
+        const reason = (appt.symptoms || []).join(" ").toLowerCase();
+        return name.includes(q) || reason.includes(q);
       }
       return true;
     });
   }, [appointments, query, statusFilter, onlyToday, todayIso]);
 
-  const pendingCount = appointments.filter(a => a.status === "pending").length;
+  const pendingCount = appointments.filter(a => a.status === "scheduled").length;
   const completedCount = appointments.filter(a => a.status === "completed").length;
   const todayCount = appointments.filter(a => a.date === todayIso).length;
 
   return (
     <div className="min-h-screen bg-gray-50 pt-6 pb-10 px-4 sm:px-8 lg:px-20">
+      {/* Premium Plans Modal */}
+      <PremiumPlansModal
+        showPlans={showPlans}
+        setShowPlans={setShowPlans}
+        plans={plans}
+        loadingPlans={loadingPlans}
+        selectPlan={selectPlan}
+      />
+
       {/* Header */}
       <div className="mb-6 bg-white p-5 rounded-2xl shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -438,7 +666,7 @@ const DoctorDashboard = () => {
           <p className="text-gray-600 mt-1">Manage appointments & connect with patients.</p>
           <div className="mt-3 flex items-center gap-3 text-sm text-gray-500">
             <div className="inline-flex items-center gap-1">
-              <Clock size={14} /> <span>{pendingCount} pending</span>
+              <Clock size={14} /> <span>{pendingCount} scheduled</span>
             </div>
             <div className="inline-flex items-center gap-1">
               <CheckCircle size={14} /> <span>{completedCount} completed</span>
@@ -459,36 +687,43 @@ const DoctorDashboard = () => {
           </button>
 
           <button
+            onClick={() => setShowPlans(true)}
+            className="bg-yellow-500 text-white px-4 py-2 rounded-md hover:bg-yellow-600 transition"
+          >
+            Upgrade to Premium ⭐
+          </button>
+
+          {/* <button
             onClick={() => navigate("/all-appointments")}
             className="bg-sky-600 text-white px-4 py-2 rounded-md hover:bg-sky-700 transition flex items-center gap-2"
           >
             <CalendarDays size={16} /> All Appointments
-          </button>
+          </button> */}
         </div>
       </div>
 
       {/* Controls */}
       <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
         <div className="relative md:col-span-1">
-          <div className="absolute left-3 top-2.5 text-gray-400">
+          {/* <div className="absolute left-3 top-2.5 text-gray-400">
             <Search size={16} />
-          </div>
-          <input
+          </div> */}
+          {/* <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search patient, reason, or email..."
             className="pl-10 pr-3 py-2 w-full border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-sky-500"
             aria-label="Search appointments"
-          />
+          /> */}
         </div>
 
         <div className="flex gap-3 items-center">
-          <label className="flex items-center gap-2 text-sm text-gray-600">
+          {/* <label className="flex items-center gap-2 text-sm text-gray-600">
             <input type="checkbox" checked={onlyToday} onChange={(e) => setOnlyToday(e.target.checked)} className="form-checkbox" />
             Only Today
-          </label>
+          </label> */}
 
-          <select
+          {/* <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="py-2 px-3 border border-gray-200 rounded-lg bg-white"
@@ -498,8 +733,8 @@ const DoctorDashboard = () => {
             <option value="pending">Pending</option>
             <option value="confirmed">Confirmed</option>
             <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+            <option value="scheduled">Scheduled</option>
+          </select> */}
         </div>
 
         <div className="text-right">
@@ -515,7 +750,7 @@ const DoctorDashboard = () => {
             <SkeletonCard />
             <SkeletonCard />
           </div>
-        ) : filteredAppointments.length === 0 ? (
+        ) : appointments.length === 0 ? (
           <div className="bg-white p-8 rounded-xl shadow-sm text-center">
             <CalendarDays className="mx-auto text-gray-400 mb-4" size={48} />
             <p className="text-gray-600 text-lg">No appointments found.</p>
@@ -523,7 +758,7 @@ const DoctorDashboard = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredAppointments.map((appt, idx) => (
+            {appointments.map((appt, idx) => (
               <AppointmentCard
                 key={appt.appointmentId || appt.patient?._id || idx}
                 appt={appt}

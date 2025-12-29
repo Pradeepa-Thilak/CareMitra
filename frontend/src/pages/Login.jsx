@@ -57,7 +57,7 @@ const Login = ({ closeModal, setMethod }) => {
       const res = await authAPI.verifyOtp(email, cleanedOtp);
 
       // NEW BACKEND RESPONSE FORMAT
-      const { success, message, token, role } = res.data;
+      const { success, message, token, role, user } = res.data;
 
       if (!success) {
         toast.error(message || "Login failed");
@@ -65,7 +65,7 @@ const Login = ({ closeModal, setMethod }) => {
       }
 
       // Save in context
-      login({ email, role }, token);
+      login(user, token);
 
       toast.success("Login successful!");
 

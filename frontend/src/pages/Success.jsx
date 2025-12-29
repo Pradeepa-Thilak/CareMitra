@@ -1,41 +1,40 @@
-// src/pages/Success.jsx
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import PaymentSuccessModalOrder from "../components/modals/PaymentSuccessModalOrder";
+
 const Success = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [modalOpen, setModalOpen] = React.useState(true);
-  const [modalData, setModalData] = React.useState(null);
+  const [modalOpen, setModalOpen] = useState(true);
+  const [modalData, setModalData] = useState(null);
 
-  useEffect(() => {
-    if (location.state?.data) {
-      setModalData({
-        ...location.state.data,
-        type:"order"
-      });
-    } else {
-      // No data, redirect to home
-      navigate("/");
-    }
-  }, [location.state, navigate]);
+ useEffect(() => {
+  if (!location.state) return; // ⛔ wait
+
+  if (location.state?.data) {
+    setModalData({
+      ...location.state.data,
+      type: "order",
+    });
+  } else {
+    navigate("/");
+  }
+}, [location.state, navigate]);
 
   const handleModalClose = () => {
     setModalOpen(false);
-      navigate("/orders");
-    
+    navigate("/orders");
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <PaymentSuccessModalOrder
-        open={modalOpen}
-        onClose={handleModalClose}
-        data={modalData}
-      />
-      <div className="text-center">
-        <h2 className="text-xl font-semibold">Processing your payment...</h2>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      {modalData && (
+        <PaymentSuccessModalOrder
+          open={modalOpen}
+          onClose={handleModalClose}
+          data={modalData}
+        />
+      )}
     </div>
   );
 };

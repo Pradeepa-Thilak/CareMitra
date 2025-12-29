@@ -1,4 +1,3 @@
-// src/contexts/ProductContext.jsx
 import React, { createContext, useEffect, useMemo, useState } from 'react';
 import { categoryAPI, productAPI, searchAPI } from '../utils/api';
 
@@ -12,16 +11,16 @@ export const ProductProvider = ({ children }) => {
   // Raw data
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [brands, setBrands] = useState([]); // optional later
+  const [brands, setBrands] = useState([]);
 
   // UI state
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedBrand, setSelectedBrand] = useState('All');
   const [priceRange, setPriceRange] = useState([0, 100000]);
-  const [sortBy, setSortBy] = useState('popular'); // popular | rating | price-low | price-high
+  const [sortBy, setSortBy] = useState('popular');
 
-  // Load all categories + products at startup (A1)
+  // Load categories and products on mount
   useEffect(() => {
     let mounted = true;
     const loadAll = async () => {
@@ -29,16 +28,12 @@ export const ProductProvider = ({ children }) => {
       setError(null);
       try {
         const [catRes, prodRes] = await Promise.all([
-          categoryAPI.getAll(),         // GET /categories/
-          productAPI.getAll({ limit: 10000 }) // GET /products/?limit=10000 (adjust if backend supports)
+          categoryAPI.getAll(),
+          productAPI.getAll({ limit: 10000 })
         ]);
 
-        // axios responses wrap the payload inside `response.data`.
-        // Our backend returns an object like { success, count, data: [...] }
-        // so prefer `response.data.data` where available.
         const catData = catRes?.data?.data ?? catRes?.data ?? catRes;
         const prodData = prodRes?.data?.data ?? prodRes?.data ?? prodRes;
-        console.log(catData , prodData);
         
         if (!mounted) return;
         setCategories(Array.isArray(catData) ? catData : []);
@@ -55,7 +50,7 @@ export const ProductProvider = ({ children }) => {
     return () => { mounted = false; };
   }, []);
 
-  // Derived filtered products (local filtering + sort)
+  // Filtered and sorted products
   const filteredProducts = useMemo(() => {
     let list = Array.from(products || []);
 
@@ -75,13 +70,14 @@ export const ProductProvider = ({ children }) => {
       });
     }
 
-    // Search filter (name + description)
+    // Search filter
     if (searchTerm && searchTerm.trim() !== '') {
       const q = searchTerm.toLowerCase();
       list = list.filter(p =>
         (p.name || '').toLowerCase().includes(q) ||
         (p.description || '').toLowerCase().includes(q) ||
-        (p.brand?.name || '').toLowerCase().includes(q)
+        (p.brand?.name || '').toLowerCase().includes(q) ||
+        (p.category?.name || '').toLowerCase().includes(q)
       );
     }
 
@@ -111,34 +107,31 @@ export const ProductProvider = ({ children }) => {
     return list;
   }, [products, selectedCategory, selectedBrand, searchTerm, priceRange, sortBy]);
 
-  // helper: get product by id from cache
+  // Get product by ID
   const getProductById = (id) => {
     return products.find(p => String(p._id ?? p.id) === String(id));
   };
 
-  // helper: remote search (optional fallback to server search)
+  // Remote search function
   const remoteSearch = async (q) => {
     try {
-      const res = await searchAPI.basic(q); // GET /search/?q=...
-      return res?.data ?? res;
+      const res = await searchAPI.basic(q);
+      return res?.data?.data || res?.data?.products || res?.data || [];
     } catch (err) {
       console.warn('remoteSearch failed', err);
       return [];
     }
   };
 
-  // public API
   const value = {
-    // data
     loading,
     error,
     products,
     categories,
     brands,
-
-    // UI state
     searchTerm,
     setSearchTerm,
+    setSearchQuery: setSearchTerm,
     selectedCategory,
     setSelectedCategory,
     selectedBrand,
@@ -147,13 +140,9 @@ export const ProductProvider = ({ children }) => {
     setPriceRange,
     sortBy,
     setSortBy,
-
-    // derived
     filteredProducts,
     getProductById,
     remoteSearch,
-
-    // setters
     setProducts,
     setCategories,
     setBrands,
