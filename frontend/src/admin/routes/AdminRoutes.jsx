@@ -2,6 +2,7 @@ import React from 'react'
 import { Route } from 'react-router-dom'
 import AdminLayout from '../pages/AdminLayout'
 import AdminRoute from './AdminRoute';
+import AdminLoginPage from '../pages/AdminLoginPage.jsx';
 
 import Doctors from '../pages/Doctors';
 import Dashboard from '../pages/Dashboard';
@@ -13,6 +14,9 @@ import Orders from '../pages/Orders';
 import Consultations from '../pages/Consultations';
 
 const AdminRoutes = (
+  <>
+   <Route path='/admin/login' element={<AdminLoginPage />} />
+
   <Route element={<AdminRoute />}>
     <Route path='/admin' element={<AdminLayout />}>
       <Route index element={<Dashboard />} />
@@ -25,6 +29,7 @@ const AdminRoutes = (
       <Route path='consultations' element={<Consultations />} />
     </Route>
   </Route>
+  </>
 );
 
 export default AdminRoutes;
