@@ -2,9 +2,7 @@ const Admin = require("../models/Admin");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-// ---------------------------
 // REGISTER ADMIN
-// ---------------------------
 exports.registerAdmin = async (req, res) => {
   try {
     let { name, email, password, role, permissions } = req.body;
@@ -22,7 +20,7 @@ exports.registerAdmin = async (req, res) => {
     const newAdmin = await Admin.create({
       name,
       email,
-      password,  // 🔥 DO NOT HASH HERE
+      password,  
       role,
       permissions
     });
@@ -42,15 +40,13 @@ exports.registerAdmin = async (req, res) => {
   }
 };
 
-
-// ---------------------------
 // LOGIN ADMIN
-// ---------------------------
+
 exports.adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validate input
+   
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -58,7 +54,6 @@ exports.adminLogin = async (req, res) => {
       });
     }
 
-    // Find admin by email
     const admin = await Admin.findOne({ email: email.toLowerCase() });
     if (!admin) {
       return res.status(401).json({
@@ -66,16 +61,12 @@ exports.adminLogin = async (req, res) => {
         error: 'Invalid credentials'
       });
     }
-
-    // Check if admin is active
     if (!admin.isActive) {
       return res.status(401).json({
         success: false,
         error: 'Admin account is deactivated'
       });
     }
-
-    // Verify password
     const isPasswordValid = await admin.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -83,8 +74,6 @@ exports.adminLogin = async (req, res) => {
         error: 'Invalid credentials'
       });
     }
-
-    // Generate token
     const token = admin.generateAuthToken();
 
     res.json({

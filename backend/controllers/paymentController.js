@@ -60,91 +60,107 @@ const notifyAdminAboutPayment = async (doctor) => {
 // Create Razorpay order
 const createPremiumOrder = async (req, res) => {
   try {
-    const { doctorId } = req.params;
+    const { amount } = req.body;
+    const doctorId = req.user.userId; // from JWT
 
     const doctor = await Doctor.findById(doctorId);
+
     if (!doctor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Doctor not found'
-      });
+      return res.status(404).json({ success: false, message: "Doctor not found" });
     }
 
     if (!doctor.premiumPlan) {
       return res.status(400).json({
         success: false,
-        message: 'Please select a premium plan first'
+        message: "Please select a premium plan first",
       });
     }
 
-    if (doctor.paymentDetails.paymentStatus === 'completed') {
+    if (doctor.paymentDetails?.paymentStatus === "completed") {
       return res.status(400).json({
         success: false,
-        message: 'Payment already completed'
+        message: "Payment already completed",
       });
     }
 
-    // Create Razorpay order
-    const order = await createOrder(doctor.premiumPlan.amount);
+    // ✅ Create Razorpay order ONLY
+    const order = await createOrder(amount);
 
-    // Update doctor with order details
-    doctor.paymentDetails.paymentStatus = 'completed';
-
+    // Save order id (optional but recommended)
+    doctor.paymentDetails = {
+      orderId: order.id,
+      paymentStatus: "pending",
+    };
     await doctor.save();
 
     res.json({
       success: true,
       order,
-      doctor: {
-        name: doctor.name,
-        amount: doctor.premiumPlan.amount
-      }
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// Verify payment
+
+const crypto = require("crypto");
+
 const verifyPremiumPayment = async (req, res) => {
   try {
-    const { doctorId } = req.params;
-    const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
+    const doctorId = req.user.userId;
+    const {
+      razorpay_payment_id,
+      razorpay_order_id,
+      razorpay_signature,
+    } = req.body;
 
     const doctor = await Doctor.findById(doctorId);
+
     if (!doctor) {
-      return res.status(404).json({ success: false, message: 'Doctor not found' });
+      return res.status(404).json({ success: false, message: "Doctor not found" });
     }
 
-    // Verify payment signature
-    const isVerified = verifyPaymentSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+    // 🛑 Prevent double verification
+    if (doctor.paymentDetails?.paymentStatus === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Payment already verified",
+      });
+    }
+    
+    // ✅ Verify Razorpay signature
+    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
 
-    if (!isVerified) {
-      doctor.paymentStatus = 'failed';
-      doctor.paymentDetails.status = 'failed';
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(body)
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      doctor.paymentDetails.paymentStatus = "failed";
       await doctor.save();
 
       await sendPaymentFailureEmail(doctor);
 
       return res.status(400).json({
         success: false,
-        message: 'Payment verification failed'
+        message: "Payment verification failed",
       });
     }
 
-    // Payment successful
-    // doctor.paymentStatus = 'completed';
-    doctor.premiumPlan.isActive = true
+    // ✅ Payment successful
+    doctor.premiumPlan.isActive = true;
+
     doctor.paymentDetails = {
       razorpayOrderId: razorpay_order_id,
-    razorpayPaymentId: razorpay_payment_id,
-    razorpaySignature: razorpay_signature,
-    paymentStatus : 'completed',
+      razorpayPaymentId: razorpay_payment_id,
+      razorpaySignature: razorpay_signature,
+      paymentStatus: "completed",
       paymentDate: new Date(),
-      amountPaid:doctor.premiumPlan.amount
+      amountPaid: doctor.premiumPlan.amount,
     };
 
-    // Set plan expiration (e.g., 30 days from now)
+    // Set expiry (30 days)
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
@@ -153,30 +169,33 @@ const verifyPremiumPayment = async (req, res) => {
 
     await doctor.save();
 
-    // Notify admin about payment completion
     await notifyAdminAboutPayment(doctor);
 
-    // Send confirmation to doctor
     await sendGeneralEmail(
       doctor.email,
-      `Dear Dr. ${doctor.name},\n\nYour payment of ₹${doctor.premiumPlan.amount} has been received successfully.\n\nYour application is now pending admin verification. You will be notified once verified.`,
-      'Payment Successful - Awaiting Verification'
+      `Dear Dr. ${doctor.name},
+
+Your payment of ₹${doctor.premiumPlan.amount} has been received successfully.
+
+Your application is pending admin verification.`,
+      "Payment Successful"
     );
 
     res.json({
       success: true,
-      message: 'Payment verified successfully. Awaiting admin verification.',
+      message: "Payment verified successfully",
       data: {
         doctorId: doctor._id,
-        paymentStatus: 'completed',
-        verificationStatus: 'pending',
-        nextStep: 'admin-verification'
-      }
+        paymentStatus: "completed",
+        verificationStatus: "pending",
+      },
     });
   } catch (error) {
+    console.error("VERIFY PAYMENT ERROR:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
 
 // Handle refund for rejected doctors
 const initiateRefund = async (req, res) => {
@@ -240,9 +259,10 @@ const initiateRefund = async (req, res) => {
   }
 };
 
+
 module.exports = {
   createPremiumOrder,
   verifyPremiumPayment,
   initiateRefund,
- notifyAdminAboutPayment
+ notifyAdminAboutPayment,
 };

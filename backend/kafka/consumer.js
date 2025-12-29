@@ -1,30 +1,54 @@
 // kafka/consumer.js
 const { Kafka } = require('kafkajs');
 const { TOPICS, EVENT_TYPES } = require('./topics');
-const emailHandlers = require('./emailHandlers'); // ADD THIS LINE
+const emailHandlers = require('./emailHandlers'); 
 
 class KafkaConsumer {
   constructor() {
     this.consumer = null;
     this.isRunning = false;
+    this.useMock = false;
   }
 
   async connect() {
     if (this.consumer) return;
     
-    const kafka = new Kafka({
-      clientId: 'caremitra-consumer',
-      brokers: ['localhost:9092']
-    });
-    
-    this.consumer = kafka.consumer({ 
-      groupId: 'lab-test-consumer-group',
-      sessionTimeout: 30000,
-      heartbeatInterval: 3000
-    });
-    
-    await this.consumer.connect();
-    console.log('✅ Kafka Consumer connected');
+    // In development, try to connect but fall back to mock if it fails
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const kafka = new Kafka({
+          clientId: 'caremitra-consumer',
+          brokers: ['localhost:9092']
+        });
+        
+        this.consumer = kafka.consumer({ 
+          groupId: 'lab-test-consumer-group',
+          sessionTimeout: 30000,
+          heartbeatInterval: 3000
+        });
+        
+        await this.consumer.connect();
+        console.log('Kafka Consumer connected');
+      } catch (error) {
+        console.warn('Kafka Consumer connection failed, using mock mode:', error.message);
+        this.useMock = true;
+      }
+    } else {
+      // In production, require real connection
+      const kafka = new Kafka({
+        clientId: 'caremitra-consumer',
+        brokers: ['localhost:9092']
+      });
+      
+      this.consumer = kafka.consumer({ 
+        groupId: 'lab-test-consumer-group',
+        sessionTimeout: 30000,
+        heartbeatInterval: 3000
+      });
+      
+      await this.consumer.connect();
+      console.log('Kafka Consumer connected');
+    }
   }
 
   async disconnect() {
@@ -32,11 +56,16 @@ class KafkaConsumer {
       await this.consumer.disconnect();
       this.consumer = null;
       this.isRunning = false;
-      console.log('🔌 Kafka Consumer disconnected');
+      console.log('Kafka Consumer disconnected');
     }
   }
 
-  async subscribeToLabTestEvents() {
+  async subscribeToLabTestEvents(handlers) {
+    if (this.useMock) {
+      console.log('Kafka Consumer using mock mode - no real subscriptions');
+      return;
+    }
+
     await this.connect();
     
     await this.consumer.subscribe({ 
@@ -53,7 +82,7 @@ class KafkaConsumer {
       eachMessage: async ({ topic, partition, message }) => {
         try {
           const event = JSON.parse(message.value.toString());
-          console.log(`📥 Received event: ${event.eventType} from ${topic}`);
+          console.log(`Received event: ${event.eventType} from ${topic}`);
           
           // Use email handlers based on event type
           if (topic === TOPICS.LAB_TEST_BOOKING) {
@@ -62,49 +91,49 @@ class KafkaConsumer {
             await this.handleDoctorBookingEvent(event);
           }
         } catch (error) {
-          console.error('❌ Error processing Kafka message:', error);
+          console.error(' Error processing Kafka message:', error);
         }
       }
     });
 
     this.isRunning = true;
-    console.log('👂 Listening for Kafka events...');
+    console.log('Listening for Kafka events...');
   }
 
   async handleLabTestEvent(event) {
     switch (event.eventType) {
       case EVENT_TYPES.LAB_TEST_ORDER_CREATED:
-        console.log('📧 Handling lab test order created');
+        console.log('Handling lab test order created');
         await emailHandlers.handleLabTestOrderCreated(event.payload);
         break;
         
       case EVENT_TYPES.LAB_TEST_PAYMENT_VERIFIED:
-        console.log('💰 Handling payment verified');
+        console.log('Handling payment verified');
         await emailHandlers.handleLabTestPaymentVerified(event.payload);
         break;
         
       case EVENT_TYPES.LAB_TEST_SAMPLE_COLLECTED:
-        console.log('🧪 Handling sample collected');
+        console.log(' Handling sample collected');
         await emailHandlers.handleLabTestSampleCollected(event.payload);
         break;
         
       case EVENT_TYPES.LAB_TEST_REPORT_UPLOADED:
-        console.log('📄 Handling report uploaded');
+        console.log('Handling report uploaded');
         await emailHandlers.handleLabTestReportUploaded(event.payload);
         break;
         
       case EVENT_TYPES.LAB_ORDER_ASSIGNMENT_FAILED:
-        console.log('⚠️ Handling assignment failed');
+        console.log(' Handling assignment failed');
         await emailHandlers.handleLabOrderAssignmentFailed(event.payload);
         break;
         
       case EVENT_TYPES.LAB_ORDER_AUTO_ASSIGNED:
-        console.log('🤖 Handling auto assigned');
+        console.log('Handling auto assigned');
         await emailHandlers.handleLabOrderAutoAssigned(event.payload);
         break;
         
       case EVENT_TYPES.LAB_STAFF_CREATED:
-        console.log('👨‍⚕️ Handling staff created');
+        console.log(' Handling staff created');
         await emailHandlers.handleLabStaffCreated(event.payload);
         break;
         
@@ -116,12 +145,12 @@ class KafkaConsumer {
   async handleDoctorBookingEvent(event) {
     switch (event.eventType) {
       case EVENT_TYPES.DOCTOR_APPOINTMENT_BOOKED:
-        console.log('📅 Handling doctor appointment booked');
+        console.log('Handling doctor appointment booked');
         await emailHandlers.handleDoctorAppointmentBooked(event.payload);
         break;
         
       case EVENT_TYPES.DOCTOR_APPOINTMENT_CANCELLED:
-        console.log('❌ Handling doctor appointment cancelled');
+        console.log(' Handling doctor appointment cancelled');
         await emailHandlers.handleDoctorAppointmentCancelled(event.payload);
         break;
         

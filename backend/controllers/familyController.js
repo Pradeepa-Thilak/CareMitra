@@ -6,8 +6,6 @@ const addFamilyMember = async (req, res) => {
   try {
     const { name, age, relation, gender, bloodGroup, dateOfBirth, allergies, chronicConditions } = req.body;
     const userId = req.user.userId;
-
-    // Check if member already exists for this user
     const existingMember = await FamilyMember.findOne({ userId, name });
     if (existingMember) {
       return res.status(400).json({

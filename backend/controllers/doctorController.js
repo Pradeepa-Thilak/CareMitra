@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const sgMail = require("@sendgrid/mail");
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const { emailTemplates , sendOTPEmail } = require('../utils/sendEmail');
+const ConsultingDoctor = require("../models/ConsultingDoctor");
 
 function generateVideoLink() {
   return `https://meet.jit.si/${crypto.randomUUID()}`;
@@ -97,7 +98,7 @@ const doctorAppointment = async (req, res) => {
       });
     }
 
-    const doctor = await Doctor.findById(userId).populate("patients._id", "name email phone");
+    const doctor = await ConsultingDoctor.findById(userId);
 
     if (!doctor) {
       return res.status(404).json({ 
@@ -161,243 +162,238 @@ const doctorAppointment = async (req, res) => {
   }
 };
 
-const changeStatus = async (req, res) => {
-  try {
-    console.log('Change status request received');
-    console.log('Request user:', req.user);
+// const changeStatus = async (req, res) => {
+//   try {
+//     console.log('Change status request received');
+//     console.log('Request user:', req.user);
     
-    const { userId, email, role } = req.user;
-    const { patientId } = req.params;
-    const { status } = req.body;
+//     const { userId, email, role } = req.user;
+//     const { patientId } = req.params;
+//     const { status } = req.body;
 
-    console.log('User details:', { userId, email, role});
-    console.log('Patient ID:', patientId);
-    console.log('New status:', status);
+//     console.log('User details:', { userId, email, role});
+//     console.log('Patient ID:', patientId);
+//     console.log('New status:', status);
 
-    // Check if user is a doctor
-    if (role !== 'doctor') {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Access denied. Doctor account required." 
-      });
-    }
+//     // Check if user is a doctor
+//     if (role !== 'doctor') {
+//       return res.status(403).json({ 
+//         success: false, 
+//         message: "Access denied. Doctor account required." 
+//       });
+//     }
 
-    if (!["pending", "confirmed", "completed", "cancelled"].includes(status)) {
-      return res.status(400).json({ success: false, message: "Invalid status" });
-    }
+//     if (!["pending", "confirmed", "completed", "cancelled"].includes(status)) {
+//       return res.status(400).json({ success: false, message: "Invalid status" });
+//     }
 
-    let doctor = await Doctor.findById(userId);
+//     let doctor = await Doctor.findById(userId);
 
-    // Find doctor based on which collection they're in
-    // if (role === 'doctor') {
-    //   doctor = await Doctor.findById(userId);
-    // } else if (role === 'patient') {
-    //   doctor = await Doctor.findOne({ email: email });
-    // } else {
-    //   return res.status(403).json({ 
-    //     success: false, 
-    //     message: "Invalid user type for doctor operations." 
-    //   });
-    // }
+//     // Find doctor based on which collection they're in
+//     // if (role === 'doctor') {
+//     //   doctor = await Doctor.findById(userId);
+//     // } else if (role === 'patient') {
+//     //   doctor = await Doctor.findOne({ email: email });
+//     // } else {
+//     //   return res.status(403).json({ 
+//     //     success: false, 
+//     //     message: "Invalid user type for doctor operations." 
+//     //   });
+//     // }
 
-    console.log('Found doctor:', doctor ? doctor.name : 'NOT FOUND');
+//     console.log('Found doctor:', doctor ? doctor.name : 'NOT FOUND');
     
-    if (!doctor) return res.status(403).json({ success: false, message: "Doctor account required" });
+//     if (!doctor) return res.status(403).json({ success: false, message: "Doctor account required" });
 
-    //  CRITICAL FIX: Ensure patients array exists
-    if (!doctor.patients) {
-      console.log('doctor.patients is undefined, initializing empty array');
-      doctor.patients = [];
-    }
 
-    const patient = await Patient.findById(patientId);
-    console.log('Found patient:', patient ? patient.name : 'NOT FOUND');
+//     const patient = await Patient.findById(patientId);
+//     console.log('Found patient:', patient ? patient.name : 'NOT FOUND');
     
-    if (!patient) return res.status(404).json({ success: false, message: "Patient not found" });
+//     if (!patient) return res.status(404).json({ success: false, message: "Patient not found" });
 
-    // 🔥 CRITICAL FIX: Ensure doctors array exists
-    if (!patient.doctors) {
-      console.log('patient.doctors is undefined, initializing empty array');
-      patient.doctors = [];
-    }
+//     // 🔥 CRITICAL FIX: Ensure doctors array exists
+//     if (!patient.doctors) {
+//       console.log('patient.doctors is undefined, initializing empty array');
+//       patient.doctors = [];
+//     }
 
-    console.log('Doctor patients array:', doctor.patients);
-    console.log('Patient doctors array:', patient.doctors);
+//     console.log('Doctor patients array:', doctor.patients);
+//     console.log('Patient doctors array:', patient.doctors);
 
-    const docAppointment = doctor.patients.find(p => String(p._id) === String(patientId));
-    const patAppointment = patient.doctors.find(d => String(d._id) === String(doctor._id));
+//     const docAppointment = doctor.patients.find(p => String(p._id) === String(patientId));
+//     const patAppointment = patient.doctors.find(d => String(d._id) === String(doctor._id));
 
-    console.log(' Doctor appointment:', docAppointment ? 'FOUND' : 'NOT FOUND');
-    console.log(' Patient appointment:', patAppointment ? 'FOUND' : 'NOT FOUND');
+//     console.log(' Doctor appointment:', docAppointment ? 'FOUND' : 'NOT FOUND');
+//     console.log(' Patient appointment:', patAppointment ? 'FOUND' : 'NOT FOUND');
 
-    // If no appointment found, return error
-    if (!docAppointment || !patAppointment) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Appointment not found between this doctor and patient" 
-      });
-    }
+//     // If no appointment found, return error
+//     if (!docAppointment || !patAppointment) {
+//       return res.status(404).json({ 
+//         success: false, 
+//         message: "Appointment not found between this doctor and patient" 
+//       });
+//     }
 
-    const oldStatus = docAppointment.status;
+//     const oldStatus = docAppointment.status;
 
-    // SPECIAL HANDLING FOR CANCELLED STATUS
-    if (status === 'cancelled') {
-      console.log(' Removing appointment relationship');
+//     // SPECIAL HANDLING FOR CANCELLED STATUS
+//     if (status === 'cancelled') {
+//       console.log(' Removing appointment relationship');
       
-      // Store appointment info before removal
-      const patientEmail = patient.email;
-      const patientName = patient.name;
-      const appointmentDate = docAppointment.date;
-      const appointmentTime = docAppointment.time;
-      const appointmentReason = docAppointment.reason;
-      const appointmentType = docAppointment.consultionType;
+//       // Store appointment info before removal
+//       const patientEmail = patient.email;
+//       const patientName = patient.name;
+//       const appointmentDate = docAppointment.date;
+//       const appointmentTime = docAppointment.time;
+//       const appointmentReason = docAppointment.reason;
+//       const appointmentType = docAppointment.consultionType;
 
-      // 1. Remove patient from doctor's patients array
-      const initialDoctorCount = doctor.patients.length;
-      doctor.patients = doctor.patients.filter(p => String(p._id) !== String(patientId));
-      const doctorRemoved = doctor.patients.length < initialDoctorCount;
-      console.log(' Removed from doctor.patients:', doctorRemoved);
+//       // 1. Remove patient from doctor's patients array
+//       const initialDoctorCount = doctor.patients.length;
+//       doctor.patients = doctor.patients.filter(p => String(p._id) !== String(patientId));
+//       const doctorRemoved = doctor.patients.length < initialDoctorCount;
+//       console.log(' Removed from doctor.patients:', doctorRemoved);
 
-      // 2. Remove doctor from patient's doctors array
-      const initialPatientCount = patient.doctors.length;
-      patient.doctors = patient.doctors.filter(d => String(d._id) !== String(doctor._id));
-      const patientRemoved = patient.doctors.length < initialPatientCount;
-      console.log('Removed from patient.doctors:', patientRemoved);
+//       // 2. Remove doctor from patient's doctors array
+//       const initialPatientCount = patient.doctors.length;
+//       patient.doctors = patient.doctors.filter(d => String(d._id) !== String(doctor._id));
+//       const patientRemoved = patient.doctors.length < initialPatientCount;
+//       console.log('Removed from patient.doctors:', patientRemoved);
 
-      // Save changes
-      await doctor.save();
-      await patient.save();
+//       // Save changes
+//       await doctor.save();
+//       await patient.save();
 
-      // Send cancellation email
-      try {
-        await sendAppointmentStatusEmail(
-          patientEmail, 
-          patientName, 
-          doctor.name, 
-          status, 
-          { 
-            date: appointmentDate, 
-            time: appointmentTime, 
-            reason: appointmentReason,
-            status: oldStatus,
-            consultionType : appointmentType
-          }, 
-          oldStatus
-        );
-        console.log('✅ Cancellation email sent');
-      } catch (emailError) {
-        console.error('Cancellation email failed:', emailError);
-      }
+//       // Send cancellation email
+//       try {
+//         await sendAppointmentStatusEmail(
+//           patientEmail, 
+//           patientName, 
+//           doctor.name, 
+//           status, 
+//           { 
+//             date: appointmentDate, 
+//             time: appointmentTime, 
+//             reason: appointmentReason,
+//             status: oldStatus,
+//             consultionType : appointmentType
+//           }, 
+//           oldStatus
+//         );
+//         console.log('✅ Cancellation email sent');
+//       } catch (emailError) {
+//         console.error('Cancellation email failed:', emailError);
+//       }
 
-      return res.status(200).json({
-        success: true,
-        message: "Appointment cancelled successfully",
-        data: {
-          doctor: doctor.name,
-          patient: patientName,
-          status: 'cancelled',
-          date: appointmentDate,
-          time: appointmentTime,
-          consultionType : appointmentType,
-          appointmentRemoved: true
-        }
-      });
-    } 
-    // NORMAL STATUS UPDATE FOR OTHER STATUSES
-    else {
-      console.log(' Updating appointment status to:', status);
+//       return res.status(200).json({
+//         success: true,
+//         message: "Appointment cancelled successfully",
+//         data: {
+//           doctor: doctor.name,
+//           patient: patientName,
+//           status: 'cancelled',
+//           date: appointmentDate,
+//           time: appointmentTime,
+//           consultionType : appointmentType,
+//           appointmentRemoved: true
+//         }
+//       });
+//     } 
+//     // NORMAL STATUS UPDATE FOR OTHER STATUSES
+//     else {
+//       console.log(' Updating appointment status to:', status);
       
-      // Update status in both doctor and patient appointments
-      docAppointment.status = status;
-      patAppointment.status = status;
+//       // Update status in both doctor and patient appointments
+//       docAppointment.status = status;
+//       patAppointment.status = status;
 
-      // Generate and send meeting/chat links for confirmed appointments
-      if (status === "confirmed") {
-        console.log("Appointment confirmed, checking consultation type...");
+//       // Generate and send meeting/chat links for confirmed appointments
+//       if (status === "confirmed") {
+//         console.log("Appointment confirmed, checking consultation type...");
 
-        const appointmentDate = docAppointment.date;
-        const appointmentTime = docAppointment.time;
+//         const appointmentDate = docAppointment.date;
+//         const appointmentTime = docAppointment.time;
 
-        // VIDEO CONSULTATION
-        if (patAppointment.consultionType === "video") {
-          console.log(" Generating video meeting link...");
+//         // VIDEO CONSULTATION
+//         if (patAppointment.consultionType === "video") {
+//           console.log(" Generating video meeting link...");
 
-          const meetLink = generateVideoLink();
-          // docAppointment.meetLink = meetLink;
-          // patAppointment.meetLink = meetLink;
+//           const meetLink = generateVideoLink();
+//           // docAppointment.meetLink = meetLink;
+//           // patAppointment.meetLink = meetLink;
 
-          await sendVideoLinkEmail(
-            patient.email,
-            patient.name,
-            doctor.name,
-            appointmentDate,
-            appointmentTime,
-            meetLink
-          );
-          console.log("Video link email sent!");
-        }
+//           await sendVideoLinkEmail(
+//             patient.email,
+//             patient.name,
+//             doctor.name,
+//             appointmentDate,
+//             appointmentTime,
+//             meetLink
+//           );
+//           console.log("Video link email sent!");
+//         }
 
-        // CHAT CONSULTATION
-        else if (patAppointment.consultionType === "chat") {
-          console.log("Generating chat session...");
+//         // CHAT CONSULTATION
+//         else if (patAppointment.consultionType === "chat") {
+//           console.log("Generating chat session...");
 
-          const chatId = generateChatSession();
-          // docAppointment.chatSessionId = chatId;
-          // patAppointment.chatSessionId = chatId;
+//           const chatId = generateChatSession();
+//           // docAppointment.chatSessionId = chatId;
+//           // patAppointment.chatSessionId = chatId;
 
-          await sendChatSessionEmail(
-            patient.email,
-            patient.name,
-            doctor.name,
-            appointmentDate,
-            appointmentTime,
-            chatId
-          );
-          console.log(" Chat session email sent!");
-        }
-      }
+//           await sendChatSessionEmail(
+//             patient.email,
+//             patient.name,
+//             doctor.name,
+//             appointmentDate,
+//             appointmentTime,
+//             chatId
+//           );
+//           console.log(" Chat session email sent!");
+//         }
+//       }
 
-      // Save changes
-      await doctor.save();
-      await patient.save();
+//       // Save changes
+//       await doctor.save();
+//       await patient.save();
 
-      // Send email notification
-      try {
-        await sendAppointmentStatusEmail(
-          patient.email, 
-          patient.name, 
-          doctor.name, 
-          status, 
-          docAppointment, 
-          oldStatus
-        );
-        console.log('Status update email sent');
-      } catch (emailError) {
-        console.error('Email notification failed:', emailError);
-      }
+//       // Send email notification
+//       try {
+//         await sendAppointmentStatusEmail(
+//           patient.email, 
+//           patient.name, 
+//           doctor.name, 
+//           status, 
+//           docAppointment, 
+//           oldStatus
+//         );
+//         console.log('Status update email sent');
+//       } catch (emailError) {
+//         console.error('Email notification failed:', emailError);
+//       }
 
-      res.status(200).json({
-        success: true,
-        message: `Appointment ${status} successfully`,
-        data: {
-          doctor: doctor.name,
-          patient: patient.name,
-          status,
-          date: docAppointment.date,
-          time: docAppointment.time
-        }
-      });
-    }
-  } catch (err) {
-    console.error(' Error in changeStatus:', err);
-    console.error(' Error stack:', err.stack);
-    res.status(500).json({ 
-      success: false, 
-      message: "Server error", 
-      error: err.message 
-    });
-  }
-};
+//       res.status(200).json({
+//         success: true,
+//         message: `Appointment ${status} successfully`,
+//         data: {
+//           doctor: doctor.name,
+//           patient: patient.name,
+//           status,
+//           date: docAppointment.date,
+//           time: docAppointment.time
+//         }
+//       });
+//     }
+//   } catch (err) {
+//     console.error(' Error in changeStatus:', err);
+//     console.error(' Error stack:', err.stack);
+//     res.status(500).json({ 
+//       success: false, 
+//       message: "Server error", 
+//       error: err.message 
+//     });
+//   }
+// };
 
 // Reschedule appointment - UPDATED for your auth middleware
 const reschedule = async (req, res) => {
@@ -505,6 +501,49 @@ const reschedule = async (req, res) => {
   }
 };
 
+const changeStatus = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    const { status } = req.body;
+
+    const allowedStatus = ["scheduled", "completed", "cancelled", "rescheduled"];
+    if (!allowedStatus.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status value",
+      });
+    }
+
+    const appointment = await ConsultingDoctor.findByIdAndUpdate(
+      appointmentId,
+      { status },
+      { new: true }
+    );
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Status updated",
+      appointment,
+    });
+  } catch (err) {
+    console.error("❌ Error updating status:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+
+
+
 // Add a new doctor
 const registerDoctor = async (req, res) => {
   try {
@@ -526,10 +565,13 @@ const registerDoctor = async (req, res) => {
     }
 
     // Set initial status
-    doctorData.verificationStatus = 'pending'; // pending, verified, rejected
-    doctorData.paymentStatus = 'pending'; // pending, completed, refunded
-    doctorData.isActive = false;
-    doctorData.premiumPlan = {
+
+    const doctor = new Doctor(doctorData);
+
+    doctor.verificationStatus = 'pending'; 
+    doctor.paymentStatus = 'pending'; 
+    doctor.isActive = false;
+    doctor.premiumPlan = {
       selectedPlan: null,
       amount: 0,
       patientLimit: 0,
@@ -538,10 +580,8 @@ const registerDoctor = async (req, res) => {
       expiresAt: null
     };
 
-    const doctor = new Doctor(doctorData);
     await doctor.save();
 
-    // Send confirmation email to doctor
     await sendOTPEmail(
       doctor.email,
       'Doctor Registration Received',
@@ -573,6 +613,7 @@ const registerDoctor = async (req, res) => {
 const getDoctorForPremium = async (req, res) => {
   try {
     const { doctorId } = req.params;
+    console.log(req.user.userId);
     
     const doctor = await Doctor.findById(doctorId)
       .select('name email verificationStatus paymentStatus premiumPlan');
@@ -594,10 +635,68 @@ const getDoctorForPremium = async (req, res) => {
 };
 
 
+/**
+ * Get total attended patients by doctor
+ */
+const getDoctorAttendedPatientsCount = async (req, res) => {
+  try {
+    const doctorId = req.doctor.id; // from doctor auth middleware
+
+    const attendedCount = await ConsultingDoctor.countDocuments({
+      "specialistDoctor.doctorId": doctorId,
+      status: "completed"
+    });
+
+    return res.status(200).json({
+      success: true,
+      doctorId,
+      attendedPatients: attendedCount
+    });
+  } catch (error) {
+    console.error("Doctor stats error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch attended patients count",
+      error: error.message
+    });
+  }
+};
+
+const getPatientsByDoctorId = async (req, res) => {
+  try {
+    // doctorId comes from auth middleware
+    const doctorId = req.user.userId;
+    console.log(doctorId);
+    
+
+    const patients = await ConsultingDoctor.find({
+      "specialistDoctor.doctorId": doctorId
+    })
+      .populate("PatientId", "name age gender phoneNumber consultingType appointmentDate")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: patients.length,
+      data: patients
+    });
+  } catch (error) {
+    console.error("Get patients by doctor error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+////
+
 module.exports = {
   reschedule,
   doctorAppointment,
   changeStatus,
   registerDoctor,
-  getDoctorForPremium
+  getDoctorForPremium,
+  getPatientsByDoctorId,
+  getDoctorAttendedPatientsCount
 };

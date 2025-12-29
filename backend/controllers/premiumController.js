@@ -43,9 +43,11 @@ const getPremiumPlans = async (req, res) => {
 // Select a premium plan (before payment)
 const selectPremiumPlan = async (req, res) => {
   try {
-    const { doctorId } = req.params;
+    const doctorId = req.user.userId;
     const { planType } = req.body;
-
+    console.log(doctorId);
+    console.log(planType);
+    
     const doctor = await Doctor.findById(doctorId);
     if (!doctor) {
       return res.status(404).json({
@@ -63,13 +65,13 @@ const selectPremiumPlan = async (req, res) => {
     }
 
     // Update doctor with selected plan
-   doctor.premiumPlan = {
-  amount: Number(plan.amount),
-  patientLimit: Number(plan.patientLimit),
-  isActive: false,       // stays false until payment & verification
-  purchasedAt: null,
-  expiresAt: null
-};
+      doctor.premiumPlan = {
+      amount: Number(plan.amount),
+      patientLimit: Number(plan.patientLimit),
+      isActive: false,       // stays false until payment & verification
+      purchasedAt: null,
+      expiresAt: null
+    };
 
 
     await doctor.save();

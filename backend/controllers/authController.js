@@ -1,16 +1,13 @@
-// NO USER SCHEMA USED NOW
+
 const Patient = require('../models/Patient');
 const Doctor = require('../models/Doctor');
 const LabStaff = require('../models/LabStaff');
-// const LabTechnician = require('../models/LabTechnician');
-
+const Admin = require("../models/Admin");
 const { sendOTPEmail } = require('../utils/sendEmail');
 const { generateToken } = require('../utils/generateToken');
+const { removeListener } = require('../models/Category');
 
-
-// -----------------------------
-// 1. PATIENT SIGNUP (EMAIL ONLY)
-// -----------------------------
+// sign up only for patient
 const sendOTPSignup = async (req, res) => {
   try {
     const { email } = req.body;
@@ -22,14 +19,8 @@ const sendOTPSignup = async (req, res) => {
       });
     }
 
-    console.log("Signup OTP requested for:", email);
-    console.log("Session ID:", req.sessionID);
-
-    // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000);
     console.log("Generated OTP:", otp);
-
-    // Store in session
     req.session.pendingUser = {
       email,
       otp: String(otp),
@@ -38,7 +29,6 @@ const sendOTPSignup = async (req, res) => {
       isSignup: true,
     };
 
-    // Save session to store
     await new Promise((resolve, reject) => {
       req.session.save((err) => {
         if (err) reject(err);
@@ -47,8 +37,6 @@ const sendOTPSignup = async (req, res) => {
     });
 
     console.log("Session saved. Sending email...");
-
-    // Send OTP email
     await sendOTPEmail(email, otp);
     
     console.log("Email sent successfully");
@@ -67,9 +55,7 @@ const sendOTPSignup = async (req, res) => {
   }
 };
 
-// ----------------------------------------
-// 2. LOGIN - AUTO ROLE DETECTION (EMAIL ONLY)
-// ----------------------------------------
+//login doctor and patient
 const sendOTPLogin = async (req, res) => {
   try {
     const { email } = req.body;
@@ -78,31 +64,21 @@ const sendOTPLogin = async (req, res) => {
       return res.status(400).json({ success: false, message: "Email is required" });
     }
 
-    // Auto detect user role by email
-    let user = await Patient.findOne({ email });
-    let role = "patient";
+          let user = await Admin.findOne({ email: email.toLowerCase(), isActive: true });
+      let role;
 
-    if (!user) {
-      user = await Doctor.findOne({ email });
-      if (user) role = "doctor";
-    }
+      if (user) role = "admin";
+      else if (user = await Patient.findOne({ email: email.toLowerCase() })) role = "patient";
+      else if (user = await Doctor.findOne({ email: email.toLowerCase() })) role = "doctor";
+      else if (user = await LabStaff.findOne({ email: email.toLowerCase() })) role = "labstaff";
+      else {
+        return res.status(404).json({
+          success: false,
+          message: "Email not authorized"
+        });
+      }
 
-    if (!user) {
-      user = await LabStaff.findOne({ email });
-      if (user) role = "labstaff";
-    }
 
-    // if (!user) {
-    //   user = await LabTechnician.findOne({ email });
-    //   if (user) role = "labtechnician";
-    // }
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Email not found. Please signup if new."
-      });
-    }
 
     const otp = user.generateOTP();
     await user.save();
@@ -110,17 +86,13 @@ const sendOTPLogin = async (req, res) => {
     await sendOTPEmail(email, otp);
 
     console.log("Login OTP:", otp);
-
-    // Store in session
     req.session.pendingUser = {
       email,
       role,
-      otp: String(otp), // Store as string
+      otp: String(otp),
       isSignup: false,
       createdAt: Date.now()
     };
-
-    // SAVE THE SESSION
     req.session.save((saveErr) => {
       if (saveErr) {
         console.error("Session save error:", saveErr);
@@ -145,13 +117,13 @@ const sendOTPLogin = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-// ---------------------------
-// 3. VERIFY OTP (LOGIN/SIGNUP)
-// ---------------------------
+
 const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
-
+ 
+    console.log(typeof(otp));
+    
     console.log("=== VERIFY OTP DEBUG ===");
     console.log("Request body:", req.body);
     console.log("Session ID:", req.sessionID);
@@ -195,26 +167,23 @@ const verifyOTP = async (req, res) => {
     console.log("OTP validation passed");
     const role = sessionUser.role;
     console.log("User role:", role);
-
-    // Get user by role - ADD AWAIT AND TIMEOUT
     let user;
     console.log("Starting database lookup...");
     
     try {
-      if (role === "patient") {
-        console.log("Looking for patient with email:", email);
-        user = await Patient.findOne({ email });
-        console.log("Patient found:", user ? "Yes" : "No");
-      } else if (role === "doctor") {
-        user = await Doctor.findOne({ email });
-        console.log("Doctor found:", user ? "Yes" : "No");
-      } else if (role === "labstaff") {
-        user = await LabStaff.findOne({ email });
-        console.log("LabStaff found:", user ? "Yes" : "No");
-      } else if (role === "labtechnician") {
-        user = await LabTechnician.findOne({ email });
-        console.log("LabTechnician found:", user ? "Yes" : "No");
+            if (role === "admin") {
+        user = await Admin.findOne({ email });
       }
+      else if (role === "patient") {
+        user = await Patient.findOne({ email });
+      }
+      else if (role === "doctor") {
+        user = await Doctor.findOne({ email });
+      }
+      else if (role === "labstaff") {
+        user = await LabStaff.findOne({ email });
+      }
+
     } catch (dbError) {
       console.error("Database lookup error:", dbError);
       return res.status(500).json({
@@ -226,7 +195,7 @@ const verifyOTP = async (req, res) => {
     console.log("Database lookup completed");
 
     if (!user && !sessionUser.isSignup) {
-      // Login OTP requires existing user
+    
       console.log("User not found for login");
       return res.status(404).json({
         success: false,
@@ -258,13 +227,12 @@ const verifyOTP = async (req, res) => {
           requiresProfileCompletion: true
         });
       });
-      return; // IMPORTANT: Return after async operation
+      return;
     }
 
     // ------------ LOGIN FLOW ------------
     console.log("Processing login flow");
     
-    // Check if user has verifyOTP method
     if (!user.verifyOTP) {
       console.error("User model missing verifyOTP method");
       return res.status(500).json({
@@ -297,7 +265,13 @@ const verifyOTP = async (req, res) => {
       success: true,
       message: "Login successful",
       token,
-      role
+      role,
+      user: {
+        _id: user._id,
+        email: user.email,
+        role: role,
+        name: user.name
+      }
     });
 
   } catch (error) {
@@ -306,9 +280,9 @@ const verifyOTP = async (req, res) => {
   }
 };
 
-// ---------------------------
+
 // 4. COMPLETE SIGNUP (PATIENT)
-// ---------------------------
+
 const completeSignup = async (req, res) => {
   try {
     const { name, phone } = req.body;
@@ -353,11 +327,64 @@ const completeSignup = async (req, res) => {
   }
 };
 
+const getCurrentUser = async (req, res) => {
+  try {
+    const { userId, role } = req.user;
+    console.log(userId, role);
+
+    if (!userId || !role) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    let user;
+
+    if (role === "patient") {
+      user = await Patient.findById(userId);
+    } else if (role === "doctor") {
+      user = await Doctor.findById(userId);
+    } else if (role === "labstaff") {
+      user = await LabStaff.findById(userId);
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid role",
+      });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User Not Found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      users :{
+        id : user._id,
+        name : user.name
+      },
+      message: "User found",
+    });
+
+  } catch (error) {
+    console.error("Get Current User Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 
 
 module.exports = {
   sendOTPSignup,
   sendOTPLogin,
   verifyOTP,
-  completeSignup
+  completeSignup,
+  getCurrentUser
 };

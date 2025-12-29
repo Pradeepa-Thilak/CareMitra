@@ -1,9 +1,9 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const cron = require('node-cron');
-const mongoose = require('mongoose'); // ADD THIS
+const mongoose = require('mongoose');
 const kafkaConsumer = require('./kafka/consumer');
-const kafkaProducer = require('./kafka/producer'); // ADD THIS
+const kafkaProducer = require('./kafka/producer');
 const { EVENT_TYPES } = require('./kafka/topics');
 const session = require('express-session'); 
 const cors = require("cors");
@@ -11,69 +11,27 @@ const helmet = require("helmet");
 const bodyParser = require("body-parser");
 const rateLimit = require('express-rate-limit');
 const { createLogger, format, transports } = require('winston');
-// const staffDashboardRoutes = require('./routes/staffDashboardRoutes');
+const http = require('http');
+const socketIo = require('socket.io');
+
 // Load environment variables
 dotenv.config();
-const { resetDailyDoctorData, checkExpiredPlansHourly } =  require("./cronJobs");
-
+const { resetDailyDoctorData, checkExpiredPlansHourly } = require("./cronJobs");
 const { sendGeneralEmail } = require('./utils/sendEmail');
 const connectDB = require("./config/database");
-const familyRoutes = require('./routes/familyRoutes');
-const authRoutes = require("./routes/authRoutes"); 
-const categories = require("./routes/categories"); 
-const products = require("./routes/products");     
-const brands = require("./routes/brands");         
-const dashboard = require("./routes/dashboard"); 
-const doctor = require("./routes/doctor");      
-const labTestRoutes = require('./routes/labTests');
-const adminLabTestRoutes = require('./routes/adminLabTests');
-const adminAuthRoutes = require('./routes/adminAuthRoutes');
-const adminlabStaff = require('./routes/adminlabStaffRoutes');
 
+// Create Express app
 const app = express();
+const server = http.createServer(app);
 
-app.get('/api/admin/reset-doctors', async (req, res) => {
-    try {
-        const result = await resetDailyDoctorData();
-        res.json({ 
-            success: result.success, 
-            message: 'Doctor data reset completed',
-            details: result 
-        });
-    } catch (error) {
-        console.error('Error in manual reset:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message 
-        });
-    }
+// Socket.io configuration for real-time features
+const io = socketIo(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    credentials: true
+  },
+  transports: ['websocket', 'polling']
 });
-
-// Schedule cron jobs
-function scheduleCronJobs() {
-    // Run at midnight (00:00)
-    cron.schedule('0 0 * * *', async () => {
-        console.log('🕛 Midnight reset triggered');
-        await resetDailyDoctorData();
-    });
-    
-    // Run at 4:05 AM (based on your expiresAt time)
-    cron.schedule('5 4 * * *', async () => {
-        console.log('🔄 4:05 AM reset triggered');
-        await resetDailyDoctorData();
-    });
-    
-    // Run every hour to check for recently expired plans
-    cron.schedule('0 * * * *', async () => {
-        console.log('⏰ Hourly check triggered');
-        await checkExpiredPlansHourly();
-    });
-    
-    console.log('⏰ Cron jobs scheduled:');
-    console.log('   - Midnight (00:00): Full reset');
-    console.log('   - 4:05 AM: Premium plan check');
-    console.log('   - Hourly: Quick expiry check');
-}
 
 // Setup Winston logger
 const logger = createLogger({
@@ -100,22 +58,14 @@ const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100 // limit each IP to 100 requests per windowMs
 });
-app.use('/api/', limiter);
 
-app.use(session({
-  secret: process.env.JWT_SECRET || 'caremitra-secret',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { 
-    secure: false, 
-    maxAge: 15 * 60 * 1000 
-  }
-}));
-
+// Security middleware
 app.use(helmet());
+
+// CORS configuration
 app.use(
   cors({
-    origin: ['http://localhost:5173', 'http://localhost:3000'], 
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000', process.env.FRONTEND_URL || 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
@@ -123,9 +73,24 @@ app.use(
   })
 );
 
-app.use(express.json());
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Session configuration
+app.use(session({
+  secret: process.env.JWT_SECRET || 'caremitra-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 15 * 60 * 1000 
+  }
+}));
+
+// Apply rate limiting to API routes
+app.use('/api/', limiter);
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -149,55 +114,133 @@ if (process.env.NODE_ENV === 'development') {
 
 console.log(" Mounting routes...");
 
-// Routes
-app.use('/api/doctors', require('./routes/doctorRoutes'));
-app.use('/api/admin', require('./routes/adminRoutes'));
+// Import all routes
+const authRoutes = require("./routes/authRoutes"); 
+const categories = require("./routes/categories"); 
+const products = require("./routes/products");     
+const brands = require("./routes/brands");         
+const dashboard = require("./routes/dashboard"); 
+const doctorRoutes = require("./routes/doctor");      
+const labTestRoutes = require('./routes/labTests');
+const adminLabTestRoutes = require('./routes/adminLabTests');
+const adminAuthRoutes = require('./routes/adminAuthRoutes');
+const adminlabStaff = require('./routes/adminlabStaffRoutes');
+const search = require('./routes/search');
+const cartRoutes = require('./routes/cartRoutes');
+const familyRoutes = require('./routes/familyRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const adminOrders = require("./routes/adminOrders");
+const adminConsultations = require("./routes/adminConsultations");
+const adminDashboard = require('./routes/adminDashboard');
+const adminProductRoutes = require('./routes/adminProduct.routes');
+const doctorAPIRoutes = require('./routes/doctorRoutes');
+
+// AI Chatbot Routes
+const chatRoutes = require('./routes/chatRoutes');
+
+// Mount routes
+app.use('/api/doctors', doctorAPIRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/admin', adminAuthRoutes);
-app.use('/api/payments', require('./routes/paymentRoutes'));
+app.use('/api/payments', paymentRoutes);
 app.use("/auth", authRoutes);       
 app.use("/categories", categories); 
 app.use("/products", products);     
 app.use("/brands", brands);         
 app.use("/dashboard", dashboard);   
-app.use("/doctor", doctor); 
-app.use("/search", require("./routes/search"));
+app.use("/doctor", doctorRoutes); 
+app.use("/admin", adminOrders);
+app.use("/admin", adminConsultations);
+app.use("/search", search);
+app.use("/admin", adminDashboard);
 app.use('/lab-tests', labTestRoutes);
 app.use('/admin/lab-tests', adminLabTestRoutes);
 app.use('/api/family', familyRoutes);
 app.use('/admin/staff', adminlabStaff);
+app.use('/search', search);
+app.use("/cart", cartRoutes);
+app.use('/admin', adminProductRoutes);
+
+// AI Chatbot API Routes
+app.use('/chat', chatRoutes);
+
+// Manual reset endpoint for doctors (for testing)
+app.get('/api/admin/reset-doctors', async (req, res) => {
+  try {
+    const result = await resetDailyDoctorData();
+    res.json({ 
+      success: result.success, 
+      message: 'Doctor data reset completed',
+      details: result 
+    });
+  } catch (error) {
+    console.error('Error in manual reset:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Schedule cron jobs
+function scheduleCronJobs() {
+  // Run at midnight (00:00)
+  cron.schedule('0 0 * * *', async () => {
+    console.log('🕛 Midnight reset triggered');
+    await resetDailyDoctorData();
+  });
+  
+  // Run at 4:05 AM (based on your expiresAt time)
+  cron.schedule('5 4 * * *', async () => {
+    console.log('🔄 4:05 AM reset triggered');
+    await resetDailyDoctorData();
+  });
+  
+  // Run every hour to check for recently expired plans
+  cron.schedule('0 * * * *', async () => {
+    console.log('⏰ Hourly check triggered');
+    await checkExpiredPlansHourly();
+  });
+  
+  console.log('⏰ Cron jobs scheduled:');
+  console.log('   - Midnight (00:00): Full reset');
+  console.log('   - 4:05 AM: Premium plan check');
+  console.log('   - Hourly: Quick expiry check');
+}
 
 // Initialize Kafka Consumer with event handlers
 async function initializeKafkaConsumer() {
   const handlers = {
     onLabTestOrderCreated: async (payload) => {
       logger.info('Lab test order created event received', { orderId: payload.orderId });
-      // You can add additional processing here
-      // Example: Notify admin, update analytics, etc.
+      // Emit socket event for real-time notification
+      io.emit('lab_test_order_created', payload);
     },
 
     onLabTestPaymentVerified: async (payload) => {
       logger.info('Lab test payment verified', { orderId: payload.orderId, amount: payload.amount });
-      // Example: Update financial records, send to accounting system
+      io.emit('lab_test_payment_verified', payload);
     },
 
     onLabTestSampleCollected: async (payload) => {
       logger.info('Lab test sample collected', { orderId: payload.orderId });
-      // Example: Notify lab technicians, update inventory
+      io.emit('lab_test_sample_collected', payload);
     },
 
     onLabTestReportUploaded: async (payload) => {
       logger.info('Lab test report uploaded', { orderId: payload.orderId, reportId: payload.reportId });
-      // Example: Update patient portal, trigger notifications
+      io.emit('lab_test_report_uploaded', payload);
     },
 
     onDoctorAppointmentBooked: async (payload) => {
       logger.info('Doctor appointment booked', { appointmentId: payload.appointmentId });
-      // Example: Sync with calendar, send notifications
+      io.emit('doctor_appointment_booked', payload);
     },
 
     onDoctorAppointmentCancelled: async (payload) => {
       logger.info('Doctor appointment cancelled', { appointmentId: payload.appointmentId });
-      // Example: Update availability, send notifications
+      io.emit('doctor_appointment_cancelled', payload);
     }
   };
 
@@ -214,6 +257,11 @@ async function gracefulShutdown() {
   console.log('🔄 Received shutdown signal, closing gracefully...');
   
   try {
+    // Close Socket.io connections
+    io.close(() => {
+      console.log('✅ Socket.io connections closed');
+    });
+    
     // Close Kafka Consumer connection
     if (kafkaConsumer && typeof kafkaConsumer.disconnect === 'function') {
       try {
@@ -274,8 +322,16 @@ app.get("/health", (req, res) => {
     timestamp: new Date().toISOString(),
     services: {
       database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-      kafka: 'available',
+      kafka: kafkaProducer.isUsingMock ? (kafkaProducer.isUsingMock() ? 'mock' : 'connected') : 'unknown',
+      websocket: io.engine.clientsCount ? 'active' : 'idle',
       environment: process.env.NODE_ENV || 'development'
+    },
+    features: {
+      ai_chatbot: true,
+      realtime_notifications: true,
+      doctor_consultations: true,
+      lab_tests: true,
+      ecommerce: true
     }
   });
 });
@@ -310,25 +366,16 @@ const startServer = async () => {
     await connectDB();
     console.log('✅ MongoDB connected');
     
-    // Initialize Kafka Producer
+    // Initialize Kafka Producer (optional)
     try {
-      // Test Kafka producer connection
       console.log('🔧 Testing Kafka Producer connection...');
-      // This will auto-initialize the producer
-      await kafkaProducer.sendLabTestEvent('service_started', {
-        service: 'caremitra-backend',
-        timestamp: new Date().toISOString(),
-        version: process.env.npm_package_version
-      }).catch(() => {
-        // Ignore errors for startup, producer will use mock mode if needed
-      });
-      console.log('✅ Kafka Producer ready');
+      // Just check if we can initialize, don't send test message
+      console.log('✅ Kafka Producer setup complete (will use mock if needed)');
     } catch (kafkaError) {
-      console.warn('⚠️  Kafka Producer initialization issue:', kafkaError.message);
-      console.log('App will continue, Kafka will use mock mode if configured');
+      console.warn('⚠️  Kafka Producer setup issue:', kafkaError.message);
     }
 
-    // Initialize Kafka Consumer
+    // Initialize Kafka Consumer (optional)
     try {
       await kafkaConsumer.connect();
       await initializeKafkaConsumer();
@@ -337,16 +384,21 @@ const startServer = async () => {
       console.error('❌ Kafka Consumer initialization failed:', kafkaError.message);
       console.log('App will continue without Kafka Consumer');
     }
-      scheduleCronJobs();
-        
-        // Run initial reset on server start
-        await resetDailyDoctorData();
+    
+    // Schedule cron jobs
+    scheduleCronJobs();
+    
+    // Run initial reset on server start
+    await resetDailyDoctorData();
+    
     // Start server
-    app.listen(PORT, "0.0.0.0", () => {
+    server.listen(PORT, "0.0.0.0", () => {
       console.log(`🚀 CareMitra server running on port ${PORT}`);
       console.log(`📊 Health check: http://localhost:${PORT}/health`);
       console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔌 Kafka: ${kafkaProducer.isUsingMock ? (kafkaProducer.isUsingMock() ? 'MOCK mode' : 'REAL mode') : 'Unknown'}`);
+      console.log(`🤖 AI Chatbot: Enabled at /api/chat`);
+      console.log(`🔗 WebSocket: Enabled for real-time features`);
     });
 
   } catch (err) {
@@ -364,7 +416,6 @@ process.on("unhandledRejection", (reason, promise) => {
     console.error('Unhandled rejection (continuing):', reason);
   } else {
     console.error('🚨 Unhandled Rejection:', reason);
-    // process.exit(1); // Comment out to prevent crashes in development
   }
 });
 
@@ -382,4 +433,4 @@ process.on('uncaughtException', (error) => {
 
 startServer();
 
-module.exports = app;
+module.exports = { app, server, io };

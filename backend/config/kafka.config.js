@@ -9,14 +9,13 @@ const brokerAddresses = [
 
 // Find working broker
 function getBrokers() {
-  // Use localhost first, fall back to others
   return ['localhost:9092'];
 }
 
 const kafka = new Kafka({
   clientId: 'caremitra-lab-service',
   brokers: getBrokers(),
-  connectionTimeout: 10000, // Increased timeout
+  connectionTimeout: 10000, 
   requestTimeout: 30000,
   retry: {
     initialRetryTime: 300,
@@ -39,13 +38,13 @@ async function testConnection() {
   const admin = kafka.admin();
   try {
     await admin.connect();
-    console.log('✅ Kafka connection test successful');
+    console.log('Kafka connection test successful');
     const topics = await admin.listTopics();
-    console.log(`📋 Found ${topics.length} topics:`, topics);
+    console.log(`Found ${topics.length} topics:`, topics);
     await admin.disconnect();
     return true;
   } catch (error) {
-    console.warn('⚠️  Kafka connection test failed:', error.message);
+    console.warn('Kafka connection test failed:', error.message);
     console.log('Will continue with mock producer in development mode');
     return false;
   }

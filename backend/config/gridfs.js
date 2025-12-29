@@ -18,7 +18,7 @@ const prescriptionStorage = new GridFsStorage({
           filename: filename,
           bucketName: 'prescriptions',
           metadata: {
-            userId: req.user ? req.user._id : null,
+            userId: req.user ? req.user.userId : null,
             uploadType: 'prescription',
             originalName: file.originalname,
             uploadDate: new Date()
@@ -45,7 +45,7 @@ const reportStorage = new GridFsStorage({
           filename: filename,
           bucketName: 'reports',
           metadata: {
-            userId: req.user ? req.user._id : null,
+            userId: req.user ? req.user.userId : null,
             orderId: req.params.id,
             uploadType: 'lab_report',
             originalName: file.originalname,
@@ -60,19 +60,19 @@ const reportStorage = new GridFsStorage({
 
 // Handle storage errors
 prescriptionStorage.on('connection', (db) => {
-  console.log('✅ Prescription GridFS Storage Connected');
+  console.log('Prescription GridFS Storage Connected');
 });
 
 prescriptionStorage.on('connectionFailed', (err) => {
-  console.error('❌ Prescription GridFS Connection Failed:', err);
+  console.error(' Prescription GridFS Connection Failed:', err);
 });
 
 reportStorage.on('connection', (db) => {
-  console.log('✅ Report GridFS Storage Connected');
+  console.log('Report GridFS Storage Connected');
 });
 
 reportStorage.on('connectionFailed', (err) => {
-  console.error('❌ Report GridFS Connection Failed:', err);
+  console.error('Report GridFS Connection Failed:', err);
 });
 
 module.exports = {

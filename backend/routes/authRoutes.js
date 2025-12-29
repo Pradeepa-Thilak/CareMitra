@@ -18,7 +18,7 @@ router.post('/verify-otp', verifyOTP);
 router.post('/complete-signup', completeSignup);
 
 
-// router.get('/me', auth, getCurrentUser);
+router.get('/me', auth, getCurrentUser);
 
 
 router.get('/test', (req, res) => {

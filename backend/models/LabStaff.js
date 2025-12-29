@@ -86,12 +86,32 @@ const labStaffSchema = new mongoose.Schema({
   completedOrders: {
     type: Number,
     default: 0
-  }
+  },
+   otp: String,
+  otpExpires: Date
 }, {
   timestamps: true
 });
 
 // Create geospatial index for location-based queries
 labStaffSchema.index({ location: '2dsphere' });
+
+// OTP verification
+labStaffSchema.methods.verifyOTP = function(enteredOTP) {
+  return this.otp === enteredOTP && this.otpExpires > Date.now();
+};
+
+labStaffSchema.methods.generateOTP = function() {
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  this.otp = otp;
+  this.otpExpires = Date.now() + 5 * 60 * 1000;
+  return otp;
+};
+
+// Clear OTP
+labStaffSchema.methods.clearOTP = function() {
+  this.otp = undefined;
+  this.otpExpires = undefined;
+};
 
 module.exports = mongoose.model('LabStaff', labStaffSchema);

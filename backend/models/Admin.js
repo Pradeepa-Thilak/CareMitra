@@ -1,71 +1,33 @@
 // models/Admin.js
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const mongoose = require("mongoose");
 
 const adminSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    lowercase: true
-  },
-  password: {
-    type: String,
-    required: true,
-    minlength: 6
-  },
+  name: String,
+  email: { type: String, unique: true },
   role: {
     type: String,
-    default: 'admin',
-    enum: ['admin', 'superadmin']
+    enum: ["admin", "super_admin"],
+    default: "admin",
   },
-  isActive: {
-    type: Boolean,
-    default: true
-  }
-}, {
-  timestamps: true
-});
+  otp: String,
+  otpExpires: Date,
+  isActive: { type: Boolean, default: true }
+}, { timestamps: true });
 
-// Hash password before saving
-adminSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 12);
-  next();
-});
-
-// Compare password method
-adminSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+adminSchema.methods.generateOTP = function () {
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  this.otp = otp;
+  this.otpExpires = Date.now() + 5 * 60 * 1000;
+  return otp;
 };
 
-// Generate JWT token method
-adminSchema.methods.generateAuthToken = function() {
-  return jwt.sign(
-    { 
-      id: this._id, 
-      email: this.email, 
-      role: this.role 
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-  );
+adminSchema.methods.verifyOTP = function (otp) {
+  return this.otp === otp && this.otpExpires > Date.now();
 };
 
-adminSchema.methods.generateAuthToken = function () {
-  const token = jwt.sign(
-    { id: this._id },  
-    process.env.JWT_SECRET,
-    { expiresIn: "1d" }
-  );
-  return token;
+adminSchema.methods.clearOTP = function () {
+  this.otp = undefined;
+  this.otpExpires = undefined;
 };
 
-
-module.exports = mongoose.model('Admin', adminSchema);
+module.exports = mongoose.model("Admin", adminSchema);

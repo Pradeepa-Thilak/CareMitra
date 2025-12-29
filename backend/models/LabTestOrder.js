@@ -33,15 +33,15 @@ const labTestOrderSchema = new mongoose.Schema({
     enum: ['pending', 'paid', 'failed', 'refunded'],
     default: 'pending'
   },
-
+paidAt: Date,
   razorpayOrderId: String,
   razorpayPaymentId: String,
   razorpaySignature: String,
   
   orderStatus: {
     type: String,
-    enum: ['ordered', 'sample_collected', 'processing', 'completed', 'cancelled'],
-    default: 'ordered'
+    enum: ['created', 'sample_collected', 'processing', 'completed', 'cancelled' , 'pending'],
+    default: 'pending'
   },
 
   patientDetails: {
@@ -83,17 +83,14 @@ const labTestOrderSchema = new mongoose.Schema({
 
   prescriptionFile: {
     filename: String,
-    data: String,
+    data: {
+      type: Buffer,   // ✅ THIS IS THE KEY
+      required: true
+    },
     contentType: String,
     uploadDate: { type: Date, default: Date.now }
   },
 
-  reportFile: {
-    filename: String,
-    data: String,
-    contentType: String,
-    uploadDate: { type: Date, default: Date.now }
-  },
 
   assignedStaff: {
     staffId: { type: mongoose.Schema.Types.ObjectId, ref: 'LabStaff' },

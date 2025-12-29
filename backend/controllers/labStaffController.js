@@ -4,12 +4,6 @@ const { sendGeneralEmail } = require('../utils/sendEmail');
 const kafkaProducer = require('../kafka/producer');
 const { EVENT_TYPES } = require('../kafka/topics');
 
-
-
-
-// Add these functions to your file:
-
-// Function to handle assignment failure
 const handleAssignmentFailure = async (order, user, reason) => {
   try {
     console.log(`❌ Assignment failed for order ${order._id}: ${reason}`);
@@ -1364,3 +1358,52 @@ exports.updateLabStaff = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+exports.listOfOrders = async (req, res) => {
+  try { 
+    const staffId = req.user.userId;
+    const staff = await LabStaff.findById(staffId);
+    if (!staff) {
+      return res.status(404).json({ message: "Lab Staff Not Found" });
+    }
+
+    if (!staff.assignedOrders || staff.assignedOrders.length === 0) {
+      return res.status(404).json({ message: "No assigned order found" });
+    }
+
+    // Fetch all assigned orders
+    const allOrders = await Promise.all(
+      staff.assignedOrders.map(async (order) => {
+        const labDetails = await LabTestOrder.findById(order.orderId);
+
+        if (!labDetails) return null; 
+
+        return {
+          orderId: order.orderId,
+          assignedAt: order.assignedAt,
+          status: order.status,
+          labData: {
+            TestName: labDetails.tests?.name,
+            scheduleAt: labDetails.paidAt,
+            status: labDetails.orderStatus,
+            location: labDetails.sampleCollectionDetails?.address,
+            Notes: labDetails.tests?.fastingRequired,
+          },
+          patientData: labDetails.sampleCollectionDetails,
+        };
+      })
+    );
+
+    const filteredOrders = allOrders.filter(o => o !== null);
+
+    return res.status(200).json({
+      success: true,
+      total: filteredOrders.length,
+      orders: filteredOrders,
+    });
+
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+

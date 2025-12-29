@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const Doctor = require('../models/Doctor');
 const Patient = require('../models/Patient');
+const LabStaff = require('../models/LabStaff');
 
 const auth = async (req, res, next) => {
   try {
@@ -36,6 +37,10 @@ const auth = async (req, res, next) => {
       console.log(' Searching Patient collection...');
       user = await Patient.findById(decoded.id);
     } 
+    else if(decoded.role === "labstaff"){
+      console.log(' Searching labstaff collection...');
+      user = await LabStaff.findById(decoded.id);
+    }
     else {
       return res.status(401).json({ success: false, message: "Invalid role in token" });
     }
@@ -54,7 +59,7 @@ const auth = async (req, res, next) => {
       email: user.email
     };
 
-    console.log(` AUTH SUCCESS → ${user.email} (${user.role})`);
+    console.log(` AUTH SUCCESS → ${user.email} (${user.role}) (${req.user.userId})`);
     next();
 
   } catch (error) {

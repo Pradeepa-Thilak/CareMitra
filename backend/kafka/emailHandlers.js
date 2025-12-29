@@ -143,7 +143,7 @@ class KafkaEmailHandlers {
       const { orderId, staffId, collectionTime } = payload;
       
       const order = await LabTestOrder.findById(orderId)
-        .populate('patientDetails.userId', 'email name');
+        .populate('user', 'email name phone');
       const staff = await LabStaff.findById(staffId);
       
       if (!order || !staff) return;
@@ -198,7 +198,8 @@ class KafkaEmailHandlers {
       const { orderId, reportUrl, uploadedBy } = payload;
       
       const order = await LabTestOrder.findById(orderId)
-        .populate('patientDetails.userId', 'email name');
+  .populate("user", "name email phone"); // ✅ Correct
+
       
       if (!order) return;
 
@@ -443,26 +444,32 @@ class KafkaEmailHandlers {
 
   // Staff Created - Already handled in your controller, but can be moved here
   async handleLabStaffCreated(payload) {
-    try {
-      const { staffId, name, email } = payload;
-      
-      // This duplicates what's in your controller, but centralizes email logic
-      const subject = `👨‍⚕️ Welcome to CareMitra Lab Team`;
-      const html = `
-        <div style="font-family: Arial; padding:20px;">
-          <h2>Welcome ${name}!</h2>
-          <p>Your account has been created as Lab Staff.</p>
-          <p><strong>Staff ID:</strong> ${staffId}</p>
-          <p>You'll start receiving assignments soon.</p>
-        </div>
-      `;
-
-      return await sendGeneralEmail(email, subject, html);
-      
-    } catch (error) {
-      console.error('Staff created email error:', error);
+  try {
+    if (!payload || !payload.email) {
+      console.warn('LAB_STAFF_CREATED payload missing:', payload);
+      return;
     }
+
+    const { staffId, name, email } = payload;
+
+    const subject = '👨‍⚕️ Welcome to CareMitra Lab Team';
+
+    const html = `
+      <div style="font-family: Arial; padding:20px;">
+        <h2>Welcome ${name || 'Team Member'}!</h2>
+        <p>Your account has been created as <strong>Lab Staff</strong>.</p>
+        <p><strong>Staff ID:</strong> ${staffId || 'N/A'}</p>
+        <p>You will start receiving assignments soon.</p>
+      </div>
+    `;
+
+    await sendGeneralEmail(email, subject, html);
+
+    console.log(`Lab staff welcome email sent to ${email}`);
+  } catch (error) {
+    console.error('Staff created email error:', error);
   }
+}
 }
 
 module.exports = new KafkaEmailHandlers();

@@ -10,31 +10,40 @@ addMember,
 getMember,
 addSymptoms,
 verifyPayment,
-selectSpecialist} = require("../controllers/patientController");
+selectSpecialist,checkPaymentStatus,
+createorder,
+consultingType,
+deleteMember,
+updateMember,
+getMemberById} = require("../controllers/patientController");
 
 
 router.use(auth);
 
 
-router.get("/viewProfile", viewProfile);
+router.get("/viewProfile", auth ,viewProfile);
 
 
-router.post("/editProfile", editProfile);
+router.post("/editProfile", auth ,editProfile);
 
-router.get("/doctorAll",getAllDoctor);
+router.get("/doctorAll",auth ,getAllDoctor);
 
-router.get("/myAppointments", myAppointment);
+router.get("/myAppointments", auth ,myAppointment);
 
-router.post("/addMember" , addMember);
+router.post("/addMember" , auth ,addMember);
 
-router.get("/getMember" , getMember);
+router.get("/getMember" , auth ,getMember);
 
-router.post("/symptoms" ,addSymptoms);
+router.post("/symptoms" ,auth ,addSymptoms);
 
-router.post("/specialists" , selectSpecialist);
-
-router.post("/payment" , verifyPayment);
-
+router.post("/specialists" , auth ,selectSpecialist);
+router.put("/type/:id" , auth ,consultingType);
+router.post('/create-order', auth ,createorder);
+router.post('/verify-payment', auth ,verifyPayment);
+router.get('/payment-status',auth,  checkPaymentStatus);
+router.delete('/delete/:id' ,auth, deleteMember);
+router.get('/:memberId' , auth ,getMemberById);
+router.put('/edit/:id', auth ,updateMember);
 // router.post("/bookAppointment", bookAppointment);
 
 module.exports = router;
