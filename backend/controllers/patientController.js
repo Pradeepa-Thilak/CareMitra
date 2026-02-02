@@ -4,7 +4,7 @@ const Doctor = require('../models/Doctor');
 const ConsultingDoctor = require("../models/ConsultingDoctor");
 // const Member = require('../models/Member');
 // const {razorpay,createOrder} = require('../config/razorpay');
-
+const Order = require('../models/Order')
 const sgMail = require("@sendgrid/mail");
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -318,7 +318,8 @@ const addSymptoms = async (req, res) => {
 
     let member = await ConsultingDoctor.findOne({
       memberId: memberId,
-      PatientId: patientId
+      PatientId: patientId,
+      status : 'scheduled'
     });
 
     if (!member) {
@@ -383,6 +384,7 @@ const selectSpecialist = async (req, res) => {
     const consult = await ConsultingDoctor.findOne({
       PatientId: patientId,
       memberId,
+      status: 'scheduled'
     });
 
     if (!consult) {
@@ -515,6 +517,7 @@ const generateMeetingLinks = (doctor, consult) => {
 
 // CREATE ORDER FOR PAYMENT
 const Razorpay = require("razorpay");
+const LabTestOrder = require("../models/LabTestOrder");
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID || 'your_razorpay_key_id',
@@ -537,7 +540,7 @@ const createorder = async (req, res) => {
     }
 
     // Prevent multiple orders for same consult
-    if (consult.paymentDetails?.razorpayOrderId) {
+    if (consult.paymentDetails?.razorpayOrderId && consult.status !== 'completed') {
       return res.status(400).json({ success: false, message: "Order already created" });
     }
 
@@ -740,12 +743,17 @@ const consultingType = async (req, res) => {
       });
     }
 
+    const existing = await ConsultingDoctor.findOne({ PatientId: patient._id, memberId, status: 'scheduled'});
+    console.log(existing);
+    if(existing) {
+      return res.status(400).json({
+        success: false,
+        message: "Record already exists."
+      })
+    }
+
     // Create or update consultation
-    let consultation = await ConsultingDoctor.findOneAndUpdate(
-      {
-        PatientId: patient._id,
-        name: member.name
-      },
+    let consultation = await ConsultingDoctor.create(
       {
         PatientId: patient._id,
         memberId ,
@@ -756,11 +764,6 @@ const consultingType = async (req, res) => {
         consultingType: type,
         appointmentDate: new Date(),
         status: "scheduled"
-      },
-      {
-        upsert: true, // Create if doesn't exist
-        new: true,
-        setDefaultsOnInsert: true
       }
     );
 
@@ -939,6 +942,140 @@ const updateMember = async (req, res) => {
   }
 };
 
+const recentBooked = async (req, res) => {
+  try {
+    const patientId = req.user.userId;
+
+    const patient = await Patient.findById(patientId);
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
+
+    /* ---------------- LAB TEST TOTAL ---------------- */
+    const labOrders = await LabTestOrder.find({
+      user: patientId,
+      paymentStatus: "paid",
+    }).select("totalAmount");
+
+    const labTotalAmount = labOrders.reduce(
+      (sum, order) => sum + (order.totalAmount || 0),
+      0
+    );
+
+    /* ---------------- PRODUCT ORDER TOTAL ---------------- */
+    const orders = await Order.find({
+      patientId: patientId,
+      "paymentDetails.paymentStatus": "completed",
+    }).select("totalAmount");
+
+    const orderTotalAmount = orders.reduce(
+      (sum, order) => sum + (order.totalAmount || 0),
+      0
+    );
+
+    /* ---------------- CONSULTATION TOTAL ---------------- */
+    const consultations = await ConsultingDoctor.find({
+      PatientId: patientId,
+      "paymentDetails.status": "paid",
+    }).select("paymentDetails.amount");
+
+    const consultingTotalAmount = consultations.reduce(
+      (sum, consult) => sum + (consult.paymentDetails?.amount || 0),
+      0
+    );
+
+    /* ---------------- GRAND TOTAL ---------------- */
+    const total =
+      labTotalAmount + orderTotalAmount + consultingTotalAmount;
+
+    return res.status(200).json({
+      success: true,
+      message: "Successfully calculated totals",
+      labTotalAmount,
+      orderTotalAmount,
+      consultingTotalAmount,
+      total,
+    });
+
+  } catch (err) {
+    console.error("Recent booked error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+const labTestOrder = async (req, res) => {
+  try {
+    const patientId = req.user?.userId;
+
+    if (!patientId) {
+      return res.status(401).json({ message: "You aren't authenticated" });
+    }
+
+    const test = await LabTestOrder.findOne({ user : patientId });
+
+    if (!test) {
+      return res.status(404).json({ message: "No lab test found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: test,
+    });
+  } catch (err) {
+    console.error("Lab order error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+const consulted = async (req, res) => {
+  try {
+    const patientId = req.user?.userId;
+    console.log(patientId);
+    
+    if (!patientId) {
+      return res.status(401).json({
+        success: false,
+        message: "You aren't authenticated",
+      });
+    }
+
+    const appointments = await ConsultingDoctor.find({
+      PatientId: patientId, 
+    });
+
+    // if (!appointments || appointments.length === 0) {
+    //   return res.status(404).json({
+    //     success: false,
+    //     message: "No consulting record found",
+    //   });
+    // }
+
+    return res.status(200).json({
+      success: true,
+      data: appointments,
+    });
+  } catch (err) {
+    console.error("Consulting error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+
+
+
+
 
 module.exports = {
   viewProfile,
@@ -956,5 +1093,8 @@ module.exports = {
   consultingType,
   updateMember,
   deleteMember,
-  getMemberById
+  getMemberById,
+  recentBooked,
+  labTestOrder,
+  consulted
 }

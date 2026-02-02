@@ -23,10 +23,8 @@ export const useBrands = () => {
         // call your backend brands endpoint
         const res = await api.get('/brands'); // adjust path if needed
         const data = res.data.data;
-        console.log(data);
         
         if (mounted) setBrands(Array.isArray(data) ? data : []);
-        console.log(brands);
       } catch (err) {
         console.warn('Brands API failed, using fallback', err?.message || err);
         if (mounted) {

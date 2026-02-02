@@ -14,6 +14,7 @@ const { createLogger, format, transports } = require('winston');
 const http = require('http');
 const socketIo = require('socket.io');
 
+
 // Load environment variables
 dotenv.config();
 const { resetDailyDoctorData, checkExpiredPlansHourly } = require("./cronJobs");
@@ -67,7 +68,7 @@ app.use(
   cors({
     origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000', process.env.FRONTEND_URL || 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'user-id'],
     credentials: true,
     optionsSuccessStatus: 200
   })
@@ -89,10 +90,10 @@ app.use(session({
   }
 }));
 
-// Apply rate limiting to API routes
+
 app.use('/api/', limiter);
 
-// Request logging middleware
+
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.originalUrl}`, {
     ip: req.ip,
@@ -101,7 +102,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Session debug middleware (development only)
+
 if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
     console.log(' Session Debug:');
@@ -114,7 +115,7 @@ if (process.env.NODE_ENV === 'development') {
 
 console.log(" Mounting routes...");
 
-// Import all routes
+
 const authRoutes = require("./routes/authRoutes"); 
 const categories = require("./routes/categories"); 
 const products = require("./routes/products");     
@@ -135,11 +136,12 @@ const adminConsultations = require("./routes/adminConsultations");
 const adminDashboard = require('./routes/adminDashboard');
 const adminProductRoutes = require('./routes/adminProduct.routes');
 const doctorAPIRoutes = require('./routes/doctorRoutes');
+const wishlistRoutes = require('./routes/wishlistRoutes');
 
-// AI Chatbot Routes
+const orderRoutes = require("./routes/orderRoutes");
 const chatRoutes = require('./routes/chatRoutes');
 
-// Mount routes
+
 app.use('/api/doctors', doctorAPIRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/admin', adminAuthRoutes);
@@ -161,7 +163,8 @@ app.use('/admin/staff', adminlabStaff);
 app.use('/search', search);
 app.use("/cart", cartRoutes);
 app.use('/admin', adminProductRoutes);
-
+app.use('/wishlist', wishlistRoutes);
+app.use("/api/orders", orderRoutes);//orderRoutes
 // AI Chatbot API Routes
 app.use('/chat', chatRoutes);
 

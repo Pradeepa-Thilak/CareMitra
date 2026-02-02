@@ -12,8 +12,6 @@ class KafkaConsumer {
 
   async connect() {
     if (this.consumer) return;
-    
-    // In development, try to connect but fall back to mock if it fails
     if (process.env.NODE_ENV === 'development') {
       try {
         const kafka = new Kafka({
@@ -83,8 +81,6 @@ class KafkaConsumer {
         try {
           const event = JSON.parse(message.value.toString());
           console.log(`Received event: ${event.eventType} from ${topic}`);
-          
-          // Use email handlers based on event type
           if (topic === TOPICS.LAB_TEST_BOOKING) {
             await this.handleLabTestEvent(event);
           } else if (topic === TOPICS.DOCTOR_BOOKING) {

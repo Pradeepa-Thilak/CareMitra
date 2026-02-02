@@ -1,5 +1,6 @@
 // src/admin/routes/AdminRoute.jsx
 import { Navigate, Outlet } from "react-router-dom";
+import AdminLayout from "../pages/AdminLayout";
 
 const AdminRoute = () => {
   const token = localStorage.getItem("authToken");
@@ -24,8 +25,8 @@ const AdminRoute = () => {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // User is authenticated and authorized
-  return <Outlet />;
+  // User is authenticated and authorized - render AdminLayout with nested routes
+  return <AdminLayout />;
 };
 
 export default AdminRoute;

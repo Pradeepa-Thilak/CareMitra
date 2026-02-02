@@ -10,6 +10,7 @@ import {
   Award,
   Plus,
 } from "lucide-react";
+import { doctorAPI } from "../utils/api";
 
 /* ---------------- STATUS BADGE ---------------- */
 const StatusBadge = ({ status = "pending" }) => {
@@ -87,8 +88,6 @@ export default function Doctors() {
     yearOfRegistration: "",
   });
 
-  const token = localStorage.getItem("authToken");
-
   useEffect(() => {
     fetchDoctors();
   }, []);
@@ -97,12 +96,13 @@ export default function Doctors() {
   const fetchDoctors = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/admin/doctors", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setDoctors(data.doctors || data.data || []);
-    } catch {
+      const res = await doctorAPI.getAllDoctors();
+      const data = Array.isArray(res.data)
+        ? res.data
+        : res.data?.data || res.data?.doctors || [];
+      setDoctors(data);
+    } catch (err) {
+      console.error("Failed to fetch doctors:", err);
       setDoctors([]);
     } finally {
       setLoading(false);
@@ -117,49 +117,26 @@ export default function Doctors() {
     rejectionReason = "",
   }) => {
     try {
-      const res = await fetch(
-        `http://localhost:5000/api/admin/doctors/${doctorId}/verify`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            status,
-            notes,
-            rejectionReason,
-          }),
-        }
-      );
+      const res = await doctorAPI.verifyDoctor(doctorId, {
+        status,
+        notes,
+        rejectionReason,
+      });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Action failed");
-
-      alert(data.message);
-      fetchDoctors();
-      setSelected(null);
+      if (res.status === 200 || res.status === 201) {
+        alert("Doctor verification updated successfully");
+        fetchDoctors();
+        setSelected(null);
+      }
     } catch (err) {
-      alert(err.message);
+      alert(err.message || "Failed to update doctor verification");
     }
   };
 
   /* ---------------- ADD DOCTOR ---------------- */
   const handleAddDoctor = async () => {
     try {
-      const res = await fetch(
-        "http://localhost:5000/api/admin/register/doctor",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(form),
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to add doctor");
+      const res = await doctorAPI.registerDoctor(form);
 
       setShowAdd(false);
       setForm({
@@ -174,7 +151,7 @@ export default function Doctors() {
 
       fetchDoctors();
     } catch (err) {
-      alert(err.message);
+      alert(err.message || "Failed to add doctor");
     }
   };
 

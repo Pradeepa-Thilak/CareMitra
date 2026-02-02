@@ -15,10 +15,11 @@ import Consultations from '../pages/Consultations';
 
 const AdminRoutes = (
   <>
-   <Route path='/admin/login' element={<AdminLoginPage />} />
+    {/* Admin Login - Public Route */}
+    <Route path='/admin/login' element={<AdminLoginPage />} />
 
-  <Route element={<AdminRoute />}>
-    <Route path='/admin' element={<AdminLayout />}>
+    {/* Protected Admin Routes */}
+    <Route path='/admin' element={<AdminRoute />}>
       <Route index element={<Dashboard />} />
       <Route path='doctors' element={<Doctors />} />
       <Route path='lab-tests' element={<LabTests />} />
@@ -28,7 +29,6 @@ const AdminRoutes = (
       <Route path='orders' element={<Orders />} />
       <Route path='consultations' element={<Consultations />} />
     </Route>
-  </Route>
   </>
 );
 

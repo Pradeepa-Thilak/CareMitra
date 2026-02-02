@@ -20,11 +20,6 @@ const EVENT_TYPES = {
   LAB_STAFF_UPDATED: 'lab_staff_updated',
   LAB_STAFF_STATUS_UPDATED: 'lab_staff_status_updated',
   
-  // Doctor Booking Events
-  DOCTOR_APPOINTMENT_BOOKED: 'doctor_appointment_booked',
-  DOCTOR_APPOINTMENT_CANCELLED: 'doctor_appointment_cancelled',
-  DOCTOR_APPOINTMENT_RESCHEDULED: 'doctor_appointment_rescheduled',
-  
   // Payment Events
   PAYMENT_SUCCESS: 'payment_success',
   PAYMENT_FAILED: 'payment_failed',

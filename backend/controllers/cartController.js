@@ -341,48 +341,6 @@ exports.verifyPayment = async (req, res) => {
   }
 };
 
-exports.getMyOrders = async (req, res) => {
-  try {
-    const patientId = req.user.userId;
-    console.log(patientId);
-    
-    const orders = await Order.find({ patientId })
-      .populate("orderId totalAmount orderStatus")
-      .sort({ createdAt: -1 }); // Most recent first
-
-    res.json({ 
-      success: true, 
-      orders
-    });
-
-  } catch (err) {
-    console.error("Get orders error:", err);
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// GET ORDER BY ID
-exports.getOrderById = async (req, res) => {
-  try {
-    const patientId = req.user.userId;
-    const { orderId } = req.params;
-
-    const order = await Order.findOne({ 
-      orderId, 
-      patientId 
-    }).populate("items.productId");
-
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    res.json({ success: true, order });
-
-  } catch (err) {
-    console.error("Get order error:", err);
-    res.status(500).json({ message: err.message });
-  }
-};
 
 // CANCEL ORDER
 exports.cancelOrder = async (req, res) => {
@@ -428,30 +386,92 @@ exports.cancelOrder = async (req, res) => {
   }
 };
 
-exports.getOrderByStatus = async (req, res) => {
+// =====================================================
+// GET MY ORDERS - CORRECTED
+// =====================================================
+exports.getMyOrders = async (req, res) => {
   try {
     const patientId = req.user.userId;
-    const { status } = req.params;
+    console.log("📦 Fetching orders for patient:", patientId);
+  
+    const orders = await Order.find({ patientId })
+      .populate("items.productId", "name price image") 
+      .sort({ createdAt: -1 }); 
+    console.log(` Found ${orders.length} orders`);
 
-    if (!patientId || !status) {
-      return res.status(400).json({ message: "Patient ID or Status missing" });
-    }
-
-    const orders = await Order.find({
-      patientId: patientId,
-      orderStatus: status
-    })
-      .populate("orderId totalAmount orderStatus")
-      .sort({ createdAt: -1 }); // newest first
-
-    return res.status(200).json({
-      success: true,
+    res.json({ 
+      success: true, 
       count: orders.length,
-      data: orders
+      orders
     });
 
   } catch (err) {
-    console.error("Get order by status error:", err);
-    res.status(500).json({ message: err.message });
+    console.error("Get orders error:", err);
+    res.status(500).json({ 
+      success: false,
+      message: err.message 
+    });
+  }
+};
+
+exports.getOrderById = async (req, res) => {
+  try {
+    const patientId = req.user.userId;
+    const { orderId } = req.params;
+
+        const order = await Order.findOne({ 
+      orderId,  
+      patientId 
+    })
+    .populate("items.productId", "name price image stock"); // Populate product details
+
+    if (!order) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Order not found" 
+      });
+    }
+
+    console.log("Order found:", order.orderId);
+
+    res.json({ 
+      success: true, 
+      data: order 
+    });
+
+  } catch (err) {
+    console.error("Get order error:", err);
+    res.status(500).json({ 
+      success: false,
+      message: err.message 
+    });
+  }
+};
+exports.getOrdersByStatus = async (req, res) => {
+  try {
+    const patientId = req.user.userId;
+    const { status } = req.params; 
+
+    console.log(`Fetching ${status} orders for patient ${patientId}`);
+
+    const orders = await Order.find({ 
+      patientId,
+      orderStatus: status 
+    })
+    .populate("items.productId", "name price image")
+    .sort({ createdAt: -1 });
+
+    res.json({ 
+      success: true, 
+      count: orders.length,
+      data: orders 
+    });
+
+  } catch (err) {
+    console.error("Get orders by status error:", err);
+    res.status(500).json({ 
+      success: false,
+      message: err.message 
+    });
   }
 };

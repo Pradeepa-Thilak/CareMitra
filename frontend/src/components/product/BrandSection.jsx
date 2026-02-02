@@ -8,31 +8,33 @@ const BrandCard = ({ brand, onClick }) => {
   const [imageError, setImageError] = React.useState(false);
   
   return (
-    <button
-      onClick={onClick}
-      className="group flex-shrink-0 w-44 h-36 bg-white rounded-2xl shadow-md hover:shadow-xl transition-all p-6 flex flex-col items-center justify-center border border-gray-100 hover:border-blue-200 hover:scale-105"
-      aria-label={`See products from ${brand.name}`}
-    >
-      <div className="h-20 w-full flex items-center justify-center overflow-hidden mb-3">
-        {!imageError && brand.logo ? (
-          <img
-            src={brand.logo}
-            alt={brand.name}
-            className="max-h-16 max-w-full object-contain transition-transform group-hover:scale-110 duration-300"
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg">
-            <span className="text-2xl font-bold text-gray-400">
-              {brand.name?.charAt(0)?.toUpperCase() || '?'}
-            </span>
-          </div>
-        )}
+  <button
+  onClick={onClick}
+  className="group flex-shrink-0 w-44 h-44 bg-white rounded-2xl shadow-md hover:shadow-xl transition-all p-6 flex flex-col items-center justify-center border border-gray-100 hover:border-blue-200 hover:scale-105"
+  aria-label={`See products from ${brand.name}`}
+>
+  <div className="h-20 w-full flex items-center justify-center overflow-hidden mb-3">
+    {!imageError && brand.logo ? (
+      <img
+        src={brand.logo}
+        alt={brand.name}
+        className="max-h-16 max-w-full object-contain transition-transform group-hover:scale-110 duration-300"
+        onError={() => setImageError(true)}
+      />
+    ) : (
+      <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg">
+        <span className="text-2xl font-bold text-gray-400">
+          {brand.name?.charAt(0)?.toUpperCase() || '?'}
+        </span>
       </div>
-      <div className="text-sm font-semibold text-gray-800 text-center line-clamp-2 group-hover:text-blue-600 transition-colors">
-        {brand.name}
-      </div>
-    </button>
+    )}
+  </div>
+
+  <div className="text-sm font-semibold text-gray-800 text-center line-clamp-3 group-hover:text-blue-600 transition-colors">
+    {brand.name}
+  </div>
+</button>
+
   );
 };
 

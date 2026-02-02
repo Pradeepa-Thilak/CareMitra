@@ -6,6 +6,10 @@ const labTestSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+   image: {
+    type: String,
+    required: true
+  },
   description: String,
   price: {
     type: Number,

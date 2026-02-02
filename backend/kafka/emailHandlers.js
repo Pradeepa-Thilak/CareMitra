@@ -151,10 +151,10 @@ class KafkaEmailHandlers {
       const patientEmail = order.patientDetails.email;
       const patientName = order.patientDetails.name;
       
-      const subject = `✅ Sample Collected - Order #${order._id.toString().slice(-8).toUpperCase()}`;
+      const subject = ` Sample Collected - Order #${order._id.toString().slice(-8).toUpperCase()}`;
       const html = `
         <div style="font-family: Arial; max-width:600px; margin:auto; padding:20px;">
-          <h2 style="color:#3b82f6;">🧪 Sample Collected</h2>
+          <h2 style="color:#3b82f6;">Sample Collected</h2>
           <p>Dear ${patientName},</p>
           <p>Your sample has been successfully collected by our technician <strong>${staff.name}</strong>.</p>
           
@@ -172,7 +172,7 @@ class KafkaEmailHandlers {
       
       // Also notify staff
       if (emailResult.success) {
-        const staffSubject = `✅ Sample Collected Confirmation - Order #${order._id.toString().slice(-8).toUpperCase()}`;
+        const staffSubject = `Sample Collected Confirmation - Order #${order._id.toString().slice(-8).toUpperCase()}`;
         const staffHtml = `
           <div style="font-family: Arial; padding:20px;">
             <h2 style="color:#10b981;">Sample Collection Recorded</h2>
@@ -198,7 +198,7 @@ class KafkaEmailHandlers {
       const { orderId, reportUrl, uploadedBy } = payload;
       
       const order = await LabTestOrder.findById(orderId)
-  .populate("user", "name email phone"); // ✅ Correct
+  .populate("user", "name email phone"); 
 
       
       if (!order) return;
@@ -206,22 +206,22 @@ class KafkaEmailHandlers {
       const patientEmail = order.patientDetails.email;
       const patientName = order.patientDetails.name;
       
-      const subject = `📄 Test Results Ready - Order #${order._id.toString().slice(-8).toUpperCase()}`;
+      const subject = `Test Results Ready - Order #${order._id.toString().slice(-8).toUpperCase()}`;
       const html = `
         <div style="font-family: Arial; max-width:600px; margin:auto; padding:20px;">
-          <h2 style="color:#8b5cf6;">📋 Your Test Results Are Ready</h2>
+          <h2 style="color:#8b5cf6;">Your Test Results Are Ready</h2>
           <p>Dear ${patientName},</p>
           <p>Your lab test results have been uploaded and are ready for viewing.</p>
           
           <div style="background:#f5f3ff; padding:20px; border-radius:10px; margin:20px 0; text-align:center;">
             <h3 style="color:#7c3aed;">Download Your Report</h3>
             <a href="${reportUrl}" style="background:#8b5cf6; color:white; padding:15px 30px; text-decoration:none; border-radius:8px; display:inline-block; margin:10px; font-weight:bold;">
-              📥 Download Report
+               Download Report
             </a>
           </div>
           
           <div style="background:#f0f9ff; padding:15px; border-radius:8px; margin:15px 0;">
-            <h4 style="color:#0369a1;">🩺 Important Notes:</h4>
+            <h4 style="color:#0369a1;"> Important Notes:</h4>
             <ul>
               <li>Consult your doctor to interpret the results</li>
               <li>Keep a copy for future reference</li>
@@ -235,7 +235,7 @@ class KafkaEmailHandlers {
       const emailResult = await sendGeneralEmail(patientEmail, subject, html);
       
       if (emailResult.success) {
-        console.log('✅ Test report notification sent to:', patientEmail);
+        console.log(' Test report notification sent to:', patientEmail);
         
         // Send to additional email if provided
         if (order.patientDetails.additionalEmail) {
@@ -263,15 +263,15 @@ class KafkaEmailHandlers {
       const patientEmail = order.patientDetails.email;
       const patientName = order.patientDetails.name;
       
-      const subject = `⚠️ Order Update - Order #${order._id.toString().slice(-8).toUpperCase()}`;
+      const subject = `Order Update - Order #${order._id.toString().slice(-8).toUpperCase()}`;
       const html = `
         <div style="font-family: Arial; max-width:600px; margin:auto; padding:20px;">
-          <h2 style="color:#f59e0b;">⏳ Processing Your Order</h2>
+          <h2 style="color:#f59e0b;"> Processing Your Order</h2>
           <p>Dear ${patientName},</p>
           <p>We're currently processing your lab test order <strong>#${orderId.slice(-8).toUpperCase()}</strong>.</p>
           
           <div style="background:#fffbeb; padding:20px; border-radius:10px; margin:20px 0; border:2px solid #f59e0b;">
-            <h3 style="color:#d97706;">⚠️ Important Update</h3>
+            <h3 style="color:#d97706;"> Important Update</h3>
             <p>We are currently assigning a technician to your location.</p>
             <p><strong>Reason for delay:</strong> ${reason || 'Finding nearest available technician'}</p>
             <p>You will receive another notification once a technician is assigned.</p>
@@ -290,7 +290,7 @@ class KafkaEmailHandlers {
       
       // Also notify admin if assignment failed
       if (process.env.ADMIN_EMAIL) {
-        const adminSubject = `🚨 Assignment Failed - Order #${orderId}`;
+        const adminSubject = ` Assignment Failed - Order #${orderId}`;
         const adminHtml = `
           <div style="font-family: Arial; padding:20px;">
             <h2 style="color:#dc2626;">Assignment Failed</h2>
@@ -328,15 +328,15 @@ class KafkaEmailHandlers {
       const patientEmail = order.patientDetails.email;
       const patientName = order.patientDetails.name;
       
-      const patientSubject = `👨‍⚕️ Technician Assigned - Order #${order._id.toString().slice(-8).toUpperCase()}`;
+      const patientSubject = ` Technician Assigned - Order #${order._id.toString().slice(-8).toUpperCase()}`;
       const patientHtml = `
         <div style="font-family: Arial; max-width:600px; margin:auto; padding:20px;">
-          <h2 style="color:#10b981;">✅ Technician On The Way</h2>
+          <h2 style="color:#10b981;">Technician On The Way</h2>
           <p>Dear ${patientName},</p>
           <p>A technician has been assigned for your sample collection.</p>
           
           <div style="background:#ecfdf5; padding:20px; border-radius:10px; margin:20px 0;">
-            <h3 style="color:#059669;">🩺 Technician Details</h3>
+            <h3 style="color:#059669;"> Technician Details</h3>
             <table style="width:100%; border-collapse:collapse;">
               <tr>
                 <td style="padding:10px; border-bottom:1px solid #a7f3d0;"><strong>Name:</strong></td>
@@ -366,7 +366,7 @@ class KafkaEmailHandlers {
       // Get staff email and send confirmation
       const staff = await LabStaff.findById(staffId);
       if (staff && staff.email) {
-        const staffSubject = `✅ Assignment Confirmed - Order #${orderId.slice(-8).toUpperCase()}`;
+        const staffSubject = `Assignment Confirmed - Order #${orderId.slice(-8).toUpperCase()}`;
         const staffHtml = `
           <div style="font-family: Arial; padding:20px;">
             <h2 style="color:#3b82f6;">Assignment Confirmed</h2>
@@ -397,10 +397,10 @@ class KafkaEmailHandlers {
       // You would fetch appointment, patient, and doctor details here
       // For now, we'll use the payload data
       
-      const subject = `✅ Doctor Appointment Confirmed`;
+      const subject = ` Doctor Appointment Confirmed`;
       const html = `
         <div style="font-family: Arial; max-width:600px; margin:auto; padding:20px;">
-          <h2 style="color:#059669;">👨‍⚕️ Appointment Booked</h2>
+          <h2 style="color:#059669;"> Appointment Booked</h2>
           <p>Your doctor appointment has been confirmed.</p>
           <p><strong>Date:</strong> ${date}</p>
           <p><strong>Time:</strong> ${slot}</p>
@@ -423,7 +423,7 @@ class KafkaEmailHandlers {
     try {
       const { appointmentId, reason } = payload;
       
-      const subject = `❌ Appointment Cancelled`;
+      const subject = ` Appointment Cancelled`;
       const html = `
         <div style="font-family: Arial; padding:20px;">
           <h2 style="color:#dc2626;">Appointment Cancelled</h2>
@@ -452,7 +452,7 @@ class KafkaEmailHandlers {
 
     const { staffId, name, email } = payload;
 
-    const subject = '👨‍⚕️ Welcome to CareMitra Lab Team';
+    const subject = ' Welcome to CareMitra Lab Team';
 
     const html = `
       <div style="font-family: Arial; padding:20px;">

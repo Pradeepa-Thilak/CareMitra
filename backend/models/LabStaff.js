@@ -6,6 +6,10 @@ const labStaffSchema = new mongoose.Schema({
     ref: 'Patient',
     required: false
   },
+  role : {
+    type : String,
+    default : 'labstaff'
+  },
   name: {
     type: String,
     required: true

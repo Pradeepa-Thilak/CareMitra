@@ -1,0 +1,160 @@
+// hooks/useWishlist.js
+import { useState, useEffect, useCallback } from 'react';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
+export function useWishlist() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Helper to get userId (in production, use auth token)
+  const getUserId = () => {
+    let userId = localStorage.getItem('userId');
+    if (!userId) {
+      userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('userId', userId);
+    }
+    return userId;
+  };
+
+  // Fetch wishlist from backend
+  const fetchWishlist = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`${API_URL}/wishlist`, {
+        headers: {
+          'user-id': getUserId(),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch wishlist');
+      }
+
+      const result = await response.json();
+      setItems(result.data || []);
+    } catch (err) {
+      setError(err.message);
+      console.error('Fetch wishlist error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Add item to wishlist
+  const addToWishlist = useCallback(async (product) => {
+    try {
+      const payload = {
+        productId: product.id || product._id,
+        name: product.name,
+        price: product.price,
+        discountedPrice: product.discountedPrice || null,
+        image: product.image || product.imageUrl || null,
+        packSize: product.packSize || null,
+        category: product.category || null,
+      };
+
+      const response = await fetch(`${API_URL}/wishlist`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'user-id': getUserId(),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to add to wishlist');
+      }
+
+      // Update local state
+      setItems(prev => [...prev, result.data]);
+      return result.data;
+    } catch (err) {
+      console.error('Add to wishlist error:', err);
+      throw err;
+    }
+  }, []);
+
+  // Remove item from wishlist
+  const removeFromWishlist = useCallback(async (itemId) => {
+    try {
+      const response = await fetch(`${API_URL}/wishlist/${itemId}`, {
+        method: 'DELETE',
+        headers: {
+          'user-id': getUserId(),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to remove from wishlist');
+      }
+
+      // Update local state
+      setItems(prev => prev.filter(item => item.id !== itemId));
+    } catch (err) {
+      console.error('Remove from wishlist error:', err);
+      throw err;
+    }
+  }, []);
+
+  // Clear entire wishlist
+  const clearWishlist = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/wishlist`, {
+        method: 'DELETE',
+        headers: {
+          'user-id': getUserId(),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear wishlist');
+      }
+
+      setItems([]);
+    } catch (err) {
+      console.error('Clear wishlist error:', err);
+      throw err;
+    }
+  }, []);
+
+  // Check if item is in wishlist
+  const isInWishlist = useCallback((productId) => {
+    return items.some(item => item.productId === productId);
+  }, [items]);
+
+  // Toggle wishlist (add if not present, remove if present)
+  const toggleWishlist = useCallback(async (product) => {
+    const existing = items.find(item => item.productId === (product.id || product._id));
+    
+    if (existing) {
+      await removeFromWishlist(existing.id);
+      return false; // removed
+    } else {
+      await addToWishlist(product);
+      return true; // added
+    }
+  }, [items, addToWishlist, removeFromWishlist]);  // Load wishlist on mount
+  useEffect(() => {
+    fetchWishlist();
+  }, [fetchWishlist]);
+
+  return {
+    items,
+    loading,
+    error,
+    addToWishlist,
+    removeFromWishlist,
+    clearWishlist,
+    isInWishlist,
+    toggleWishlist,
+    refetch: fetchWishlist,
+    count: items.length,
+  };
+}

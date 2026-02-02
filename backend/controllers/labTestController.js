@@ -1,4 +1,5 @@
 const LabTest = require('../models/LabTest');
+const mongoose = require("mongoose");
 const LabTestOrder = require('../models/LabTestOrder');
 const { razorpay ,verifyPaymentSignature } = require('../config/razorpay');
 const { sendGeneralEmail } = require('../utils/sendEmail');
@@ -9,7 +10,7 @@ const labStaffController = require('./labStaffController');
 const axios = require('axios');
 const geocoder = require('../utils/geocoder');
 const Patient = require('../models/Patient');
-
+const Package = require('../models/Package');
 const sendLabOrderConfirmation = async (order) => {
   try {
     const patientEmail = order.patientDetails?.email;
@@ -903,6 +904,53 @@ exports.getReport = async (req, res) => {
   }
 };
 
+exports.getPatientReports = async (req, res) => {
+  try {
+    const patientId = req.user.userId;
+    console.log("Fetching reports for patient:", patientId);
+
+    // Find all lab test orders for this patient
+    const orders = await LabTestOrder.find({ user: patientId });
+    console.log("Found orders:", orders.length);
+    
+    if (!orders || orders.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: []
+      });
+    }
+
+    // Get all order IDs
+    const orderIds = orders.map(order => order._id);
+
+    // Find all reports for these orders
+    const reports = await ReportFile.find({ orderId: { $in: orderIds } })
+      .sort({ uploadedAt: -1 });
+
+    console.log("Found reports:", reports.length);
+
+    // Return reports without the fileData
+    const reportsWithoutData = reports.map(report => ({
+      _id: report._id,
+      fileName: report.fileName,
+      fileType: report.fileType,
+      uploadedAt: report.uploadedAt,
+      orderId: report.orderId
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: reportsWithoutData
+    });
+
+  } catch (err) {
+    console.log("Error in getPatientReports:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error fetching reports"
+    });
+  }
+};
 // Admin: Update sample collection status
 exports.updateSampleStatus = async (req, res) => {
   try {
@@ -1306,6 +1354,239 @@ exports.getAllLabTestOrders = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch lab test orders",
+    });
+  }
+};
+
+exports.getAllPackages = async (req, res) => {
+  try {
+    const packages = await Package.find({ isFeatured: true });
+     console.log(packages);
+     
+    res.status(200).json({
+      success: true,
+      data: packages
+    });
+
+  } catch (error) {
+    console.error("Get packages error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch packages"
+    });
+  }
+};
+
+// Create Package Order
+
+
+exports.createPackageOrder = async (req, res) => {
+  try {
+    console.log("=== PACKAGE ORDER CREATION STARTED ===");
+
+    const { packageId, sampleCollectionDetails } = req.body;
+
+    /* -------------------------------------------------
+       1. AUTH CHECK
+    ------------------------------------------------- */
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized user"
+      });
+    }
+
+    /* -------------------------------------------------
+       2. VALIDATE PACKAGE ID
+    ------------------------------------------------- */
+    const parsedPackageId = packageId?.toString().trim();
+
+    if (!parsedPackageId || !mongoose.Types.ObjectId.isValid(parsedPackageId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or missing package ID"
+      });
+    }
+
+    /* -------------------------------------------------
+       3. PARSE SAMPLE COLLECTION DETAILS
+    ------------------------------------------------- */
+    let parsedSampleDetails;
+    try {
+      parsedSampleDetails =
+        typeof sampleCollectionDetails === "string"
+          ? JSON.parse(sampleCollectionDetails)
+          : sampleCollectionDetails;
+    } catch (err) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid sample collection details format"
+      });
+    }
+
+    if (!parsedSampleDetails || typeof parsedSampleDetails !== "object") {
+      return res.status(400).json({
+        success: false,
+        message: "Sample collection details are required"
+      });
+    }
+
+    /* -------------------------------------------------
+       4. GEOLOCATION (OPTIONAL)
+    ------------------------------------------------- */
+    let location = { type: "Point", coordinates: [0, 0] };
+
+    if (parsedSampleDetails.address && parsedSampleDetails.pincode) {
+      try {
+        const geo = await geocoder.geocode(
+          parsedSampleDetails.address,
+          parsedSampleDetails.pincode
+        );
+        if (geo?.coordinates) {
+          location.coordinates = geo.coordinates;
+        }
+      } catch (err) {
+        console.error("Geocoding failed:", err.message);
+      }
+    }
+
+    const sampleCollectionDetail = {
+      name: parsedSampleDetails.name || "Not Provided",
+      phone: parsedSampleDetails.phone || "Not Provided",
+      address: parsedSampleDetails.address || "Not Provided",
+      pincode: parsedSampleDetails.pincode || "Not Provided",
+      date:
+        parsedSampleDetails.preferredDate ||
+        new Date().toISOString().split("T")[0],
+      time: parsedSampleDetails.preferredTime || "09:00 AM",
+      location
+    };
+
+    /* -------------------------------------------------
+       5. FETCH PACKAGE (FIXED)
+    ------------------------------------------------- */
+    const packageData = await Package.findById(parsedPackageId);
+
+    if (!packageData) {
+      return res.status(400).json({
+        success: false,
+        message: "Package not found"
+      });
+    }
+
+    /* -------------------------------------------------
+       6. PACKAGE PRICING
+    ------------------------------------------------- */
+    const packageItem = {
+      packageId: packageData._id,
+      name: packageData.name,
+      price: packageData.finalPrice || packageData.price,
+      originalPrice: packageData.price,
+      discount: packageData.discount || 0,
+      testsCount: packageData.testsCount || 0,
+      description: packageData.description
+    };
+
+    const totalAmount = packageItem.price;
+    const originalTotal = packageItem.originalPrice;
+    const totalDiscount = originalTotal - totalAmount;
+
+    /* -------------------------------------------------
+       7. RAZORPAY ORDER
+    ------------------------------------------------- */
+    let razorpayOrderResponse;
+
+    try {
+      if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+        throw new Error("Razorpay keys not configured");
+      }
+
+      const razorpayOrder = await razorpay.orders.create({
+        amount: Math.round(totalAmount * 100),
+        currency: "INR",
+        receipt: `package_${Date.now()}`,
+        notes: {
+          orderType: "lab_package",
+          userId: req.user.userId,
+          packageName: packageData.name
+        }
+      });
+
+      razorpayOrderResponse = {
+        id: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        status: razorpayOrder.status,
+        key_id: process.env.RAZORPAY_KEY_ID
+      };
+    } catch (err) {
+      console.error("Razorpay failed, using mock:", err.message);
+
+      razorpayOrderResponse = {
+        id: `order_mock_${Date.now()}`,
+        amount: totalAmount * 100,
+        currency: "INR",
+        status: "created",
+        key_id: process.env.RAZORPAY_KEY_ID || "rzp_test_mock"
+      };
+    }
+
+    /* -------------------------------------------------
+       8. CREATE ORDER
+    ------------------------------------------------- */
+    const order = new LabTestOrder({
+      user: req.user.userId,
+      package: packageItem.packageId,
+      packageName: packageItem.name,
+      packagePrice: packageItem.price,
+      originalPrice: packageItem.originalPrice,
+      discount: packageItem.discount,
+      testsCount: packageItem.testsCount,
+      totalAmount,
+      originalTotal,
+      totalDiscount,
+      patientDetails: {
+        name: parsedSampleDetails.name,
+        phone: parsedSampleDetails.phone,
+        email: req.user.email || ""
+      },
+      sampleCollectionDetails: sampleCollectionDetail,
+      prescriptionFile: req.file
+        ? {
+            filename: req.file.originalname,
+            data: req.file.buffer,
+            contentType: req.file.mimetype,
+            size: req.file.size,
+            uploadDate: new Date()
+          }
+        : null,
+      razorpayOrderId: razorpayOrderResponse.id,
+      paymentStatus: "pending",
+      orderStatus: "pending"
+    });
+
+    await order.save();
+    await order.populate("user", "name email phone");
+
+    /* -------------------------------------------------
+       9. RESPONSE
+    ------------------------------------------------- */
+    res.status(201).json({
+      success: true,
+      message: "Package order created successfully",
+      data: {
+        order,
+        razorpayOrder: razorpayOrderResponse
+      }
+    });
+
+    console.log("=== PACKAGE ORDER CREATION COMPLETED ===");
+  } catch (error) {
+    console.error("CREATE PACKAGE ORDER ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error creating package order",
+      error: error.message
     });
   }
 };

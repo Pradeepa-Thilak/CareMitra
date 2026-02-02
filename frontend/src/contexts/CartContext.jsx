@@ -1,16 +1,24 @@
 // src/contexts/CartContext.jsx
-import React, { createContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useState, useCallback, useEffect, useContext } from "react";
 import { cartAPI } from "../utils/api";
 import toast from "react-hot-toast";
+import { AuthContext } from "./AuthContext";
 
 export const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
+  const { role, token } = useContext(AuthContext);
   const [cartItems, setCartItems] = useState([]);
   const [cartTotal, setCartTotal] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  // Check if user is a patient
+  const isPatient = role === "patient";
+
   const persistLocal = (items) => {
+    // Only persist cart for patients
+    if (!isPatient) return;
+    
     try {
       localStorage.setItem("cart", JSON.stringify(items));
     } catch (e) {
@@ -18,7 +26,15 @@ export const CartProvider = ({ children }) => {
     }
   };
 
+  // Load cart from localStorage on mount (only for patients)
   useEffect(() => {
+    if (!isPatient) {
+      // Clear cart for non-patients
+      setCartItems([]);
+      localStorage.removeItem("cart");
+      return;
+    }
+
     const storedCart = localStorage.getItem("cart");
     if (storedCart) {
       try {
@@ -27,9 +43,15 @@ export const CartProvider = ({ children }) => {
         console.warn("Invalid cart in localStorage", e);
       }
     }
-  }, []);
+  }, [isPatient]);
 
+  // Calculate cart total
   useEffect(() => {
+    if (!isPatient) {
+      setCartTotal(0);
+      return;
+    }
+
     const total = cartItems.reduce((sum, item) => {
       const price =
         (item.productId && (item.productId.discountedPrice || item.productId.price)) ||
@@ -40,10 +62,16 @@ export const CartProvider = ({ children }) => {
 
     setCartTotal(total);
     persistLocal(cartItems);
-  }, [cartItems]);
+  }, [cartItems, isPatient]);
 
-  // Fetch cart
+  // Fetch cart from server
   const fetchCart = useCallback(async () => {
+    // Only fetch cart for patients
+    if (!isPatient || !token) {
+      setCartItems([]);
+      return;
+    }
+
     try {
       setLoading(true);
       const { data } = await cartAPI.getCart();
@@ -58,11 +86,17 @@ export const CartProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isPatient, token]);
 
   // Add to cart
   const addToCart = useCallback(
     async (productId, quantity = 1) => {
+      // Prevent non-patients from adding to cart
+      if (!isPatient) {
+        toast.error("Only patients can add items to cart");
+        return false;
+      }
+
       try {
         setLoading(true);
         const { data } = await cartAPI.addToCart(productId, quantity);
@@ -83,13 +117,19 @@ export const CartProvider = ({ children }) => {
         setLoading(false);
       }
     },
-    []
+    [isPatient]
   );
 
   // Update quantity
   const updateQuantity = useCallback(
     async (productId, quantity) => {
+      if (!isPatient) {
+        toast.error("Only patients can modify cart");
+        return;
+      }
+
       if (quantity < 0) return;
+
       try {
         setLoading(true);
         const { data } = await cartAPI.updateQuantity(productId, quantity);
@@ -106,12 +146,17 @@ export const CartProvider = ({ children }) => {
         setLoading(false);
       }
     },
-    []
+    [isPatient]
   );
 
   // Remove item
   const removeFromCart = useCallback(
     async (productId) => {
+      if (!isPatient) {
+        toast.error("Only patients can modify cart");
+        return;
+      }
+
       try {
         setLoading(true);
         const { data } = await cartAPI.removeFromCart(productId);
@@ -128,11 +173,16 @@ export const CartProvider = ({ children }) => {
         setLoading(false);
       }
     },
-    []
+    [isPatient]
   );
 
   // Clear cart
   const clearCart = useCallback(async () => {
+    if (!isPatient) {
+      toast.error("Only patients can clear cart");
+      return;
+    }
+
     try {
       setLoading(true);
       const { data } = await cartAPI.clearCart();
@@ -149,15 +199,23 @@ export const CartProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isPatient]);
 
   const getCartItemCount = useCallback(() => {
+    if (!isPatient) return 0;
     return cartItems.reduce((count, item) => count + (item.quantity || 0), 0);
-  }, [cartItems]);
+  }, [cartItems, isPatient]);
 
+  // Fetch cart when user logs in as patient
   useEffect(() => {
-    fetchCart();
-  }, [fetchCart]);
+    if (isPatient && token) {
+      fetchCart();
+    } else {
+      // Clear cart if user is not a patient
+      setCartItems([]);
+      setCartTotal(0);
+    }
+  }, [isPatient, token, fetchCart]);
 
   const value = {
     cartItems,
@@ -169,6 +227,7 @@ export const CartProvider = ({ children }) => {
     clearCart,
     fetchCart,
     getCartItemCount,
+    isPatient, // Expose this so components can check
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

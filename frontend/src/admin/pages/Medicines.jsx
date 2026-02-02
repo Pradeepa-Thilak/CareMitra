@@ -34,7 +34,7 @@ useEffect(() => {
 }, []);
 
 const fetchCategories = async () => {
-  const res = await fetch("http://localhost:5000/admin/categories", {
+  const res = await fetch("http://localhost:5001/admin/categories", {
     headers: { Authorization: `Bearer ${token}` }
   });
   const data = await res.json();
@@ -42,25 +42,26 @@ const fetchCategories = async () => {
 };
 
 const fetchBrands = async () => {
-  const res = await fetch("http://localhost:5000/admin/brands", {
+  const res = await fetch("http://localhost:5001/admin/brands", {
     headers: { Authorization: `Bearer ${token}` }
   });
   const data = await res.json();
   setBrands(data.data || []);
 };
 
-  const token = localStorage.getItem("authToken"); // Replace with actual token management
+  const token = localStorage.getItem("authToken"); 
 
   // 🔹 Fetch Products
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:5000/admin/products", {
+      const res = await fetch("http://localhost:5001/admin/products", {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
       const data = await res.json();
+      
       setMedicines(data.data || []);
     } catch (err) {
       console.error("Fetch products failed", err);
@@ -99,7 +100,7 @@ const fetchBrands = async () => {
   // 🔁 Toggle Active / Inactive (API)
   const toggleStatus = async (id, currentStatus) => {
     try {
-      await fetch(`http://localhost:5000/admin/products/${id}/status`, {
+      await fetch(`http://localhost:5001/admin/products/${id}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -122,7 +123,7 @@ const fetchBrands = async () => {
   const handleCreateProduct = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://localhost:5000/admin/products", {
+      const res = await fetch("http://localhost:5001/admin/products", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -180,7 +181,7 @@ const fetchBrands = async () => {
   // 💾 Update Product
   const handleUpdateProduct = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/admin/products/${selectedProduct._id}`, {
+      const res = await fetch(`http://localhost:5001/admin/products/${selectedProduct._id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

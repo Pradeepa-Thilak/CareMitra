@@ -13,18 +13,72 @@ export default function Orders() {
   const [selected, setSelected] = useState(null);
   const [filter, setFilter] = useState("all");
 
-  // ✅ DEFINE fetchOrders
+  // Get current user ID
+  const getUserId = () => {
+    return (
+      localStorage.getItem("userId") ||
+      localStorage.getItem("patientId") ||
+      localStorage.getItem("user_id") ||
+      null
+    );
+  };
   const fetchOrders = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const res = await api.get("/cart/my-orders");
+      const userId = getUserId();
 
-      // ✅ always ensure array
-      setOrders(Array.isArray(res.data.orders) ? res.data.orders : []);
+      if (!userId) {
+        setError("Please login to view your orders");
+        navigate("/login");
+        return;
+      }
+
+      // Call the corrected API endpoint
+      const res = await api.get(`/orders/patient/${userId}`);
+
+      console.log("📦 Fetched orders:", res.data);
+
+      // Ensure array
+      const fetchedOrders = res.data?.data || res.data?.orders || [];
+      setOrders(Array.isArray(fetchedOrders) ? fetchedOrders : []);
+
     } catch (err) {
       console.error("Fetch orders error:", err);
+      
+      if (err.response?.status === 401) {
+        setError("Please login to view orders");
+        navigate("/login");
+      } else {
+        setError(err.response?.data?.message || "Failed to load orders");
+      }
+      
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchOrdersByStatus = async (status) => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const userId = getUserId();
+
+      if (!userId) {
+        setError("Please login to view your orders");
+        navigate("/login");
+        return;
+      }
+
+      const res = await api.get(`/orders/patient/${userId}?status=${status}`);
+      
+      const fetchedOrders = res.data?.data || res.data?.orders || [];
+      setOrders(Array.isArray(fetchedOrders) ? fetchedOrders : []);
+
+    } catch (err) {
+      console.error(err);
       setError("Failed to load orders");
       setOrders([]);
     } finally {
@@ -32,23 +86,6 @@ export default function Orders() {
     }
   };
 
-  // ✅ DEFINE fetchOrdersByStatus
-  const fetchOrdersByStatus = async (status) => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const res = await api.get(`/cart/order/${status}`);
-      setOrders(res.data.data || []);
-    } catch (err) {
-      console.error(err);
-      setOrders([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ✅ Call it on page load
   useEffect(() => {
     if (filter === "all") {
       fetchOrders();
@@ -72,7 +109,7 @@ export default function Orders() {
         <body>
           <h2>Payment Receipt</h2>
           <p><b>Order:</b> ${o.orderId || o.id}</p>
-          <p><b>Date:</b> ${new Date(o.createdAt).toLocaleString()}</p>
+          <p><b>Date:</b> ${new Date(o.orderDate || o.createdAt).toLocaleString()}</p>
           <p><b>Total:</b> ₹${(o.totalAmount ?? 0).toFixed(2)}</p>
           <table>
             <thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead>
@@ -95,10 +132,16 @@ export default function Orders() {
     switch (statusLower) {
       case "pending":
         return { icon: Clock, color: "text-amber-600 bg-amber-50 border-amber-200", label: "Pending" };
-      case "paid":
-        return { icon: CheckCircle, color: "text-green-600 bg-green-50 border-green-200", label: "Paid" };
+      case "confirmed":
+        return { icon: CheckCircle, color: "text-green-600 bg-green-50 border-green-200", label: "Confirmed" };
+      case "processing":
+        return { icon: Package, color: "text-blue-600 bg-blue-50 border-blue-200", label: "Processing" };
+      case "shipped":
+        return { icon: Truck, color: "text-purple-600 bg-purple-50 border-purple-200", label: "Shipped" };
       case "delivered":
-        return { icon: Truck, color: "text-blue-600 bg-blue-50 border-blue-200", label: "Delivered" };
+        return { icon: CheckCircle, color: "text-green-600 bg-green-50 border-green-200", label: "Delivered" };
+      case "cancelled":
+        return { icon: X, color: "text-red-600 bg-red-50 border-red-200", label: "Cancelled" };
       default:
         return { icon: Package, color: "text-gray-600 bg-gray-50 border-gray-200", label: status || "Unknown" };
     }
@@ -110,9 +153,8 @@ export default function Orders() {
   });
 
   return (
-    <div className="min-h-screen py-8 bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen py-8 bg-linear-to-br from-gray-50 to-gray-100">
       <div className="container-custom max-w-5xl mx-auto px-4">
-        {/* Header Section */}
         <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -128,8 +170,11 @@ export default function Orders() {
               >
                 <option value="all">All Orders</option>
                 <option value="pending">Pending</option>
-                <option value="paid">Paid</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="processing">Processing</option>
+                <option value="shipped">Shipped</option>
                 <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
               </select>
 
               <button 
@@ -143,7 +188,6 @@ export default function Orders() {
           </div>
         </div>
 
-        {/* Orders List */}
         {loading ? (
           <div className="bg-white rounded-2xl shadow-sm p-12 flex justify-center">
             <LoadSpinner />
@@ -152,6 +196,12 @@ export default function Orders() {
           <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-red-700 text-center">
             <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p className="font-medium">{error}</p>
+            <button 
+              onClick={() => navigate("/login")}
+              className="mt-4 bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Go to Login
+            </button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
@@ -168,7 +218,7 @@ export default function Orders() {
         ) : (
           <div className="space-y-4">
             {filtered.map(o => {
-              const statusConfig = getStatusConfig(o.status);
+              const statusConfig = getStatusConfig(o.orderStatus);
               const StatusIcon = statusConfig.icon;
               
               return (
@@ -177,7 +227,6 @@ export default function Orders() {
                   className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100"
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                    {/* Order Info */}
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <span className="font-semibold text-gray-900 text-lg">
@@ -198,16 +247,21 @@ export default function Orders() {
                           <span className="font-medium">Items:</span>{" "}
                           <span className="text-gray-900">{(o.items || []).length}</span>
                         </div>
-                        {o.createdAt && (
+                        <div>
+                          <span className="font-medium">Payment:</span>{" "}
+                          <span className={`${o.paymentDetails?.paymentStatus === 'completed' ? 'text-green-600' : 'text-amber-600'} font-semibold`}>
+                            {o.paymentDetails?.paymentStatus === 'completed' ? 'Paid' : 'Pending'}
+                          </span>
+                        </div>
+                        {(o.orderDate || o.createdAt) && (
                           <div>
                             <span className="font-medium">Date:</span>{" "}
-                            <span className="text-gray-900">{new Date(o.createdAt).toLocaleDateString()}</span>
+                            <span className="text-gray-900">{new Date(o.orderDate || o.createdAt).toLocaleDateString()}</span>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="flex gap-2">
                       <button 
                         onClick={() => setSelected(o)} 
@@ -254,9 +308,9 @@ export default function Orders() {
               {/* Modal Content */}
               <div className="p-6 space-y-6">
                 {/* Status Badge */}
-                <div>
+                <div className="flex gap-3">
                   {(() => {
-                    const statusConfig = getStatusConfig(selected.status);
+                    const statusConfig = getStatusConfig(selected.orderStatus);
                     const StatusIcon = statusConfig.icon;
                     return (
                       <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border ${statusConfig.color}`}>
@@ -265,6 +319,15 @@ export default function Orders() {
                       </span>
                     );
                   })()}
+                  
+                  {/* Payment Status */}
+                  <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border ${
+                    selected.paymentDetails?.paymentStatus === 'completed' 
+                      ? 'text-green-600 bg-green-50 border-green-200'
+                      : 'text-amber-600 bg-amber-50 border-amber-200'
+                  }`}>
+                    {selected.paymentDetails?.paymentStatus === 'completed' ? '💳 Paid' : '⏳ Payment Pending'}
+                  </span>
                 </div>
 
                 {/* Order Summary */}
@@ -272,18 +335,42 @@ export default function Orders() {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Order Date:</span>
                     <span className="font-semibold text-gray-900">
-                      {selected.createdAt ? new Date(selected.createdAt).toLocaleString() : "N/A"}
+                      {(selected.orderDate || selected.createdAt) ? new Date(selected.orderDate || selected.createdAt).toLocaleString() : "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Items:</span>
                     <span className="font-semibold text-gray-900">{(selected.items || []).length}</span>
                   </div>
+                  {selected.paymentDetails?.razorpayPaymentId && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Payment ID:</span>
+                      <span className="font-mono text-sm text-gray-900">{selected.paymentDetails.razorpayPaymentId}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-lg pt-3 border-t border-gray-200">
                     <span className="font-semibold text-gray-900">Total Amount:</span>
                     <span className="font-bold text-blue-600">₹{(selected.totalAmount ?? 0).toFixed(2)}</span>
                   </div>
                 </div>
+
+                {/* Shipping Address */}
+                {selected.shippingAddress && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-3">Shipping Address</h3>
+                    <div className="bg-gray-50 rounded-lg p-4 text-sm">
+                      <p className="font-medium text-gray-900">{selected.shippingAddress.fullName}</p>
+                      <p className="text-gray-600 mt-1">{selected.shippingAddress.addressLine1}</p>
+                      {selected.shippingAddress.addressLine2 && (
+                        <p className="text-gray-600">{selected.shippingAddress.addressLine2}</p>
+                      )}
+                      <p className="text-gray-600">
+                        {selected.shippingAddress.city}, {selected.shippingAddress.state} - {selected.shippingAddress.pincode}
+                      </p>
+                      <p className="text-gray-600 mt-1">Phone: {selected.shippingAddress.phone}</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Items List */}
                 {selected.items && selected.items.length > 0 && (
@@ -292,9 +379,9 @@ export default function Orders() {
                     <div className="space-y-2">
                       {selected.items.map((item, idx) => (
                         <div key={idx} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                          <div>
+                          <div className="flex-1">
                             <p className="font-medium text-gray-900">{item.name || "Item"}</p>
-                            <p className="text-sm text-gray-500">Quantity: {item.quantity ?? 1}</p>
+                            <p className="text-sm text-gray-500">Quantity: {item.quantity ?? 1} × ₹{(item.price || 0).toFixed(2)}</p>
                           </div>
                           <p className="font-semibold text-gray-900">
                             ₹{((item.price || 0) * (item.quantity || 1)).toFixed(2)}

@@ -70,22 +70,6 @@ const CategorySection = () => {
           ))}
         </div>
       </div>
-
-      <style jsx>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .snap-x {
-          scroll-snap-type: x mandatory;
-        }
-        .snap-mandatory > * {
-          scroll-snap-align: start;
-        }
-      `}</style>
     </section>
   );
 };

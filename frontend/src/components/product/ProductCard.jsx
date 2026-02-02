@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useCart } from "../../hooks/useCart";
 import { toast } from "react-hot-toast";
+import WishlistButton from "../common/WishlistButton";
 
 const cardVariant = {
   hidden: { opacity: 0, y: 8, scale: 0.995 },
@@ -12,7 +13,6 @@ const cardVariant = {
 };
 
 const ProductCard = ({ product }) => {
-  const [wishlisted, setWishlisted] = useState(false);
   const navigate = useNavigate();
   const { addToCart } = useCart();
 
@@ -68,17 +68,10 @@ const ProductCard = ({ product }) => {
           transition={{ duration: 0.25 }}
         />
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setWishlisted((s) => !s);
-          }}
-          className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur rounded-full shadow border"
-          aria-pressed={wishlisted}
-          aria-label="Toggle wishlist"
-        >
-          <Heart className={`w-5 h-5 ${wishlisted ? "text-rose-500" : "text-gray-400"}`} />
-        </button>
+        <WishlistButton
+          product={product}
+          className="absolute top-3 right-3"
+        />
 
         {discount > 0 && (
           <span className="absolute top-3 left-3 bg-rose-600 text-white text-xs px-2 py-1 rounded">

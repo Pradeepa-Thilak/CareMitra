@@ -48,6 +48,14 @@ const Home = () => {
   const { filteredProducts, loading } = useProduct();
   const [featuredProducts, setFeaturedProducts] = useState([]);
 
+  // Slider images - you can replace these with your own images
+  const sliderImages = [
+    "https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=1200&h=400&fit=crop",
+    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=1200&h=400&fit=crop",
+    "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=1200&h=400&fit=crop",
+    "https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=1200&h=400&fit=crop"
+  ];
+
   useEffect(() => {
     // Get top 8 products for featured section
     if (filteredProducts.length > 0) {
@@ -57,8 +65,8 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero Section with Gradient Background */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white">
+      {/* Hero Section with Gradient Background and Slider */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white pb-20">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
@@ -66,135 +74,74 @@ const Home = () => {
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
         </div>
 
-        <div className="relative container-custom max-w-7xl mx-auto px-4 py-16 lg:py-24">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            {/* Left Content */}
-            <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-              className="text-center lg:text-left"
-            >
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-6"
-              >
-                <Zap className="w-4 h-4 text-yellow-300" />
-                <span className="text-sm font-medium">India's Trusted Health Partner</span>
-              </motion.div>
-
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold mb-6 leading-tight">
-                Your Health,
-                <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-pink-300">
-                  Our Priority
-                </span>
-              </h1>
-
-              <p className="text-lg md:text-xl text-blue-100 mb-8 max-w-xl">
-                Order medicines, book lab tests, and consult doctors online. 
-                Fast delivery, verified products, and expert care at your fingertips.
-              </p>
-
-              {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <button
-                  onClick={() => navigate('/medicines')}
-                  className="group bg-white text-blue-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-50 transition-all shadow-xl hover:shadow-2xl transform hover:-translate-y-1 flex items-center justify-center gap-2"
+        {/* Image Slider */}
+        <div className="relative container-custom max-w-7xl mx-auto px-4 pt-8 pb-12">
+          <div className="relative overflow-hidden rounded-2xl shadow-2xl bg-white/10 backdrop-blur-sm p-2">
+            <div className="flex gap-4 animate-scroll">
+              {/* First set of images */}
+              {sliderImages.map((img, idx) => (
+                <div
+                  key={`img-1-${idx}`}
+                  className="flex-shrink-0 w-72 md:w-80 h-40 md:h-48 rounded-xl overflow-hidden shadow-lg"
                 >
-                  <Pill className="w-5 h-5" />
-                  Order Medicines
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
-                <button
-                  onClick={() => navigate('/labtests')}
-                  className="bg-blue-800/50 backdrop-blur-sm border-2 border-white/30 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-800/70 transition-all flex items-center justify-center gap-2"
+                  <img
+                    src={img}
+                    alt={`Healthcare ${idx + 1}`}
+                    className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                  />
+                </div>
+              ))}
+              
+              {/* Duplicate set for seamless loop */}
+              {sliderImages.map((img, idx) => (
+                <div
+                  key={`img-2-${idx}`}
+                  className="flex-shrink-0 w-72 md:w-80 h-40 md:h-48 rounded-xl overflow-hidden shadow-lg"
                 >
-                  <FlaskConical className="w-5 h-5" />
-                  Book Lab Test
-                </button>
-              </div>
-
-              {/* Quick Stats */}
-              <div className="grid grid-cols-3 gap-4 mt-12">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-yellow-300">10M+</div>
-                  <div className="text-sm text-blue-200">Happy Customers</div>
+                  <img
+                    src={img}
+                    alt={`Healthcare ${idx + 1}`}
+                    className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                  />
                 </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-yellow-300">15K+</div>
-                  <div className="text-sm text-blue-200">Products</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-yellow-300">24/7</div>
-                  <div className="text-sm text-blue-200">Support</div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Right Content - Feature Cards */}
-            <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="hidden lg:grid grid-cols-2 gap-4"
-            >
-              {/* Card 1 */}
-              <motion.div
-                whileHover={{ scale: 1.05, rotate: 2 }}
-                className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"
-              >
-                <div className="w-12 h-12 bg-green-400/20 rounded-xl flex items-center justify-center mb-4">
-                  <Shield className="w-6 h-6 text-green-300" />
-                </div>
-                <h3 className="font-bold text-lg mb-2">100% Authentic</h3>
-                <p className="text-sm text-blue-200">All medicines are verified and genuine</p>
-              </motion.div>
-
-              {/* Card 2 */}
-              <motion.div
-                whileHover={{ scale: 1.05, rotate: -2 }}
-                className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 mt-8"
-              >
-                <div className="w-12 h-12 bg-yellow-400/20 rounded-xl flex items-center justify-center mb-4">
-                  <Truck className="w-6 h-6 text-yellow-300" />
-                </div>
-                <h3 className="font-bold text-lg mb-2">Fast Delivery</h3>
-                <p className="text-sm text-blue-200">Get medicines at your doorstep</p>
-              </motion.div>
-
-              {/* Card 3 */}
-              <motion.div
-                whileHover={{ scale: 1.05, rotate: -2 }}
-                className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"
-              >
-                <div className="w-12 h-12 bg-purple-400/20 rounded-xl flex items-center justify-center mb-4">
-                  <Stethoscope className="w-6 h-6 text-purple-300" />
-                </div>
-                <h3 className="font-bold text-lg mb-2">Expert Doctors</h3>
-                <p className="text-sm text-blue-200">Consult certified professionals</p>
-              </motion.div>
-
-              {/* Card 4 */}
-              <motion.div
-                whileHover={{ scale: 1.05, rotate: 2 }}
-                className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 mt-8"
-              >
-                <div className="w-12 h-12 bg-pink-400/20 rounded-xl flex items-center justify-center mb-4">
-                  <Clock className="w-6 h-6 text-pink-300" />
-                </div>
-                <h3 className="font-bold text-lg mb-2">24/7 Available</h3>
-                <p className="text-sm text-blue-200">Order anytime, anywhere</p>
-              </motion.div>
-            </motion.div>
+              ))}
+            </div>
           </div>
+        </div>
+
+        {/* Hero Content */}
+        <div className="relative container-custom max-w-7xl mx-auto px-4 py-12 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">
+              Your Health, Our Priority
+            </h1>
+            <p className="text-lg md:text-2xl text-blue-100 mb-8 max-w-3xl mx-auto">
+              Order medicines, book lab tests, and consult doctors online
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button
+                onClick={() => navigate('/medicines')}
+                className="bg-white text-blue-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-50 transition-all shadow-xl"
+              >
+                Order Medicines
+              </button>
+              <button
+                onClick={() => navigate('/labtests')}
+                className="bg-blue-700 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-blue-800 transition-all border-2 border-white/30"
+              >
+                Book Lab Tests
+              </button>
+            </div>
+          </motion.div>
         </div>
 
         {/* Wave Divider */}
         <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 120" className="w-full h-16 fill-current text-white">
+          <svg viewBox="0 0 1440 120" className="w-full h-16 fill-current text-gray-50">
             <path d="M0,64L48,69.3C96,75,192,85,288,80C384,75,480,53,576,48C672,43,768,53,864,58.7C960,64,1056,64,1152,58.7C1248,53,1344,43,1392,37.3L1440,32L1440,120L1392,120C1344,120,1248,120,1152,120C1056,120,960,120,864,120C768,120,672,120,576,120C480,120,384,120,288,120C192,120,96,120,48,120L0,120Z"></path>
           </svg>
         </div>
@@ -439,6 +386,23 @@ const Home = () => {
         }
         .animation-delay-4000 {
           animation-delay: 4s;
+        }
+
+        @keyframes scroll {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+
+        .animate-scroll {
+          animation: scroll 25s linear infinite;
+        }
+
+        .animate-scroll:hover {
+          animation-play-state: paused;
         }
       `}</style>
     </div>

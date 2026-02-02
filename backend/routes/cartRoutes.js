@@ -11,9 +11,10 @@ const {
   createOrder,
   verifyPayment,
   getMyOrders,
-  getOrderById,
+  getOrderById ,
   cancelOrder,
-  getOrderByStatus
+  getOrdersByStatus
+
 } = require("../controllers/cartController");
 
 router.post("/add/:id", auth, addToCart);
@@ -25,11 +26,9 @@ router.post("/create-order", auth, createOrder);
 router.post("/verify-payment", auth, verifyPayment);
 
 router.get("/my-orders",auth, getMyOrders);
-router.get("/order/:status",auth , getOrderByStatus);
-// Get single order details
-router.get("/:orderId", getOrderById);
+router.get("/order/:status",auth , getOrdersByStatus);
 
-// Cancel order (if status is still "confirmed")
+router.get("/:orderId", getOrderById);
 router.put("/:orderId/cancel", cancelOrder);
 
 module.exports = router;

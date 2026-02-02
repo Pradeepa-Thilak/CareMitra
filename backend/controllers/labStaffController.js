@@ -620,49 +620,49 @@ exports.autoAssignOrderToStaff = async (orderId, user = null) => {
     }
 
     // STRATEGY 2: Try extended radius (10-25km)
-    console.log('🔍 STRATEGY 2: Searching extended radius (10-25km)...');
-    nearestStaff = await findNearestAvailableStaff(patientLocation, 25);
+    // console.log('🔍 STRATEGY 2: Searching extended radius (10-25km)...');
+    // nearestStaff = await findNearestAvailableStaff(patientLocation, 25);
     
-    if (nearestStaff) {
-      console.log(`⚠️ Found staff in extended radius: ${nearestStaff.name} (${nearestStaff.distanceKm} km)`);
-      const result = await assignToStaff(order, nearestStaff, user, 'extended_radius');
+    // if (nearestStaff) {
+    //   console.log(`⚠️ Found staff in extended radius: ${nearestStaff.name} (${nearestStaff.distanceKm} km)`);
+    //   const result = await assignToStaff(order, nearestStaff, user, 'extended_radius');
       
-      // Send special notification about extended travel
-      await sendExtendedTravelNotification(order, nearestStaff, user);
-      return result;
-    }
+    //   // Send special notification about extended travel
+    //   await sendExtendedTravelNotification(order, nearestStaff, user);
+    //   return result;
+    // }
 
-    // STRATEGY 3: Try any available staff in city (no distance limit)
-    console.log('🔍 STRATEGY 3: Searching any available staff in city...');
-    nearestStaff = await findAnyAvailableStaff(patientLocation);
+    // // STRATEGY 3: Try any available staff in city (no distance limit)
+    // console.log('🔍 STRATEGY 3: Searching any available staff in city...');
+    // nearestStaff = await findAnyAvailableStaff(patientLocation);
     
-    if (nearestStaff) {
-      console.log(`⚠️ Found staff in city: ${nearestStaff.name} (${nearestStaff.distanceKm} km)`);
-      const result = await assignToStaff(order, nearestStaff, user, 'city_wide');
+    // if (nearestStaff) {
+    //   console.log(`⚠️ Found staff in city: ${nearestStaff.name} (${nearestStaff.distanceKm} km)`);
+    //   const result = await assignToStaff(order, nearestStaff, user, 'city_wide');
       
-      // Send premium notification for long distance
-      await sendLongDistanceAssignmentNotification(order, nearestStaff, user);
-      return result;
-    }
+    //   // Send premium notification for long distance
+    //   await sendLongDistanceAssignmentNotification(order, nearestStaff, user);
+    //   return result;
+    // }
 
-    // STRATEGY 4: Try staff with minimum assignments even if busy
-    console.log('🔍 STRATEGY 4: Searching least busy staff...');
-    nearestStaff = await findLeastBusyStaff(patientLocation);
+    // // STRATEGY 4: Try staff with minimum assignments even if busy
+    // console.log('🔍 STRATEGY 4: Searching least busy staff...');
+    // nearestStaff = await findLeastBusyStaff(patientLocation);
     
-    if (nearestStaff) {
-      console.log(`⚠️ Found least busy staff: ${nearestStaff.name} (${nearestStaff.distanceKm} km, busy: ${nearestStaff.currentAssignments})`);
-      const result = await assignToStaff(order, nearestStaff, user, 'least_busy');
+    // if (nearestStaff) {
+    //   console.log(`⚠️ Found least busy staff: ${nearestStaff.name} (${nearestStaff.distanceKm} km, busy: ${nearestStaff.currentAssignments})`);
+    //   const result = await assignToStaff(order, nearestStaff, user, 'least_busy');
       
-      // Notify staff they're being assigned despite being busy
-      await sendBusyStaffAssignmentNotification(order, nearestStaff, user);
-      return result;
-    }
+    //   // Notify staff they're being assigned despite being busy
+    //   await sendBusyStaffAssignmentNotification(order, nearestStaff, user);
+    //   return result;
+    // }
 
-    // STRATEGY 5: If ALL strategies fail - mark for manual assignment
-    console.log('❌ ALL auto-assignment strategies failed');
-    await handleCompleteAssignmentFailure(order, user);
+    // // STRATEGY 5: If ALL strategies fail - mark for manual assignment
+    // console.log('❌ ALL auto-assignment strategies failed');
+    // await handleCompleteAssignmentFailure(order, user);
     
-    return null;
+    // return null;
 
   } catch (error) {
     console.error('❌ Auto assignment error:', error);
@@ -1367,9 +1367,9 @@ exports.listOfOrders = async (req, res) => {
       return res.status(404).json({ message: "Lab Staff Not Found" });
     }
 
-    if (!staff.assignedOrders || staff.assignedOrders.length === 0) {
-      return res.status(404).json({ message: "No assigned order found" });
-    }
+    // if (!staff.assignedOrders || staff.assignedOrders.length === 0) {
+    //   return res.status(404).json({ message: "No assigned order found" });
+    // }
 
     // Fetch all assigned orders
     const allOrders = await Promise.all(
@@ -1407,3 +1407,510 @@ exports.listOfOrders = async (req, res) => {
   }
 };
 
+
+/**
+ * Get all orders assigned to the logged-in lab staff member
+ * @route GET /admin/staff/order
+ * @access Private (Lab Staff only)
+ */
+exports.getStaffOrders = async (req, res) => {
+  try {
+    // Get staff ID from authenticated user (set by auth middleware)
+    const staffId = req.user.id; // Staff's user ID
+    
+    // Find the lab staff document
+    const labStaff = await LabStaff.findOne({ user: staffId });
+    
+    if (!labStaff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lab staff member not found'
+      });
+    }
+
+    // Get all assigned order IDs
+    const orderIds = labStaff.assignedOrders.map(order => order.orderId);
+
+    if (orderIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'No orders assigned yet',
+        count: 0,
+        orders: []
+      });
+    }
+
+    // Fetch full order details with populated data
+    const orders = await LabTestOrder.find({
+      _id: { $in: orderIds }
+    })
+    .populate('patient', 'name phone email address')
+    .populate('labTest', 'TestName description price')
+    .sort({ createdAt: -1 });
+
+    // Format orders to match frontend expectations
+    const formattedOrders = orders.map(order => {
+      // Find the assignment details from labStaff.assignedOrders
+      const assignment = labStaff.assignedOrders.find(
+        a => a.orderId.toString() === order._id.toString()
+      );
+
+      return {
+        orderId: order._id,
+        status: assignment?.status || order.status,
+        assignedAt: assignment?.assignedAt || order.assignedAt,
+        patientData: {
+          name: order.patient?.name || 'N/A',
+          phone: order.patient?.phone || 'N/A',
+          email: order.patient?.email || 'N/A',
+          address: order.patient?.address || order.collectionAddress || 'N/A'
+        },
+        labData: {
+          TestName: order.labTest?.TestName || order.testName || 'N/A',
+          status: assignment?.status || order.status,
+          location: order.collectionAddress || order.patient?.address || 'N/A',
+          scheduleAt: order.scheduledDate || order.collectionDate,
+          Notes: order.fastingRequired || order.specialInstructions || order.notes
+        }
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Orders retrieved successfully',
+      count: formattedOrders.length,
+      orders: formattedOrders
+    });
+
+  } catch (error) {
+    console.error('Error fetching staff orders:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching orders',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get single order details
+ * @route GET /admin/staff/order/:orderId
+ * @access Private (Lab Staff only)
+ */
+exports.getOrderById = async (req, res) => {
+  try {
+    const staffId = req.user.id;
+    const { orderId } = req.params;
+
+    // Find lab staff
+    const labStaff = await LabStaff.findOne({ user: staffId });
+    
+    if (!labStaff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lab staff member not found'
+      });
+    }
+
+    // Check if order is assigned to this staff
+    const isAssigned = labStaff.assignedOrders.some(
+      order => order.orderId.toString() === orderId
+    );
+
+    if (!isAssigned) {
+      return res.status(403).json({
+        success: false,
+        message: 'Order not assigned to you'
+      });
+    }
+
+    // Fetch order details
+    const order = await LabTestOrder.findById(orderId)
+      .populate('patient', 'name phone email address')
+      .populate('labTest', 'TestName description price');
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    const assignment = labStaff.assignedOrders.find(
+      a => a.orderId.toString() === orderId
+    );
+
+    const formattedOrder = {
+      orderId: order._id,
+      status: assignment?.status || order.status,
+      assignedAt: assignment?.assignedAt,
+      patientData: {
+        name: order.patient?.name || 'N/A',
+        phone: order.patient?.phone || 'N/A',
+        email: order.patient?.email || 'N/A',
+        address: order.patient?.address || 'N/A'
+      },
+      labData: {
+        TestName: order.labTest?.TestName || 'N/A',
+        description: order.labTest?.description,
+        status: assignment?.status || order.status,
+        location: order.collectionAddress || order.patient?.address,
+        scheduleAt: order.scheduledDate || order.collectionDate,
+        Notes: order.fastingRequired || order.notes
+      }
+    };
+
+    return res.status(200).json({
+      success: true,
+      message: 'Order details retrieved successfully',
+      order: formattedOrder
+    });
+
+  } catch (error) {
+    console.error('Error fetching order details:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching order details',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Update order status (assigned -> in_progress -> completed)
+ * @route PUT /admin/staff/order/:orderId/status
+ * @access Private (Lab Staff only)
+ */
+exports.updateOrderStatus = async (req, res) => {
+  try {
+    const staffId = req.user.id;
+    const { orderId } = req.params;
+    const { status, notes } = req.body;
+
+    // Validate status
+    const validStatuses = ['assigned', 'in_progress', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status value. Allowed: assigned, in_progress, completed, cancelled'
+      });
+    }
+
+    // Find lab staff
+    const labStaff = await LabStaff.findOne({ user: staffId });
+    
+    if (!labStaff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lab staff member not found'
+      });
+    }
+
+    // Find the assigned order
+    const assignmentIndex = labStaff.assignedOrders.findIndex(
+      order => order.orderId.toString() === orderId
+    );
+
+    if (assignmentIndex === -1) {
+      return res.status(403).json({
+        success: false,
+        message: 'Order not assigned to you'
+      });
+    }
+
+    // Update the status in assignedOrders array
+    labStaff.assignedOrders[assignmentIndex].status = status;
+
+    // If completed, increment completedOrders count
+    if (status === 'completed') {
+      labStaff.completedOrders += 1;
+    }
+
+    await labStaff.save();
+
+    // Also update the main order if needed
+    const order = await LabTestOrder.findById(orderId);
+    if (order) {
+      order.status = status;
+      if (notes) {
+        order.staffNotes = notes;
+      }
+      
+      // Update timestamps based on status
+      if (status === 'in_progress' && !order.collectionStartedAt) {
+        order.collectionStartedAt = new Date();
+      } else if (status === 'completed' && !order.completedAt) {
+        order.completedAt = new Date();
+      }
+      
+      await order.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Order status updated successfully',
+      order: {
+        orderId: orderId,
+        status: status
+      }
+    });
+
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while updating order status',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Start sample collection (assigned -> in_progress)
+ * @route POST /admin/staff/order/:orderId/start-collection
+ * @access Private (Lab Staff only)
+ */
+exports.startCollection = async (req, res) => {
+  try {
+    const staffId = req.user.id;
+    const { orderId } = req.params;
+    const { location } = req.body;
+
+    const labStaff = await LabStaff.findOne({ user: staffId });
+    
+    if (!labStaff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lab staff member not found'
+      });
+    }
+
+    // Find the assigned order
+    const assignmentIndex = labStaff.assignedOrders.findIndex(
+      order => order.orderId.toString() === orderId
+    );
+
+    if (assignmentIndex === -1) {
+      return res.status(403).json({
+        success: false,
+        message: 'Order not assigned to you'
+      });
+    }
+
+    // Check current status
+    const currentStatus = labStaff.assignedOrders[assignmentIndex].status;
+    if (currentStatus !== 'assigned') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot start collection. Order is already ${currentStatus}`
+      });
+    }
+
+    // Update status to in_progress
+    labStaff.assignedOrders[assignmentIndex].status = 'in_progress';
+    await labStaff.save();
+
+    // Update main order
+    const order = await LabTestOrder.findById(orderId);
+    if (order) {
+      order.status = 'in_progress';
+      order.collectionStartedAt = new Date();
+      if (location) {
+        order.actualCollectionLocation = location;
+      }
+      await order.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Sample collection started successfully',
+      order: {
+        orderId: orderId,
+        status: 'in_progress',
+        collectionStartedAt: new Date()
+      }
+    });
+
+  } catch (error) {
+    console.error('Error starting collection:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while starting collection',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Complete sample collection (in_progress -> completed)
+ * @route POST /admin/staff/order/:orderId/complete-collection
+ * @access Private (Lab Staff only)
+ */
+exports.completeCollection = async (req, res) => {
+  try {
+    const staffId = req.user.id;
+    const { orderId } = req.params;
+    const { notes, sampleIds } = req.body;
+
+    const labStaff = await LabStaff.findOne({ user: staffId });
+    
+    if (!labStaff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lab staff member not found'
+      });
+    }
+
+    // Find the assigned order
+    const assignmentIndex = labStaff.assignedOrders.findIndex(
+      order => order.orderId.toString() === orderId
+    );
+
+    if (assignmentIndex === -1) {
+      return res.status(403).json({
+        success: false,
+        message: 'Order not assigned to you'
+      });
+    }
+
+    // Check current status
+    const currentStatus = labStaff.assignedOrders[assignmentIndex].status;
+    if (currentStatus !== 'in_progress') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot complete collection. Order status is ${currentStatus}`
+      });
+    }
+
+    // Update status to completed
+    labStaff.assignedOrders[assignmentIndex].status = 'completed';
+    labStaff.completedOrders += 1;
+    await labStaff.save();
+
+    // Update main order
+    const order = await LabTestOrder.findById(orderId);
+    if (order) {
+      order.status = 'completed';
+      order.completedAt = new Date();
+      if (notes) {
+        order.collectionNotes = notes;
+      }
+      if (sampleIds) {
+        order.sampleIds = sampleIds;
+      }
+      await order.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Sample collection completed successfully',
+      order: {
+        orderId: orderId,
+        status: 'completed',
+        completedAt: new Date()
+      }
+    });
+
+  } catch (error) {
+    console.error('Error completing collection:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while completing collection',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get staff profile with statistics
+ * @route GET /admin/staff/profile
+ * @access Private (Lab Staff only)
+ */
+exports.getStaffProfile = async (req, res) => {
+  try {
+    const staffId = req.user.id;
+
+    const labStaff = await LabStaff.findOne({ user: staffId })
+      .populate('user', 'name email phone');
+
+    if (!labStaff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lab staff member not found'
+      });
+    }
+
+    // Calculate statistics
+    const totalAssigned = labStaff.assignedOrders.length;
+    const inProgress = labStaff.assignedOrders.filter(o => o.status === 'in_progress').length;
+    const completed = labStaff.completedOrders;
+
+    return res.status(200).json({
+      success: true,
+      staff: {
+        id: labStaff._id,
+        name: labStaff.name,
+        email: labStaff.email,
+        phone: labStaff.phone,
+        role: labStaff.role,
+        isActive: labStaff.isActive,
+        isAvailable: labStaff.isAvailable,
+        location: labStaff.location,
+        address: labStaff.address,
+        rating: labStaff.rating,
+        statistics: {
+          totalAssigned,
+          inProgress,
+          completed,
+          completedOrders: labStaff.completedOrders
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching staff profile:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching profile',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Toggle staff availability
+ * @route PUT /admin/staff/availability
+ * @access Private (Lab Staff only)
+ */
+exports.toggleAvailability = async (req, res) => {
+  try {
+    const staffId = req.user.id;
+    const { isAvailable } = req.body;
+
+    const labStaff = await LabStaff.findOne({ user: staffId });
+    
+    if (!labStaff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lab staff member not found'
+      });
+    }
+
+    labStaff.isAvailable = isAvailable !== undefined ? isAvailable : !labStaff.isAvailable;
+    await labStaff.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Availability ${labStaff.isAvailable ? 'enabled' : 'disabled'} successfully`,
+      isAvailable: labStaff.isAvailable
+    });
+
+  } catch (error) {
+    console.error('Error toggling availability:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while updating availability',
+      error: error.message
+    });
+  }
+};

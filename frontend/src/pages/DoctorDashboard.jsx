@@ -692,13 +692,6 @@ const handleStatusChange = async (appointmentId, newStatus) => {
           >
             Upgrade to Premium ⭐
           </button>
-
-          {/* <button
-            onClick={() => navigate("/all-appointments")}
-            className="bg-sky-600 text-white px-4 py-2 rounded-md hover:bg-sky-700 transition flex items-center gap-2"
-          >
-            <CalendarDays size={16} /> All Appointments
-          </button> */}
         </div>
       </div>
 
@@ -717,58 +710,145 @@ const handleStatusChange = async (appointmentId, newStatus) => {
           /> */}
         </div>
 
-        <div className="flex gap-3 items-center">
-          {/* <label className="flex items-center gap-2 text-sm text-gray-600">
-            <input type="checkbox" checked={onlyToday} onChange={(e) => setOnlyToday(e.target.checked)} className="form-checkbox" />
-            Only Today
-          </label> */}
-
-          {/* <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="py-2 px-3 border border-gray-200 rounded-lg bg-white"
-            aria-label="Filter by status"
-          >
-            <option value="all">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="completed">Completed</option>
-            <option value="scheduled">Scheduled</option>
-          </select> */}
-        </div>
-
         <div className="text-right">
           <p className="text-sm text-gray-500">Showing <strong>{filteredAppointments.length}</strong> of <strong>{appointments.length}</strong></p>
         </div>
       </div>
 
       {/* Appointments grid */}
-      <section>
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </div>
-        ) : appointments.length === 0 ? (
-          <div className="bg-white p-8 rounded-xl shadow-sm text-center">
-            <CalendarDays className="mx-auto text-gray-400 mb-4" size={48} />
-            <p className="text-gray-600 text-lg">No appointments found.</p>
-            <p className="text-gray-500 text-sm mt-2">Try clearing filters or click Refresh.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {appointments.map((appt, idx) => (
-              <AppointmentCard
-                key={appt.appointmentId || appt.patient?._id || idx}
-                appt={appt}
-                onOpenReschedule={openRescheduleModal}
-                onStatusChange={handleStatusChange}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+     {/* Appointments table */}
+{/* Appointments table */}
+{loading ? (
+  <div className="flex justify-center items-center py-12">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+  </div>
+) : appointments.length === 0 ? (
+  <div className="text-center py-12 text-gray-500">
+    <p className="text-lg font-medium">No appointments found.</p>
+    <p className="mt-1">Try clearing filters or click Refresh.</p>
+  </div>
+) : (
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Patient Name
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Doctor
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Specialization
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Consulting Type
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Symptoms
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Meeting Link
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Status
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Actions
+          </th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
+        {appointments.map((appt, idx) => {
+
+          return (
+            <tr key={appt.id || idx} className="hover:bg-gray-50">
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-medium text-gray-900">{appt.patient?.name || appt.name}</div>
+                <div className="text-sm text-gray-500">{appt.patient?.gender || appt.gender}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-medium text-gray-900">
+                  {appt.doctor?.name || 'N/A'}
+                </div>
+                <div className="text-sm text-gray-500">
+                  {appt.doctor?.phone || ''}
+                </div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm text-gray-900">{appt.specialization}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                  appt.consultingType === 'video' ? 'bg-purple-100 text-purple-800' :
+                  appt.consultingType === 'chat' ? 'bg-blue-100 text-blue-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {appt.consultingType}
+                </span>
+              </td>
+              <td className="px-6 py-4">
+                <div className="text-sm text-gray-900 max-w-xs">
+                  {appt.symptoms && appt.symptoms.length > 0 
+                    ? appt.symptoms.join(', ') 
+                    : 'No symptoms listed'}
+                </div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {appt.meetingLinks?.video ? (
+                  <a 
+                    href={appt.meetingLinks.video} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-900 text-sm font-medium"
+                  >
+                    Join Meeting
+                  </a>
+                ) : (
+                  <span className="text-sm text-gray-400">No link</span>
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                  appt.status === 'completed' ? 'bg-green-100 text-green-800' :
+                  appt.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
+                  appt.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {appt.status}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                {appt.status === 'completed' ? (
+                  <button 
+                    className="text-green-600 hover:text-green-900 px-3 py-1 border border-green-600 rounded hover:bg-green-50"
+                  >
+                    Completed
+                  </button>
+                ) : (
+                  <div className="flex space-x-2">
+                    <button 
+                      onClick={() => openRescheduleModal(appt)}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      Reschedule
+                    </button>
+                    <button 
+                      onClick={() => handleStatusChange(appt.id, 'cancelled')}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+)}
 
       {/* Reschedule modal */}
       <RescheduleModal

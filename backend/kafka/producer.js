@@ -1,7 +1,6 @@
 const { Kafka } = require('kafkajs');
 const { TOPICS } = require('./topics');
 
-// Create Kafka client with proper configuration
 const kafka = new Kafka({
   clientId: 'caremitra-lab-service',
   brokers: ['localhost:9092'],
@@ -20,14 +19,13 @@ class KafkaProducer {
     this.useMock = false;
     this.events = []; 
     
-    // Suppress partitioner warning
+   
     if (!process.env.KAFKAJS_NO_PARTITIONER_WARNING) {
       process.env.KAFKAJS_NO_PARTITIONER_WARNING = '1';
     }
   }
 
   async initialize() {
-    // If already initializing or initialized, return
     if (this.isInitializing || this.producer || this.useMock) {
       return;
     }
@@ -37,27 +35,22 @@ class KafkaProducer {
     try {
       console.log('Initializing Kafka producer...');
       
-      // Create and connect producer
       this.producer = kafka.producer();
       await this.producer.connect();
       console.log('Kafka Producer connected successfully');
       
-      // Verify connection by listing topics
       const admin = kafka.admin();
       await admin.connect();
       const topics = await admin.listTopics();
       console.log(` Found ${topics.length} topics: ${topics.join(', ')}`);
-      await admin.disconnect();
-      
+      await admin.disconnect();  
     } catch (error) {
       console.warn(' Could not connect to Kafka:', error.message);
       
-      // In development, fall back to mock
       if (process.env.NODE_ENV === 'development') {
         console.log(' Switching to mock producer for development');
         this.useMock = true;
       } else {
-        // In production, re-throw
         throw new Error(`Kafka initialization failed: ${error.message}`);
       }
     } finally {
@@ -65,18 +58,15 @@ class KafkaProducer {
     }
   }
 
-  // Method to check if using mock
   isUsingMock() {
     return this.useMock;
   }
 
   async sendMessage(topic, eventType, payload) {
-    // Initialize if needed
     if (!this.producer && !this.useMock) {
       await this.initialize();
     }
-    
-    // If using mock, just log and store the event
+  
     if (this.useMock) {
       const event = {
         topic,

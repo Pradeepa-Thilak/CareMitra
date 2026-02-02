@@ -1,5 +1,5 @@
 // src/pages/Doctors.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo,useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ConsultationHero from "../components/common/ConsultationHero";
 import DoctorCard from "../components/user/DoctorCard";
@@ -51,6 +51,9 @@ export default function Doctors() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("All");
+  
+
+  useEffect(() => {  window.scrollTo({ top: 0, left: 0, behavior: "smooth" });}, []);
 
   const filtered = useMemo(() => {
     return mockDoctors.filter((d) => {
@@ -62,6 +65,7 @@ export default function Doctors() {
     });
   }, [search, selectedSpecialty]);
 
+  
   // ⬅ NEW ROUTES
   const openBookingGeneral = () => {
     navigate("/consultation");
@@ -70,6 +74,8 @@ export default function Doctors() {
   const openBookingForDoctor = (doctor) => {
     navigate(`/consultation?doctorId=${doctor.id}`);
   };
+
+  
 
   return (
     <div className="min-h-screen bg-gray-50" style={{ paddingTop: "var(--nav-offset)" }}>
@@ -140,7 +146,7 @@ export default function Doctors() {
 
         {/* // inside Doctors.jsx, after the Reviews block (below the reviews </div>) */}
         <div className="mt-12">
-  <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-blue-200 rounded-xl p-6 shadow-sm text-center">
+  <div className="bg-linear-to-r from-indigo-50 to-blue-50 border border-blue-200 rounded-xl p-6 shadow-sm text-center">
     
     <h3 className="text-xl font-semibold text-gray-800 mb-2">
       Are you a Healthcare Professional?

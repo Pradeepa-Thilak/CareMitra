@@ -77,6 +77,11 @@ export const labTestAPI = {
   uploadReport: (orderId, formData) => api.post(`/lab-tests/report/${orderId}`, formData),
   updateSampleStatus: (orderId) => api.patch(`/lab-tests/sample-status/${orderId}`),
   updateProcessingStatus: (orderId) => api.patch(`/lab-tests/processing-status/${orderId}`),
+  getFeaturedPackages: () => api.get("/lab-tests/featured"),
+  // In your api.js file, add to labTestAPI:
+createPackageOrder: (formData) => api.post('/lab-tests/package-orders', formData, {
+  headers: { 'Content-Type': 'multipart/form-data' }
+}),
 };
 
 // ----------------------------
@@ -119,8 +124,29 @@ export const consultationAPI = {
 // PAYMENT APIs
 // ----------------------------
 export const paymentAPI = {
-  // POST /payment  (verify payment payload or initiate backend-side verification)
-  verifyPayment: (body) => api.post("dashboard/verify-payment", body),
+   createOrder: (payload) => {
+    return api.post("api/orders/create", payload);
+  },
+
+  // 2. Verify Payment (after Razorpay payment success)
+  verifyPayment: (payload) => {
+    return api.post("api/orders/verify-payment", payload);
+  },
+
+  // 3. Create COD Order
+  createCODOrder: (payload) => {
+    return api.post("api/orders/cod", payload);
+  },
+
+  // 4. Get order by ID
+  getOrderById: (orderId) => {
+    return api.get(`api/orders/${orderId}`);
+  },
+
+  // 5. Get all orders for patient
+  getPatientOrders: (patientId) => {
+    return api.get(`api/orders/patient/${patientId}`);
+  },
 };
 
 

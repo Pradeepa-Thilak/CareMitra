@@ -1,77 +1,84 @@
-const jwt = require('jsonwebtoken');
-const Doctor = require('../models/Doctor');
-const Patient = require('../models/Patient');
-const LabStaff = require('../models/LabStaff');
+const jwt = require("jsonwebtoken");
+const Doctor = require("../models/Doctor");
+const Patient = require("../models/Patient");
+const LabStaff = require("../models/LabStaff");
 
 const auth = async (req, res, next) => {
   try {
-    console.log(' AUTH MIDDLEWARE STARTED ');
-    console.log(' URL:', req.url);
+    console.log(" AUTH MIDDLEWARE STARTED ");
+    console.log(" URL:", req.url);
 
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    console.log(' Token Present:', !!token);
+    const authHeader = req.headers.authorization;
+    console.log(" RAW AUTH HEADER:", authHeader);
 
-    if (!token) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         success: false,
-        message: 'Access denied. No token provided.'
+        message: "Authorization header missing or malformed",
       });
     }
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    console.log(' JWT Decoded:', decoded);
+    const token = authHeader.split(" ")[1];
+    console.log(" Token extracted:", token);
 
-    if (!decoded || !decoded.id || !decoded.role) {
-      return res.status(401).json({ success: false, message: "Invalid token" });
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "your-secret-key"
+    );
+
+    console.log(" JWT Decoded:", decoded);
+
+    if (!decoded?.id || !decoded?.role) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid token payload",
+      });
     }
 
-    let user = null;
+    let user;
 
-    // Role-based lookup (NO USER MODEL)
     if (decoded.role === "doctor") {
-      console.log(' Searching Doctor collection...');
       user = await Doctor.findById(decoded.id);
-    } 
-    else if (decoded.role === "patient") {
-      console.log(' Searching Patient collection...');
+    } else if (decoded.role === "patient") {
       user = await Patient.findById(decoded.id);
-    } 
-    else if(decoded.role === "labstaff"){
-      console.log(' Searching labstaff collection...');
+    } else if (decoded.role === "labstaff") {
       user = await LabStaff.findById(decoded.id);
-    }
-    else {
-      return res.status(401).json({ success: false, message: "Invalid role in token" });
+    } else {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid role in token",
+      });
     }
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Invalid token. User not found."
+        message: "User not found",
       });
     }
-
-    // Attach user to req
+    // console.log(user);
+    
     req.user = {
       userId: user._id,
       role: user.role,
-      email: user.email
+      email: user.email,
     };
 
-    console.log(` AUTH SUCCESS → ${user.email} (${user.role}) (${req.user.userId})`);
+    console.log(` AUTH SUCCESS → ${user.email} (${user.role})`);
     next();
 
   } catch (error) {
-    console.log(' AUTH MIDDLEWARE ERROR:', error.message);
+    console.error(" AUTH MIDDLEWARE ERROR:", error.message);
 
-    if (error.name === "JsonWebTokenError")
-      return res.status(401).json({ success: false, message: "Invalid token." });
+    if (error.name === "JsonWebTokenError") {
+      return res.status(401).json({ success: false, message: "Invalid token" });
+    }
 
-    if (error.name === "TokenExpiredError")
-      return res.status(401).json({ success: false, message: "Token expired." });
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ success: false, message: "Token expired" });
+    }
 
-    return res.status(401).json({ success: false, message: "Authentication failed." });
+    return res.status(401).json({ success: false, message: "Authentication failed" });
   }
 };
 

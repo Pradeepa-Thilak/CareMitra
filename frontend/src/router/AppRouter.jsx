@@ -25,7 +25,7 @@ import Orders from "../pages/Orders";
 import AdminRoutes from "../admin/routes/AdminRoutes";
 import UserLayout from "../pages/UserLayout";
 import ChatBot from "../components/ChatBot"; // Import the ChatBot page
-
+import StaffDashboard from "../pages/LabStaffDashboard";
 const AppRouter = () => {
   return (
     <Router>
@@ -55,6 +55,17 @@ const AppRouter = () => {
               </ProtectedRoute>
             }
           />
+           
+            <Route
+            path="/staff/dashboard"
+            element={
+              <ProtectedRoute role="labstaff">
+                <StaffDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+
 
           {/* User Profile */}
           <Route

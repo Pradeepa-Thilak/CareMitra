@@ -59,7 +59,7 @@ const ConsultingDoctorSchema = new mongoose.Schema(
     },
     appointmentDate: {
       type: Date,
-      required: true
+      required: false
     },
     status: {
       type: String,
@@ -70,5 +70,16 @@ const ConsultingDoctorSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+ConsultingDoctorSchema.index(
+  { memberId: 1, status: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ["scheduled", "rescheduled", "paid"] }
+    }
+  }
+);
+
 
 module.exports = mongoose.model('ConsultingDoctor', ConsultingDoctorSchema);

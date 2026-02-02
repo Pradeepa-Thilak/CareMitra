@@ -1,7 +1,5 @@
-// src/pages/BookConsultation.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
 import DoctorCard from "../components/user/DoctorCard";
 import { useAuth } from "../hooks/useAuth";
 import { memberAPI, consultationAPI, paymentAPI, doctorAPI } from "../utils/api";
@@ -41,16 +39,94 @@ const CONSULTATION_DISPLAY = {
   "chat": "Chat"
 };
 
+// Local storage utility
 const ls = {
   read: (k, fallback) => {
-    try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
+    try { 
+      const v = localStorage.getItem(k); 
+      return v ? JSON.parse(v) : fallback; 
+    } catch (e) { 
+      return fallback; 
+    }
   },
-  write: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  write: (k, v) => { 
+    try { 
+      localStorage.setItem(k, JSON.stringify(v)); 
+    } catch (e) {
+      console.error("Failed to write to localStorage:", e);
+    }
+  },
+  remove: (k) => {
+    try {
+      localStorage.removeItem(k);
+    } catch (e) {
+      console.error("Failed to remove from localStorage:", e);
+    }
+  }
+};
+
+// Cache keys
+const CACHE_KEYS = {
+  MEMBERS: "caremitra_members_v2",
+  SELECTED_MEMBER: "caremitra_selected_member",
+  CONSULTATION_TYPE: "caremitra_consultation_type",
+  SYMPTOMS: "caremitra_selected_symptoms",
+  SPECIALTY: "caremitra_selected_specialty",
+  SELECTED_DOCTOR: "caremitra_selected_doctor",
+  CURRENT_STEP: "caremitra_current_step"
 };
 
 function useQuery() {
   return new URLSearchParams(useLocation().search);
 }
+
+
+
+// Validation utilities
+const validatePhone = (phone) => {
+  if (!phone) return { valid: false, error: "Phone number is required" };
+  const phoneRegex = /^[6-9]\d{9}$/;
+  if (!phoneRegex.test(phone.replace(/\D/g, ""))) {
+    return { valid: false, error: "Enter a valid 10-digit phone number" };
+  }
+  return { valid: true, error: null };
+};
+
+const validateName = (name) => {
+  if (!name || name.trim().length === 0) {
+    return { valid: false, error: "Name is required" };
+  }
+  if (name.trim().length < 2) {
+    return { valid: false, error: "Name must be at least 2 characters" };
+  }
+  const nameRegex = /^[a-zA-Z\s.'-]+$/;
+  if (!nameRegex.test(name.trim())) {
+    return { valid: false, error: "Name contains invalid characters" };
+  }
+  return { valid: true, error: null };
+};
+
+const validateAge = (age) => {
+  if (!age || age === "") {
+    return { valid: false, error: "Age is required" };
+  }
+  const ageNum = Number(age);
+  if (isNaN(ageNum)) {
+    return { valid: false, error: "Age must be a number" };
+  }
+  if (ageNum < 0 || ageNum > 120) {
+    return { valid: false, error: "Age must be between 0 and 120" };
+  }
+  return { valid: true, error: null };
+};
+
+const validateGender = (gender) => {
+  const validGenders = ["Male", "Female", "Other"];
+  if (!validGenders.includes(gender)) {
+    return { valid: false, error: "Please select a valid gender" };
+  }
+  return { valid: true, error: null };
+};
 
 export default function BookConsultation() {
   const navigate = useNavigate();
@@ -61,21 +137,35 @@ export default function BookConsultation() {
 
   // State for doctors list
   const [doctors, setDoctors] = useState([]);
-  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [selectedDoctor, setSelectedDoctor] = useState(() => {
+    // Restore selected doctor from cache
+    return ls.read(CACHE_KEYS.SELECTED_DOCTOR, null);
+  });
 
-  // STEP state
-  const [step, setStep] = useState(1);
+  // STEP state - restore from cache
+  const [step, setStep] = useState(() => {
+    const savedStep = ls.read(CACHE_KEYS.CURRENT_STEP, 1);
+    return savedStep > 3 ? 1 : savedStep; // Reset if invalid step
+  });
 
-  // Members
+  // Members state
   const [members, setMembers] = useState([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState(null);
 
-  const [selectedMemberId, setSelectedMemberId] = useState(null);
+  // Selected member - restore from cache
+  const [selectedMemberId, setSelectedMemberId] = useState(() => {
+    return ls.read(CACHE_KEYS.SELECTED_MEMBER, null);
+  });
 
-  // Phone & consultation type
-  const [phone, setPhone] = useState("");
-  const [consultationType, setConsultationType] = useState("video");
+  // Phone & consultation type - restore from cache
+  const [phone, setPhone] = useState(() => {
+    return ls.read(CACHE_KEYS.CONSULTATION_TYPE, "")?.phone || "";
+  });
+  
+  const [consultationType, setConsultationType] = useState(() => {
+    return ls.read(CACHE_KEYS.CONSULTATION_TYPE, "")?.type || "video";
+  });
 
   // Member form
   const [isEditingMember, setIsEditingMember] = useState(false);
@@ -84,16 +174,28 @@ export default function BookConsultation() {
   const [formAge, setFormAge] = useState("");
   const [formGender, setFormGender] = useState("Female");
   const [formPhone, setFormPhone] = useState("");
+  
+  // Form validation errors
+  const [formErrors, setFormErrors] = useState({
+    name: null,
+    age: null,
+    gender: null,
+    phone: null
+  });
 
-  // Symptoms
+  // Symptoms - restore from cache
   const [symptomQuery, setSymptomQuery] = useState("");
-  const [selectedSymptoms, setSelectedSymptoms] = useState([]);
+  const [selectedSymptoms, setSelectedSymptoms] = useState(() => {
+    return ls.read(CACHE_KEYS.SYMPTOMS, []);
+  });
   const symptomInputRef = useRef(null);
   const suggestionRef = useRef(null);
   const [inputFocused, setInputFocused] = useState(false);
 
-  // Specialty
-  const [selectedSpecialty, setSelectedSpecialty] = useState("");
+  // Specialty - restore from cache
+  const [selectedSpecialty, setSelectedSpecialty] = useState(() => {
+    return ls.read(CACHE_KEYS.SPECIALTY, "");
+  });
   const [specialtyDoctors, setSpecialtyDoctors] = useState([]);
 
   // Loading & error states
@@ -107,7 +209,48 @@ export default function BookConsultation() {
   useEffect(() => {
     loadDoctors();
     loadMembers();
+    
+    // Clean up cache on unmount (optional)
+    return () => {
+      // You might want to clear cache here if booking is complete
+      // ls.remove(CACHE_KEYS.CURRENT_STEP);
+      // ls.remove(CACHE_KEYS.SELECTED_DOCTOR);
+      // ls.remove(CACHE_KEYS.SPECIALTY);
+      // ls.remove(CACHE_KEYS.SYMPTOMS);
+    };
   }, []);
+
+  // Cache state changes
+  useEffect(() => {
+    ls.write(CACHE_KEYS.CURRENT_STEP, step);
+  }, [step]);
+
+  useEffect(() => {
+    ls.write(CACHE_KEYS.SELECTED_DOCTOR, selectedDoctor);
+  }, [selectedDoctor]);
+
+  useEffect(() => {
+    ls.write(CACHE_KEYS.SPECIALTY, selectedSpecialty);
+  }, [selectedSpecialty]);
+
+  useEffect(() => {
+    ls.write(CACHE_KEYS.SYMPTOMS, selectedSymptoms);
+  }, [selectedSymptoms]);
+
+  useEffect(() => {
+    ls.write(CACHE_KEYS.SELECTED_MEMBER, selectedMemberId);
+  }, [selectedMemberId]);
+
+  useEffect(() => {
+    ls.write(CACHE_KEYS.CONSULTATION_TYPE, { type: consultationType, phone });
+  }, [consultationType, phone]);
+
+  // Save members to cache when they change
+  useEffect(() => {
+    if (members.length > 0) {
+      ls.write(CACHE_KEYS.MEMBERS, members);
+    }
+  }, [members]);
 
   // Load available doctors
   const loadDoctors = async () => {
@@ -123,6 +266,16 @@ export default function BookConsultation() {
             setSelectedDoctor(doctor);
             setSelectedSpecialty(doctor.specialization);
           }
+        } else {
+          // Restore selected doctor from cache if no query param
+          const cachedDoctorId = selectedDoctor?._id;
+          if (cachedDoctorId) {
+            const doctor = res.data.data.find(d => d._id === cachedDoctorId);
+            if (doctor) {
+              setSelectedDoctor(doctor);
+              setSelectedSpecialty(doctor.specialization);
+            }
+          }
         }
       }
     } catch (err) {
@@ -130,7 +283,7 @@ export default function BookConsultation() {
     }
   };
 
-  // Load members from backend
+  // Load members from backend with cache fallback
   const loadMembers = async () => {
     setMembersLoading(true);
     setMembersError(null);
@@ -139,7 +292,6 @@ export default function BookConsultation() {
       const res = await memberAPI.getMembers();
       
       if (res.data.success) {
-        // Backend returns { success: true, data: membersArray }
         const membersList = res.data.data || [];
         
         const transformed = membersList.map(member => ({
@@ -149,55 +301,58 @@ export default function BookConsultation() {
           gender: member.gender,
           phone: member.phoneNumber || member.phone,
         }));
-
-        // Add self as a member if user exists
-        if (user && !transformed.some(m => m.name.includes("You"))) {
-          transformed.unshift({
-            id: "self",
-            name: `${user.name} (You)`,
-            age: user.age || 30,
-            gender: user.gender || "Female",
-            phone: user.phone || ""
-          });
-        }
-
+        
         setMembers(transformed);
         
-        if (transformed.length > 0) {
+        // Restore selected member if exists
+        const cachedMemberId = ls.read(CACHE_KEYS.SELECTED_MEMBER, null);
+        if (cachedMemberId && transformed.some(m => m.id === cachedMemberId)) {
+          setSelectedMemberId(cachedMemberId);
+          const selectedMember = transformed.find(m => m.id === cachedMemberId);
+          if (selectedMember) {
+            setPhone(selectedMember.phone || "");
+          }
+        } else if (transformed.length > 0) {
           setSelectedMemberId(transformed[0].id);
           setPhone(transformed[0].phone || "");
         }
       } else {
-        setMembersError("Failed to load members");
+        throw new Error("Failed to load members from API");
       }
     } catch (err) {
-      console.error("Error loading members:", err);
-      setMembersError("Failed to load members");
+      console.error("Error loading members from API:", err);
+      setMembersError("Failed to load members from server");
       
-      // Fallback to local storage if API fails
-      const fallbackMembers = ls.read("caremitra_members_v1", []);
-      if (fallbackMembers.length > 0) {
-        setMembers(fallbackMembers);
-        setSelectedMemberId(fallbackMembers[0]?.id);
-        setPhone(fallbackMembers[0]?.phone || "");
+      // Fallback to cache if API fails
+      const cachedMembers = ls.read(CACHE_KEYS.MEMBERS, []);
+      if (cachedMembers.length > 0) {
+        setMembers(cachedMembers);
+        
+        const cachedMemberId = ls.read(CACHE_KEYS.SELECTED_MEMBER, null);
+        if (cachedMemberId && cachedMembers.some(m => m.id === cachedMemberId)) {
+          setSelectedMemberId(cachedMemberId);
+          const selectedMember = cachedMembers.find(m => m.id === cachedMemberId);
+          if (selectedMember) {
+            setPhone(selectedMember.phone || "");
+          }
+        } else if (cachedMembers.length > 0) {
+          setSelectedMemberId(cachedMembers[0]?.id);
+          setPhone(cachedMembers[0]?.phone || "");
+        }
       }
     } finally {
       setMembersLoading(false);
     }
   };
 
-  // Save to localStorage when members change
-  useEffect(() => {
-    if (members.length > 0) {
-      ls.write("caremitra_members_v1", members);
-    }
-  }, [members]);
-
   // Update phone when member changes
   useEffect(() => {
     const member = members.find(m => m.id === selectedMemberId);
     if (member) {
-      setPhone(member.phone || "");
+      const phoneValidation = validatePhone(member.phone || "");
+      if (phoneValidation.valid) {
+        setPhone(member.phone || "");
+      }
     }
   }, [selectedMemberId, members]);
 
@@ -220,6 +375,21 @@ export default function BookConsultation() {
     }
     return ALL_SYMPTOMS.filter((s) => s.toLowerCase().includes(q)).slice(0, 200);
   }, [symptomQuery, inputFocused]);
+
+  // Form validation
+  const validateMemberForm = () => {
+    const errors = {
+      name: validateName(formName).error,
+      age: validateAge(formAge).error,
+      gender: validateGender(formGender).error,
+      phone: formPhone ? validatePhone(formPhone).error : null
+    };
+    
+    setFormErrors(errors);
+    
+    // Check if any errors exist
+    return !Object.values(errors).some(error => error !== null);
+  };
 
   // Handlers
   const handleSelectSymptomFromDropdown = (sym) => {
@@ -244,6 +414,12 @@ export default function BookConsultation() {
     setFormAge("");
     setFormGender("Female");
     setFormPhone("");
+    setFormErrors({
+      name: null,
+      age: null,
+      gender: null,
+      phone: null
+    });
   };
 
   const startEditMember = (m) => {
@@ -253,26 +429,33 @@ export default function BookConsultation() {
     setFormAge(String(m.age || ""));
     setFormGender(m.gender || "Female");
     setFormPhone(m.phone || "");
+    setFormErrors({
+      name: null,
+      age: null,
+      gender: null,
+      phone: null
+    });
   };
 
   // Save member using backend
   const saveMember = async () => {
-    if (!formName || !formAge) {
-      setStepError("Name and age are required");
+    // Validate form
+    if (!validateMemberForm()) {
+      setStepError("Please fix the form errors");
       return;
     }
-
-    const payload = {
-      name: formName,
-      age: Number(formAge),
-      gender: formGender,
-      phone: formPhone,
-    };
 
     setStepLoading(true);
     setStepError(null);
 
     try {
+      const payload = {
+        name: formName.trim(),
+        age: Number(formAge),
+        gender: formGender,
+        phone: formPhone || "",
+      };
+
       if (!editingMember) {
         // Add new member
         const res = await memberAPI.addMember(payload);
@@ -289,18 +472,28 @@ export default function BookConsultation() {
           setMembers(prev => [...prev, newMember]);
           setSelectedMemberId(newMember.id);
           setPhone(newMember.phone || "");
+          
+          // Update cache
+          ls.write(CACHE_KEYS.SELECTED_MEMBER, newMember.id);
         }
       } else {
         // Edit existing member
-        await memberAPI.editMember(editingMember.id, payload);
+        const res = await memberAPI.editMember(editingMember.id, payload);
         
-        setMembers(prev =>
-          prev.map(m =>
-            m.id === editingMember.id
-              ? { ...m, ...payload }
-              : m
-          )
-        );
+        if (res.data.success) {
+          setMembers(prev =>
+            prev.map(m =>
+              m.id === editingMember.id
+                ? { ...m, ...payload }
+                : m
+            )
+          );
+          
+          // If editing currently selected member, update phone
+          if (editingMember.id === selectedMemberId) {
+            setPhone(payload.phone || "");
+          }
+        }
       }
 
       setIsEditingMember(false);
@@ -329,7 +522,9 @@ export default function BookConsultation() {
       if (memberId === "self") {
         setMembers(prev => prev.filter(m => m.id !== memberId));
         if (selectedMemberId === memberId) {
-          setSelectedMemberId(members[1]?.id || null);
+          const newSelected = members.find(m => m.id !== memberId)?.id || null;
+          setSelectedMemberId(newSelected);
+          ls.write(CACHE_KEYS.SELECTED_MEMBER, newSelected);
         }
       } else {
         // Remove from backend
@@ -337,7 +532,9 @@ export default function BookConsultation() {
         
         setMembers(prev => prev.filter(m => m.id !== memberId));
         if (selectedMemberId === memberId) {
-          setSelectedMemberId(members[1]?.id || null);
+          const newSelected = members.find(m => m.id !== memberId)?.id || null;
+          setSelectedMemberId(newSelected);
+          ls.write(CACHE_KEYS.SELECTED_MEMBER, newSelected);
         }
       }
     } catch (err) {
@@ -348,30 +545,37 @@ export default function BookConsultation() {
   };
 
   // Step 1: Save consultation type and move to step 2
-async function handleStep1Continue() {
-  setStepLoading(true);
-  setStepError(null);
+  const handleStep1Continue = async () => {
+    setStepLoading(true);
+    setStepError(null);
 
-  try {
-    if (!selectedMemberId) throw new Error("Select a member first");
+    try {
+      if (!selectedMemberId) {
+        throw new Error("Select a member first");
+      }
 
-    // Use consultationType state variable (not 'mode')
-    const payload = { consultingType: consultationType }; // Assuming you have consultationType state
-    
-    console.log("Saving consultation type:", payload);
+      // Validate phone
+      const phoneValidation = validatePhone(phone);
+      if (!phoneValidation.valid) {
+        throw new Error(phoneValidation.error);
+      }
 
-    // Call the correct endpoint - PUT method
-    await memberAPI.addMode(selectedMemberId, payload);
+      const payload = { consultingType: consultationType };
+      
+      console.log("Saving consultation type:", payload);
 
-    // advance UI
-    setStep(2);
-  } catch (err) {
-    console.error("Failed to save consulting mode:", err);
-    setStepError(err?.response?.data?.message || err.message || "Could not save mode");
-  } finally {
-    setStepLoading(false);
-  }
-}
+      // Call the correct endpoint - PUT method
+      await memberAPI.addMode(selectedMemberId, payload);
+
+      // Advance to next step
+      setStep(2);
+    } catch (err) {
+      console.error("Failed to save consulting mode:", err);
+      setStepError(err?.response?.data?.message || err.message || "Could not save mode");
+    } finally {
+      setStepLoading(false);
+    }
+  };
 
   // Step 2: Save symptoms and move to step 3
   const handleStep2Continue = async () => {
@@ -445,8 +649,8 @@ async function handleStep1Continue() {
 
   // Final confirmation and payment
   const handleConfirm = async () => {
-    if (!selectedMemberId || selectedMemberId === "self") {
-      setStepError("Please add a member first");
+    if (!selectedMemberId) {
+      setStepError("Please select a member first");
       return;
     }
 
@@ -476,7 +680,10 @@ async function handleStep1Continue() {
 
       const orderData = orderRes.data;
 
-      // 3. Process payment if required
+      // 3. Clear cache before proceeding to payment
+      clearBookingCache();
+
+      // 4. Process payment if required
       if (orderData.rzpOrder && orderData.rzpOrder.id) {
         await openRazorpayAndVerify(orderData.rzpOrder, orderData.appointmentId);
       } else {
@@ -499,6 +706,16 @@ async function handleStep1Continue() {
     } finally {
       setStepLoading(false);
     }
+  };
+
+  // Clear booking cache
+  const clearBookingCache = () => {
+    ls.remove(CACHE_KEYS.CURRENT_STEP);
+    ls.remove(CACHE_KEYS.SELECTED_DOCTOR);
+    ls.remove(CACHE_KEYS.SPECIALTY);
+    ls.remove(CACHE_KEYS.SYMPTOMS);
+    ls.remove(CACHE_KEYS.CONSULTATION_TYPE);
+    // Note: Don't remove MEMBERS and SELECTED_MEMBER as they're needed for future bookings
   };
 
   // Razorpay payment integration
@@ -623,9 +840,6 @@ async function handleStep1Continue() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20" style={{ paddingTop: "var(--nav-offset)" }}>
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-          <ChevronLeft size={16} /> Back
-        </button>
 
         <div className="flex items-center gap-4 mb-6">
           <div className={`h-1 w-24 rounded ${progressClasses(1)}`} />
@@ -725,28 +939,52 @@ async function handleStep1Continue() {
                         <h3 className="font-medium mb-3">{editingMember ? "Edit member" : "Add member"}</h3>
                         <div className="space-y-3">
                           <div>
-                            <label className="text-sm text-gray-600 block mb-1">Full name</label>
+                            <label className="text-sm text-gray-600 block mb-1">Full name *</label>
                             <input 
                               value={formName} 
                               onChange={(e) => setFormName(e.target.value)} 
+                              onBlur={() => {
+                                setFormErrors(prev => ({
+                                  ...prev,
+                                  name: validateName(formName).error
+                                }));
+                              }}
                               placeholder="e.g., Priya Sharma" 
-                              className="border rounded px-3 py-2 w-full" 
+                              className={`border rounded px-3 py-2 w-full ${
+                                formErrors.name ? "border-red-500" : "border-gray-300"
+                              }`}
                             />
+                            {formErrors.name && (
+                              <div className="text-xs text-red-500 mt-1">{formErrors.name}</div>
+                            )}
                           </div>
 
                           <div className="flex gap-2">
                             <div className="w-1/3">
-                              <label className="text-sm text-gray-600 block mb-1">Age</label>
+                              <label className="text-sm text-gray-600 block mb-1">Age *</label>
                               <input 
                                 value={formAge} 
                                 onChange={(e) => setFormAge(e.target.value)} 
+                                onBlur={() => {
+                                  setFormErrors(prev => ({
+                                    ...prev,
+                                    age: validateAge(formAge).error
+                                  }));
+                                }}
                                 placeholder="e.g., 29" 
                                 type="number"
-                                className="border rounded px-3 py-2 w-full" 
+                                min="0"
+                                max="120"
+                                className={`border rounded px-3 py-2 w-full ${
+                                  formErrors.age ? "border-red-500" : "border-gray-300"
+                                }`}
                               />
+                              {formErrors.age && (
+                                <div className="text-xs text-red-500 mt-1">{formErrors.age}</div>
+                              )}
                             </div>
                             <div className="w-2/3">
-                              <label className="text-sm text-gray-600 block mb-1">Gender</label>
+                              <label className="text-sm text-gray-600 block mb-1">Gender *</label>
                               <select 
                                 value={formGender} 
                                 onChange={(e) => setFormGender(e.target.value)} 
@@ -764,9 +1002,30 @@ async function handleStep1Continue() {
                             <input 
                               value={formPhone} 
                               onChange={(e) => setFormPhone(e.target.value)} 
+                              onBlur={() => {
+                                if (formPhone) {
+                                  setFormErrors(prev => ({
+                                    ...prev,
+                                    phone: validatePhone(formPhone).error
+                                  }));
+                                } else {
+                                  setFormErrors(prev => ({
+                                    ...prev,
+                                    phone: null
+                                  }));
+                                }
+                              }}
                               placeholder="98xxxx1234" 
-                              className="border rounded px-3 py-2 w-full" 
+                              className={`border rounded px-3 py-2 w-full ${
+                                formErrors.phone ? "border-red-500" : "border-gray-300"
+                              }`}
                             />
+                            {formErrors.phone && (
+                              <div className="text-xs text-red-500 mt-1">{formErrors.phone}</div>
+                            )}
+                            <div className="text-xs text-gray-500 mt-1">
+                              Optional. Used for doctor communication.
+                            </div>
                           </div>
 
                           <div className="flex gap-2">
@@ -796,17 +1055,28 @@ async function handleStep1Continue() {
 
                   <div>
                     <div>
-                      <label className="text-sm text-gray-600 block mb-1">Patient phone number</label>
+                      <label className="text-sm text-gray-600 block mb-1">Patient phone number *</label>
                       <input 
-                        className="border rounded px-3 py-2 w-full mb-4" 
+                        className={`border rounded px-3 py-2 w-full mb-1 ${
+                          !validatePhone(phone).valid ? "border-red-500" : "border-gray-300"
+                        }`}
                         value={phone} 
                         onChange={(e) => setPhone(e.target.value)} 
+                        onBlur={() => {
+                          const validation = validatePhone(phone);
+                          if (!validation.valid) {
+                            setStepError(validation.error);
+                          }
+                        }}
                         placeholder="98xxxx1234" 
                       />
+                      {!validatePhone(phone).valid && (
+                        <div className="text-xs text-red-500 mb-2">{validatePhone(phone).error}</div>
+                      )}
                     </div>
 
                     <div>
-                      <label className="text-sm text-gray-600 block mb-2">Consultation mode</label>
+                      <label className="text-sm text-gray-600 block mb-2">Consultation mode *</label>
                       <div className="flex gap-2">
                         {CONSULTATION_TYPES.map((type) => (
                           <button 
@@ -833,7 +1103,7 @@ async function handleStep1Continue() {
               {/* Step 2: Symptoms */}
               {step === 2 && (
                 <div>
-                  <h3 className="font-medium mb-3">Tell us your symptoms</h3>
+                  <h3 className="font-medium mb-3">Tell us your symptoms *</h3>
 
                   <div className="relative mb-3">
                     <input
@@ -895,7 +1165,7 @@ async function handleStep1Continue() {
                         </div>
                       ))}
                       {selectedSymptoms.length === 0 && (
-                        <div className="text-xs text-gray-400">No symptoms selected yet</div>
+                        <div className="text-xs text-red-400">Please select at least one symptom</div>
                       )}
                     </div>
                   </div>
@@ -907,7 +1177,7 @@ async function handleStep1Continue() {
               {/* Step 3: Specialty Selection */}
               {step === 3 && (
                 <div>
-                  <h3 className="font-medium mb-3">Select your specialty</h3>
+                  <h3 className="font-medium mb-3">Select your specialty *</h3>
                   
                   {selectedDoctor ? (
                     <div className="mb-4 p-3 bg-sky-50 rounded">
@@ -1021,7 +1291,9 @@ async function handleStep1Continue() {
                         else if (step === 2) handleStep2Continue();
                       }}
                       className="bg-sky-600 text-white px-4 py-2 rounded"
-                      disabled={stepLoading}
+                      disabled={stepLoading || 
+                        (step === 1 && (!selectedMemberId || !validatePhone(phone).valid)) ||
+                        (step === 2 && selectedSymptoms.length === 0)}
                     >
                       {stepLoading ? "Please wait..." : "Continue"}
                     </button>

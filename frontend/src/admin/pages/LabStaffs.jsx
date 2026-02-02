@@ -1,13 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Search,
-  Plus,
-  Eye,
-  UserCheck,
-  UserX,
-  X,
-} from "lucide-react";
+import { Search, Plus, Eye, UserCheck, UserX, X } from "lucide-react";
 import { labStaffAPI } from "../utils/api";
 
 export default function LabStaffs() {
@@ -26,8 +19,12 @@ export default function LabStaffs() {
     phone: "",
     email: "",
     address: "",
+    pincode: "",
+    city: "",
     location: null,
   });
+
+  const [verifying, setVerifying] = useState(false);
 
   /* ---------------- FETCH LAB STAFF ---------------- */
   useEffect(() => {
@@ -44,6 +41,57 @@ export default function LabStaffs() {
   };
 
   /* ---------------- ADD STAFF ---------------- */
+
+  const verifyPincode = async () => {
+    if (newStaff.pincode.length !== 6) {
+      alert("Enter valid 6-digit pincode");
+      return;
+    }
+
+    try {
+      setVerifying(true);
+
+      const res = await fetch(
+        `https://api.postalpincode.in/pincode/${newStaff.pincode}`
+      );
+      const data = await res.json();
+
+      if (data[0].Status !== "Success") {
+        alert("Invalid Pincode");
+        return;
+      }
+
+      const postOffice = data[0].PostOffice[0];
+
+      // OPTIONAL: Use OpenStreetMap to get lat/lng
+      const geoRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${postOffice.Pincode}`
+      );
+      const geoData = await geoRes.json();
+
+      if (!geoData.length) {
+        alert("Location not found");
+        return;
+      }
+
+      setNewStaff((prev) => ({
+        ...prev,
+        city: `${postOffice.District}, ${postOffice.State}`,
+        location: {
+          type: "Point",
+          coordinates: [parseFloat(geoData[0].lon), parseFloat(geoData[0].lat)],
+        },
+      }));
+
+      alert("Pincode verified successfully");
+    } catch (err) {
+      console.error(err);
+      alert("Verification failed");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   const handleAddStaff = async (e) => {
     e.preventDefault();
     try {
@@ -74,8 +122,11 @@ export default function LabStaffs() {
         setNewStaff({
           ...newStaff,
           location: {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
+            type: "Point",
+            coordinates: [
+              position.coords.longitude, // FIRST longitude
+              position.coords.latitude, // THEN latitude
+            ],
           },
         });
       },
@@ -105,7 +156,8 @@ export default function LabStaffs() {
         s.name.toLowerCase().includes(search.toLowerCase()) ||
         s.role.toLowerCase().includes(search.toLowerCase());
       const matchStatus =
-        statusFilter === "All" || (s.isActive ? "Active" : "Inactive") === statusFilter;
+        statusFilter === "All" ||
+        (s.isActive ? "Active" : "Inactive") === statusFilter;
       return matchSearch && matchStatus;
     });
   }, [staffs, search, statusFilter]);
@@ -177,7 +229,9 @@ export default function LabStaffs() {
 
               <span
                 className={`px-2 py-1 text-xs rounded-full ${
-                  staff.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                  staff.isActive
+                    ? "bg-green-100 text-green-700"
+                    : "bg-red-100 text-red-700"
                 }`}
               >
                 {staff.isActive ? "Active" : "Inactive"}
@@ -201,7 +255,11 @@ export default function LabStaffs() {
                   onClick={() => toggleStatus(staff)}
                   className="p-2 rounded hover:bg-gray-100"
                 >
-                  {staff.isActive ? <UserX size={16} /> : <UserCheck size={16} />}
+                  {staff.isActive ? (
+                    <UserX size={16} />
+                  ) : (
+                    <UserCheck size={16} />
+                  )}
                 </button>
               </div>
             </div>
@@ -217,9 +275,7 @@ export default function LabStaffs() {
               key={i}
               onClick={() => setPage(i + 1)}
               className={`px-3 py-1 rounded ${
-                page === i + 1
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200"
+                page === i + 1 ? "bg-blue-600 text-white" : "bg-gray-200"
               }`}
             >
               {i + 1}
@@ -285,15 +341,19 @@ export default function LabStaffs() {
                 className="w-full border px-3 py-2 rounded"
                 placeholder="Name"
                 value={newStaff.name}
-                onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
+                onChange={(e) =>
+                  setNewStaff({ ...newStaff, name: e.target.value })
+                }
                 required
               />
 
               <input
                 className="w-full border px-3 py-2 rounded"
                 placeholder="Role"
-                value={newStaff.role}
-                onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
+                value="labstaff"
+                onChange={(e) =>
+                  setNewStaff({ ...newStaff, role: e.target.value })
+                }
                 required
               />
 
@@ -301,7 +361,9 @@ export default function LabStaffs() {
                 className="w-full border px-3 py-2 rounded"
                 placeholder="Phone"
                 value={newStaff.phone}
-                onChange={(e) => setNewStaff({ ...newStaff, phone: e.target.value })}
+                onChange={(e) =>
+                  setNewStaff({ ...newStaff, phone: e.target.value })
+                }
                 required
               />
 
@@ -309,15 +371,44 @@ export default function LabStaffs() {
                 className="w-full border px-3 py-2 rounded"
                 placeholder="Email"
                 value={newStaff.email}
-                onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
+                onChange={(e) =>
+                  setNewStaff({ ...newStaff, email: e.target.value })
+                }
                 required
               />
 
               <input
                 className="w-full border px-3 py-2 rounded"
+                placeholder="Pincode"
+                value={newStaff.pincode}
+                onChange={(e) =>
+                  setNewStaff({ ...newStaff, pincode: e.target.value })
+                }
+              />
+
+              <button
+                type="button"
+                onClick={verifyPincode}
+                disabled={verifying}
+                className="w-full bg-green-600 text-white py-2 rounded"
+              >
+                {verifying ? "Verifying..." : "Verify Pincode"}
+              </button>
+              
+              <input
+                className="w-full border px-3 py-2 rounded"
                 placeholder="Address"
                 value={newStaff.address}
-                onChange={(e) => setNewStaff({ ...newStaff, address: e.target.value })}
+                onChange={(e) =>
+                  setNewStaff({ ...newStaff, address: e.target.value })
+                }
+                required
+              />
+              <input
+                className="w-full border px-3 py-2 rounded bg-gray-100"
+                placeholder="City / Area"
+                value={newStaff.city}
+                readOnly
               />
 
               <button

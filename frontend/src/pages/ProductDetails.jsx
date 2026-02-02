@@ -141,7 +141,7 @@ const ProductDetails = () => {
   const isLowStock = (product.stock || 0) > 0 && (product.stock || 0) <= 5;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 py-8">
       <motion.div 
         className="container-custom max-w-7xl mx-auto px-4"
         variants={containerVariant}
@@ -194,7 +194,7 @@ const ProductDetails = () => {
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
-                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                    className={`shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
                       selectedImage === index
                         ? "border-blue-500 ring-2 ring-blue-200"
                         : "border-gray-200 hover:border-gray-300"
@@ -255,7 +255,7 @@ const ProductDetails = () => {
               )}
 
               {/* Price Section */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 mb-6">
+              <div className="bg-linear-to-r from-blue-50 to-indigo-50 rounded-xl p-4 mb-6">
                 <div className="flex items-center gap-4">
                   <span className="text-4xl font-bold text-blue-600">
                     ₹{product.discountedPrice ?? product.price}
